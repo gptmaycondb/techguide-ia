@@ -18,17 +18,16 @@ jobs:
           node-version: 20
           cache: npm
 
-      - name: Setup EAS
-        uses: expo/expo-github-action@v8
-        with:
-          eas-version: latest
-          token: ${{ secrets.EXPO_TOKEN }}
-
       - name: Install dependencies
         run: npm install
 
-      - name: Build APK
-        run: eas build --platform android --profile preview --non-interactive --no-wait
+      - name: Install EAS CLI
+        run: npm install -g eas-cli
 
-      - name: Show build URL
-        run: echo "Build iniciado! Acompanhe em https://expo.dev"
+      - name: Build APK
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: npx eas-cli build --platform android --profile preview --non-interactive --no-wait
+
+      - name: Done
+        run: echo "Build enviado! Acompanhe em https://expo.dev/accounts/maycondb/projects/techguide-ia/builds"
