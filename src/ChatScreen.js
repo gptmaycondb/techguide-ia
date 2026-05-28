@@ -1,7 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, FlatList,
-  StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator, SafeAreaView,
+  StyleSheet, KeyboardAvoidingView, Platform, ActivityIndicator,
+  SafeAreaView, Keyboard,
 } from 'react-native';
 import { searchManual, hasRelevantContent } from './search';
 import { API_URL, USER_MODES } from './data';
@@ -17,7 +18,9 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const listRef = useRef(null);
+  const inputRef = useRef(null);
   const currentMode = USER_MODES[mode];
 
   useEffect(() => { setMessages([]); }, [manual.id, mode]);
@@ -29,11 +32,23 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
     }
   }, [pendingQuestion]);
 
-  const scrollToBottom = () => setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
+  useEffect(() => {
+    const show = Keyboard.addListener('keyboardDidShow', e => {
+      setKeyboardHeight(e.endCoordinates.height);
+      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 100);
+    });
+    const hide = Keyboard.addListener('keyboardDidHide', () => {
+      setKeyboardHeight(0);
+    });
+    return () => { show.remove(); hide.remove(); };
+  }, []);
+
+  const scrollToBottom = () => setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 150);
 
   async function send(question) {
     if (!question.trim() || loading) return;
     setInput('');
+    Keyboard.dismiss();
 
     const userMsg = { id: Date.now(), role: 'user', text: question };
     const newMsgs = [...messages, userMsg];
@@ -76,11 +91,16 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
     }
 
     try {
+      const controller = new AbortController();
+      const timeout = setTimeout(() => controller.abort(), 60000); // 60 segundos
+
       const res = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ system: systemPrompt, messages: history, manualId: manual.id }),
+        signal: controller.signal,
       });
+      clearTimeout(timeout);
 
       const text = await res.text();
       let data;
@@ -98,9 +118,11 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
         source, fromManual: foundInManual,
       }]);
     } catch (err) {
+      const msg = err.name === 'AbortError'
+        ? 'Tempo limite excedido. O servidor pode estar iniciando (aguarde 30s e tente novamente).'
+        : 'Erro: ' + err.message;
       setMessages(m => [...m, {
-        id: Date.now() + 1, role: 'ai',
-        text: 'Erro: ' + err.message, isError: true,
+        id: Date.now() + 1, role: 'ai', text: msg, isError: true,
       }]);
     }
 
@@ -160,11 +182,7 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
 
   return (
     <SafeAreaView style={styles.container}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={120}
-      >
+      <View style={{ flex: 1 }}>
         {messages.length === 0 ? (
           <FlatList data={[{ key: 'w' }]} renderItem={renderWelcome} style={styles.list} />
         ) : (
@@ -174,7 +192,7 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
             keyExtractor={m => m.id.toString()}
             renderItem={renderMessage}
             style={styles.list}
-            contentContainerStyle={{ padding: 14, gap: 12 }}
+            contentContainerStyle={{ padding: 14, gap: 12, paddingBottom: 8 }}
           />
         )}
 
@@ -187,8 +205,9 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
           </View>
         )}
 
-        <View style={styles.inputBar}>
+        <View style={[styles.inputBar, { marginBottom: Platform.OS === 'android' ? keyboardHeight : 0 }]}>
           <TextInput
+            ref={inputRef}
             style={styles.input}
             value={input}
             onChangeText={setInput}
@@ -196,6 +215,7 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
             placeholderTextColor={C.muted}
             multiline
             maxLength={500}
+            onFocus={() => scrollToBottom()}
           />
           <TouchableOpacity
             style={[styles.sendBtn, { backgroundColor: (!input.trim() || loading) ? C.border : currentMode.color }]}
@@ -205,7 +225,7 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
             <Text style={styles.sendIcon}>▶</Text>
           </TouchableOpacity>
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </SafeAreaView>
   );
 }
