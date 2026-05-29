@@ -72,11 +72,12 @@ export default function LoginScreen({ onLoginSuccess }) {
     <SafeAreaView style={styles.safe}>
       <StatusBar barStyle="light-content" backgroundColor={C.bg} />
       <KeyboardAvoidingView
-        style={{ flex: 1 }}
+        style={{ flex: 1, backgroundColor: C.bg }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView
           contentContainerStyle={styles.scroll}
+          style={{ backgroundColor: C.bg }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
