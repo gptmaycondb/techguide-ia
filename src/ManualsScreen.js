@@ -257,8 +257,9 @@ export default function ManualsScreen() {
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            💾 Salvos no dispositivo para acesso offline{'\n'}
-            🗑 Toque na lixeira para liberar espaço
+            📥 Baixe os manuais para consulta offline em campo{'\n'}
+            🔍 Pesquise códigos de erro e procedimentos na aba Consulta{'\n'}
+            🗑 Toque na lixeira para remover e liberar espaço
           </Text>
         </View>
       </ScrollView>
