@@ -100,13 +100,16 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
     setLoading(true);
     scrollToBottom();
 
-    const history = newMsgs.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text }));
+    // Limit history to last 6 messages (3 exchanges) to avoid growing token cost
+    const history = newMsgs.slice(-6).map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text }));
     const primaryKey = MANUAL_INDEX_MAP[manual.id] || manual.indexKey || 'e52645_guia';
     const searchKeys = manual.brand === 'ricoh'
       ? ['ricoh_imc3000_service', 'ricoh_imc3000_guia', 'ricoh_imc3000_parts']
       : [primaryKey, 'cpmd', 'service'].filter((v, i, a) => a.indexOf(v) === i);
 
-    const chunks = searchKeys.flatMap(k => searchManual(q, k, 4)).slice(0, 8);
+    // 3 chunks per source, max 5 total, each capped at 700 chars
+    const chunks = searchKeys.flatMap(k => searchManual(q, k, 3)).slice(0, 5)
+      .map(c => c.length > 700 ? c.substring(0, 700) + '…' : c);
     const foundInManual = chunks.length > 0 && searchKeys.some(k => hasRelevantContent(q, k));
 
     const noChunksMsg = manual.brand === 'ricoh'
@@ -136,7 +139,7 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
       const res = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ system: systemPrompt, messages: history, manualId: manual.id }),
+        body: JSON.stringify({ system: systemPrompt, messages: history, manualId: manual.id, max_tokens: 1024 }),
         signal: controller.signal,
       });
       clearTimeout(timeout);
