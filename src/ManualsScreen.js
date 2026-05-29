@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView,
-  Alert, ActivityIndicator, SafeAreaView,
+  Alert, ActivityIndicator, SafeAreaView, Linking,
 } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
@@ -97,13 +97,27 @@ export default function ManualsScreen() {
 
   async function openPdf(dest) {
     try {
-      await Sharing.shareAsync(dest, {
-        mimeType: 'application/pdf',
-        dialogTitle: 'Abrir manual com...',
-        UTI: 'com.adobe.pdf',
-      });
-    } catch (e) {
-      Alert.alert('Erro ao abrir', e.message);
+      // Build an intent:// URI that carries FLAG_GRANT_READ_URI_PERMISSION (0x1)
+      // so the chosen PDF reader can actually read the content:// URI.
+      // This produces the native "Abrir com" (ACTION_VIEW) chooser, not the share sheet.
+      const contentUri = await FileSystem.getContentUriAsync(dest);
+      const uriPath = contentUri.replace('content://', '');
+      const intentUri =
+        `intent://${uriPath}#Intent;scheme=content;` +
+        `action=android.intent.action.VIEW;type=application/pdf;` +
+        `flags=0x00000001;end`;
+      await Linking.openURL(intentUri);
+    } catch {
+      // Fallback: share sheet (expo-sharing uses FileProvider — file actually opens)
+      try {
+        await Sharing.shareAsync(dest, {
+          mimeType: 'application/pdf',
+          dialogTitle: 'Abrir manual com...',
+          UTI: 'com.adobe.pdf',
+        });
+      } catch (e2) {
+        Alert.alert('Erro ao abrir', e2.message);
+      }
     }
   }
 
