@@ -17,21 +17,22 @@ jobs:
         with:
           node-version: 20
 
-      - name: Install dependencies
-        run: npm install
+      - name: Install EAS CLI globally first
+        run: sudo npm install -g eas-cli
 
-      - name: Install EAS CLI
-        run: sudo npm install -g eas-cli --force
+      - name: Install project dependencies
+        run: npm install --ignore-scripts
 
-      - name: Check EAS version
-        run: which eas && eas --version
+      - name: Remove local eas-cli if exists
+        run: rm -rf node_modules/.bin/eas node_modules/eas-cli || true
+
+      - name: Verify EAS
+        run: eas --version
 
       - name: Build APK
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
-        run: |
-          export PATH=$(npm bin -g):$PATH
-          eas build --platform android --profile preview --non-interactive --no-wait
+        run: eas build --platform android --profile preview --non-interactive --no-wait
 
       - name: Done
         run: echo "Acompanhe em https://expo.dev/accounts/maycondb/projects/techguide-ia/builds"
