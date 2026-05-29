@@ -1,23 +1,34 @@
 import searchData from '../assets/search_index.json';
 
-// Synonyms - maps variants to canonical form
 const SYNONYMS = {
-  jam: 'atolamento', jams: 'atolamento', atolado: 'atolamento', preso: 'atolamento',
-  travado: 'atolamento', stuck: 'atolamento', feed: 'atolamento',
-  toner: 'cartucho', cartridge: 'cartucho', suprimento: 'cartucho', supply: 'cartucho',
-  fuser: 'fusor', fusing: 'fusor', fixador: 'fusor', heat: 'fusor',
-  tray: 'bandeja', cassette: 'bandeja', gaveta: 'bandeja',
-  scan: 'digitalizacao', scanner: 'digitalizacao', scanning: 'digitalizacao',
-  flatbed: 'digitalizacao', adf: 'digitalizacao',
-  print: 'impressao', printing: 'impressao', imprimir: 'impressao',
-  network: 'rede', ip: 'rede', ethernet: 'rede', wifi: 'rede', wireless: 'rede',
-  error: 'erro', fault: 'erro', falha: 'erro', mensagem: 'erro', message: 'erro',
-  replace: 'substituir', trocar: 'substituir', install: 'substituir',
-  roller: 'rolo', rolete: 'rolo', pickup: 'rolo',
-  board: 'placa', formatter: 'placa', formatadora: 'placa',
-  configure: 'configurar', setup: 'configurar', ajustar: 'configurar',
-  quality: 'qualidade', borrada: 'qualidade', manchada: 'qualidade',
-  feeder: 'alimentador', document: 'alimentador', documento: 'alimentador',
+  jam:'atolamento', jams:'atolamento', atolado:'atolamento', preso:'atolamento',
+  paper:'papel', feed:'alimentar', feeding:'alimentar', feeder:'alimentador',
+  toner:'cartucho', cartridge:'cartucho', cartridges:'cartucho',
+  supply:'suprimento', supplies:'suprimento',
+  fuser:'fusor', fusing:'fusor',
+  tray:'bandeja', trays:'bandeja', cassette:'bandeja',
+  scan:'digitalizar', scanner:'digitalizacao', scanning:'digitalizacao',
+  print:'imprimir', printing:'impressao', printed:'impressao',
+  network:'rede', wifi:'rede', wireless:'rede', ethernet:'rede', ip:'rede',
+  error:'erro', fault:'falha', failure:'falha', errors:'erro',
+  replace:'substituir', replacement:'substituicao', install:'instalar',
+  roller:'rolo', rollers:'rolo', pickup:'puxada',
+  board:'placa', formatter:'formatadora', pcb:'placa',
+  configure:'configurar', configuration:'configuracao', setup:'configurar',
+  quality:'qualidade', streaks:'riscos', spots:'manchas', blurry:'borrado',
+  document:'documento', adf:'alimentador',
+  calibrate:'calibrar', calibration:'calibracao',
+  reset:'reiniciar', restart:'reiniciar', reboot:'reiniciar',
+  memory:'memoria', firmware:'firmware', driver:'driver',
+};
+
+export const MANUAL_INDEX_MAP = {
+  'e52645_guia':    'e52645_guia',
+  'cpmd':           'cpmd',
+  'm501_catalog':   'service',
+  'm527_catalog':   'service',
+  'e50045_catalog': 'service',
+  'e52545_catalog': 'service',
 };
 
 const STOPWORDS = new Set([
@@ -29,60 +40,41 @@ const STOPWORDS = new Set([
   'the','and','for','this','that','with','from','are','has','was','not','but',
   'have','been','will','can','its','they','their','more','also','when','into',
   'use','each','which','see','note','following','using','used','then','after',
-  'before','during','press','click','select','open','close','remove','install',
-  'place','make','sure','you','your','all','any','new','one','two','three',
-  'page','figure','table','step','steps','section','chapter','product',
+  'before','during','press','select','open','close','make','sure','you','your',
+  'all','any','new','page','figure','table','step','section','chapter',
+  'product','information','available','provides','refer',
 ]);
 
-function normalize(word) {
-  const w = word.toLowerCase();
-  return SYNONYMS[w] || w;
-}
+function normalize(w) { return SYNONYMS[w] || w; }
 
 function tokenize(text) {
-  // Extract error codes
-  const errorCodes = (text.match(/\d{2}\.\d{2}(?:\.\d{2})?/g) || [])
-    .map(c => 'err_' + c.replace(/\./g, '_'));
-
-  // Extract part numbers
-  const partNums = (text.match(/[A-Z]{1,3}\d{3,}[A-Z]?\b|\b[A-Z]{1,2}\d-\d{4,}/g) || [])
+  const errCodes = (text.match(/\d{2}\.\d{2}(?:\.\d{2})?(?:\.\*+)?/g) || [])
+    .map(c => 'EC_' + c.replace(/\./g,'_'));
+  const partNums = (text.match(/\b[A-Z]{1,3}\d{3,}[A-Z]?\b|\b[A-Z]{1,2}\d-\d{4,}\b/g) || [])
     .map(p => p.toLowerCase());
-
-  // Regular words
   const words = (text.toLowerCase().match(/[a-záéíóúâêîôûãõçàèìòùä-ÿa-z][a-záéíóúâêîôûãõçàèìòùä-ÿa-z0-9]{2,}/g) || [])
     .filter(w => !STOPWORDS.has(w))
     .map(normalize);
-
-  return [...words, ...errorCodes, ...partNums];
+  return [...words, ...errCodes, ...partNums];
 }
 
 function bigrams(tokens) {
   const result = [];
   for (let i = 0; i < tokens.length - 1; i++) {
     if (tokens[i].length > 3 && tokens[i+1].length > 3) {
-      result.push(`${tokens[i]}+${tokens[i+1]}`);
+      result.push(tokens[i] + '+' + tokens[i+1]);
     }
   }
   return result;
 }
 
-export const MANUAL_INDEX_MAP = {
-  'e52645_guia':    'e52645_guia',
-  'cpmd':           'cpmd',
-  'm501_catalog':   'service',
-  'm527_catalog':   'service',
-  'e50045_catalog': 'service',
-  'e52545_catalog': 'service',
-};
-
 export function searchManual(query, indexKey, topK = 6) {
   const chunks = searchData[indexKey];
-  if (!chunks || !chunks.length) return [];
+  if (!chunks?.length) return [];
 
   const qTokens = tokenize(query);
   const qBigrams = bigrams(qTokens);
   const qAll = new Set([...qTokens, ...qBigrams]);
-
   if (qAll.size === 0) return [];
 
   const scored = chunks.map(chunk => {
@@ -92,16 +84,15 @@ export function searchManual(query, indexKey, topK = 6) {
 
     let score = 0;
     for (const term of qAll) {
-      if (kTerms.has(term)) score += 3;       // high TF-IDF keyword match
-      else if (tTokens.has(term)) score += 1; // text match
-      // Partial match for longer terms
+      if (kTerms.has(term)) score += 3;
+      else if (tTokens.has(term) || tBigrams.has(term)) score += 1;
+      // Partial match
       if (term.length > 4) {
         for (const kt of kTerms) {
-          if (kt.includes(term) || term.includes(kt)) score += 0.5;
+          if (kt !== term && (kt.includes(term) || term.includes(kt))) score += 0.5;
         }
       }
     }
-
     return { score, text: chunk.t };
   }).filter(c => c.score > 0);
 
@@ -112,7 +103,6 @@ export function searchManual(query, indexKey, topK = 6) {
 export function hasRelevantContent(query, indexKey, minScore = 2) {
   const chunks = searchData[indexKey];
   if (!chunks) return false;
-
   const qTokens = new Set(tokenize(query));
   for (const chunk of chunks) {
     const kTerms = new Set(chunk.k.split(' '));

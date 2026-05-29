@@ -1,9 +1,10 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, FlatList,
-  StyleSheet, ActivityIndicator, SafeAreaView, Keyboard, Platform,
+  StyleSheet, ActivityIndicator, SafeAreaView, Keyboard,
+  Platform, Animated,
 } from 'react-native';
-import { searchManual, hasRelevantContent } from './search';
+import { searchManual, hasRelevantContent, MANUAL_INDEX_MAP } from './search';
 import { API_URL, USER_MODES } from './data';
 
 const C = {
@@ -13,12 +14,53 @@ const C = {
   userBubble: '#1a2744', aiBubble: '#131a28', error: '#ff4d6d',
 };
 
+// Tips for the assistant bubble
+const TIPS = [
+  'Tente perguntar: "Como resolver atolamento na bandeja 2?"',
+  'Dica: Use o código de erro para buscar soluções, ex: "Erro 13.02"',
+  'Pesquise em português ou inglês — entendo os dois!',
+  'Dica: "Como substituir o fusor?" retorna resultados precisos',
+  'Experimente: "Qual o part number do rolo de puxada?"',
+  'Pesquise pelo modelo: "M527 scanner não calibra"',
+  'Dica: Perguntas curtas e diretas dão melhores resultados',
+];
+
+function AssistantBubble({ onSuggest }) {
+  const [tipIdx, setTipIdx] = useState(0);
+  const [visible, setVisible] = useState(true);
+  const scale = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.spring(scale, { toValue: 1, useNativeDriver: true, tension: 80, friction: 8 }).start();
+    const interval = setInterval(() => setTipIdx(i => (i + 1) % TIPS.length), 6000);
+    return () => clearInterval(interval);
+  }, []);
+
+  if (!visible) return null;
+
+  return (
+    <Animated.View style={[styles.assistantWrap, { transform: [{ scale }] }]}>
+      <TouchableOpacity style={styles.assistantBubble} onPress={() => onSuggest(TIPS[tipIdx])} activeOpacity={0.8}>
+        <Text style={styles.assistantIcon}>🤖</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.assistantTitle}>Assistente TG</Text>
+          <Text style={styles.assistantTip}>{TIPS[tipIdx]}</Text>
+        </View>
+        <TouchableOpacity onPress={() => setVisible(false)} style={styles.assistantClose}>
+          <Text style={styles.assistantCloseText}>✕</Text>
+        </TouchableOpacity>
+      </TouchableOpacity>
+    </Animated.View>
+  );
+}
+
 export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, onQuestionSent, messages, setMessages }) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [kbHeight, setKbHeight] = useState(0);
+  const [showAssistant, setShowAssistant] = useState(true);
   const listRef = useRef(null);
-  const currentMode = USER_MODES[mode];
+  const currentMode = USER_MODES[mode] || USER_MODES['user'];
 
   useEffect(() => {
     if (pendingQuestion) {
@@ -28,16 +70,25 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
   }, [pendingQuestion]);
 
   useEffect(() => {
-    const show = Keyboard.addListener('keyboardDidShow', e => setKbHeight(e.endCoordinates.height));
-    const hide = Keyboard.addListener('keyboardDidHide', () => setKbHeight(0));
+    const show = Keyboard.addListener('keyboardDidShow', e => {
+      setKbHeight(e.endCoordinates.height);
+      setShowAssistant(false);
+      setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 200);
+    });
+    const hide = Keyboard.addListener('keyboardDidHide', () => {
+      setKbHeight(0);
+      if (messages.length === 0) setShowAssistant(true);
+    });
     return () => { show.remove(); hide.remove(); };
-  }, []);
+  }, [messages.length]);
 
   const scrollToBottom = () => setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 150);
 
   async function send(question) {
     if (!question.trim() || loading) return;
     setInput('');
+    setShowAssistant(false);
+    Keyboard.dismiss();
 
     const userMsg = { id: Date.now(), role: 'user', text: question };
     const newMsgs = [...messages, userMsg];
@@ -46,20 +97,22 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
     scrollToBottom();
 
     const history = newMsgs.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text }));
-    const chunks = searchManual(question, manual.indexKey, 5);
-    const foundInManual = chunks.length > 0 && hasRelevantContent(question, manual.indexKey);
+    const indexKey = MANUAL_INDEX_MAP[manual.id] || manual.indexKey;
+    const chunks = searchManual(question, indexKey, 6);
+    const foundInManual = chunks.length > 0 && hasRelevantContent(question, indexKey);
 
     const contextBlock = chunks.length > 0
-      ? '\n\nTRECHOS DO MANUAL:\n\n' + chunks.map((c, i) => `[${i+1}] ${c}`).join('\n\n') + '\n\nUse os trechos para responder.'
-      : '\n\nNenhum trecho encontrado. Informe o usuario e responda com conhecimento geral.';
+      ? '\n\nTRECHOS RELEVANTES DO MANUAL:\n\n' + chunks.map((c, i) => `[${i+1}] ${c}`).join('\n\n---\n\n')
+      + '\n\nResponda baseando-se nos trechos acima. Se a informacao nao estiver clara nos trechos, diga ao usuario.'
+      : '\n\nNenhum trecho encontrado para esta consulta. Informe o usuario claramente e tente responder com conhecimento geral sobre impressoras HP.';
 
-    const systemPrompt = manual.prompts[mode] + contextBlock;
+    const systemPrompt = (manual.prompts?.[mode] || manual.prompts?.['user'] || '') + contextBlock;
 
     if (!isOnline) {
       const offlineText = foundInManual
-        ? 'Modo offline - trechos do manual:\n\n' + chunks.map((c,i) => `[${i+1}] ${c.substring(0,350)}`).join('\n\n')
-        : 'Modo offline. Sem conexao e sem trechos encontrados para esta pesquisa.';
-      setMessages(m => [...m, { id: Date.now()+1, role: 'ai', text: offlineText, source: 'Manual (offline)', offline: true }]);
+        ? 'Modo offline — Trechos encontrados no manual:\n\n' + chunks.map((c,i) => `[${i+1}] ${c.substring(0,400)}${c.length>400?'...':''}`).join('\n\n')
+        : 'Modo offline — Nenhum trecho encontrado para esta pesquisa. Conecte-se para usar a IA.';
+      setMessages(m => [...m, { id: Date.now()+1, role: 'ai', text: offlineText, source: 'Manual (offline)', offline: true, fromManual: foundInManual }]);
       setLoading(false);
       scrollToBottom();
       return;
@@ -81,11 +134,11 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
       if (data.error) throw new Error(typeof data.error === 'string' ? data.error : data.error.message);
       if (!data.content?.length) throw new Error('Resposta vazia');
       const answer = data.content.map(b => b.text || '').join('');
-      const source = foundInManual ? `Manual: ${manual.subtitle}` : 'Resposta geral (nao no manual)';
+      const source = foundInManual ? `Manual: ${manual.subtitle}` : 'Resposta geral (consulta online)';
       setMessages(m => [...m, { id: Date.now()+1, role: 'ai', text: answer, source, fromManual: foundInManual }]);
     } catch (err) {
       const msg = err.name === 'AbortError'
-        ? 'Tempo limite excedido. Servidor iniciando, tente novamente em 30s.'
+        ? 'Tempo limite excedido. O servidor pode estar iniciando — aguarde 30s e tente novamente.'
         : 'Erro: ' + err.message;
       setMessages(m => [...m, { id: Date.now()+1, role: 'ai', text: msg, isError: true }]);
     }
@@ -99,10 +152,11 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
     return (
       <View style={[styles.msgRow, isUser ? styles.msgRowUser : styles.msgRowAi]}>
         <View style={[styles.avatar, isUser ? styles.avatarUser : styles.avatarAi]}>
-          <Text style={[styles.avatarText, { color: isUser ? C.accent : currentMode.color }]}>{isUser ? 'EU' : 'HP'}</Text>
+          <Text style={[styles.avatarText, { color: isUser ? C.accent : C.accent2 }]}>{isUser ? 'EU' : 'HP'}</Text>
         </View>
         <View style={{ flex: 1 }}>
-          <View style={[styles.bubble, isUser ? styles.bubbleUser : styles.bubbleAi,
+          <View style={[styles.bubble,
+            isUser ? styles.bubbleUser : styles.bubbleAi,
             item.isError && { backgroundColor: '#1a0a10', borderColor: '#4a1020' },
             item.offline && { backgroundColor: '#1a0d2a', borderColor: '#6b21a8' },
           ]}>
@@ -119,58 +173,63 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
   }
 
   function renderWelcome() {
-    const topics = manual.topics[mode] || manual.topics.user;
+    const topics = manual.topics?.[mode] || manual.topics?.user || {};
     const questions = Object.values(topics).flat().slice(0, 3);
     return (
       <View style={styles.welcome}>
-        <View style={[styles.welcomeIcon, { backgroundColor: currentMode.color }]}>
-          <Text style={styles.welcomeIconText}>{currentMode.icon}</Text>
+        <View style={[styles.welcomeIcon, { backgroundColor: C.accent }]}>
+          <Text style={styles.welcomeIconText}>HP</Text>
         </View>
         <Text style={styles.welcomeTitle}>{manual.label}</Text>
-        <Text style={[styles.welcomeMode, { color: currentMode.color }]}>{currentMode.description}</Text>
-        <Text style={styles.welcomeHint}>Sugestoes:</Text>
+        <Text style={styles.welcomeSub}>{manual.subtitle}</Text>
+        {questions.length > 0 && <Text style={styles.welcomeHint}>Sugestoes de pesquisa:</Text>}
         {questions.map((q, i) => (
           <TouchableOpacity key={i} style={styles.suggBtn} onPress={() => send(q)}>
-            <Text style={styles.suggText}>{q}</Text>
+            <Text style={styles.suggText}>→ {q}</Text>
           </TouchableOpacity>
         ))}
       </View>
     );
   }
 
+  const extraBottom = Platform.OS === 'android' && kbHeight > 0 ? kbHeight : 0;
+
   return (
     <SafeAreaView style={styles.container}>
       <View style={{ flex: 1 }}>
         {messages.length === 0
-          ? <FlatList data={[{ key: 'w' }]} renderItem={renderWelcome} style={styles.list} />
+          ? <FlatList data={[{ key: 'w' }]} renderItem={renderWelcome} style={styles.list} keyExtractor={i => i.key} />
           : <FlatList ref={listRef} data={messages} keyExtractor={m => m.id.toString()}
               renderItem={renderMessage} style={styles.list}
-              contentContainerStyle={{ padding: 14, gap: 12, paddingBottom: 8 }} />
+              contentContainerStyle={{ padding: 14, gap: 12, paddingBottom: 12 }} />
         }
 
         {loading && (
           <View style={styles.typingRow}>
-            <ActivityIndicator size="small" color={currentMode.color} />
-            <Text style={[styles.typingText, { color: currentMode.color }]}>
-              {mode === 'user' ? 'Buscando resposta...' : 'Consultando manual...'}
-            </Text>
+            <ActivityIndicator size="small" color={C.accent2} />
+            <Text style={[styles.typingText, { color: C.accent2 }]}>Consultando manual...</Text>
           </View>
         )}
 
-        <View style={[styles.inputBar, Platform.OS === 'android' && { marginBottom: kbHeight > 0 ? kbHeight - 10 : 0 }]}>
+        {showAssistant && messages.length === 0 && (
+          <AssistantBubble onSuggest={(tip) => { setInput(tip); setShowAssistant(false); }} />
+        )}
+
+        <View style={[styles.inputBar, { marginBottom: extraBottom }]}>
           <TextInput
             style={styles.input}
             value={input}
             onChangeText={setInput}
-            placeholder={mode === 'user' ? 'Como posso te ajudar?' : 'Consulta tecnica...'}
+            placeholder="Pesquise no manual..."
             placeholderTextColor={C.muted}
             multiline
             maxLength={500}
-            onFocus={scrollToBottom}
             textAlignVertical="center"
+            onSubmitEditing={() => send(input)}
+            blurOnSubmit={false}
           />
           <TouchableOpacity
-            style={[styles.sendBtn, { backgroundColor: (!input.trim() || loading) ? C.border : currentMode.color }]}
+            style={[styles.sendBtn, { backgroundColor: (!input.trim() || loading) ? C.border : C.accent }]}
             onPress={() => send(input)}
             disabled={!input.trim() || loading}
           >
@@ -187,9 +246,9 @@ const styles = StyleSheet.create({
   list: { flex: 1 },
   welcome: { padding: 20, alignItems: 'center', gap: 10, marginTop: 16 },
   welcomeIcon: { width: 56, height: 56, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  welcomeIconText: { fontSize: 24 },
+  welcomeIconText: { color: '#fff', fontWeight: '800', fontSize: 18 },
   welcomeTitle: { color: C.text, fontSize: 17, fontWeight: '700', textAlign: 'center' },
-  welcomeMode: { fontSize: 12, textAlign: 'center' },
+  welcomeSub: { color: C.dim, fontSize: 12, textAlign: 'center' },
   welcomeHint: { color: C.muted, fontSize: 11, marginTop: 6 },
   suggBtn: { width: '100%', backgroundColor: C.surface, borderWidth: 1, borderColor: C.border, borderRadius: 10, padding: 12 },
   suggText: { color: C.dim, fontSize: 13 },
@@ -205,21 +264,28 @@ const styles = StyleSheet.create({
   bubbleAi: { backgroundColor: C.aiBubble, borderWidth: 1, borderColor: C.border, borderTopLeftRadius: 4 },
   bubbleText: { color: '#ffffff', fontSize: 13, lineHeight: 20 },
   source: { color: C.muted, fontSize: 10, marginTop: 4, marginLeft: 2 },
-  typingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 12, paddingLeft: 16 },
+  typingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 10, paddingLeft: 16 },
   typingText: { fontSize: 12 },
-  inputBar: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 10, paddingHorizontal: 12, borderTopWidth: 1, borderTopColor: C.border, backgroundColor: C.surface },
+  assistantWrap: { marginHorizontal: 14, marginBottom: 6 },
+  assistantBubble: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    backgroundColor: '#0d1f3a', borderWidth: 1, borderColor: C.accent + '60',
+    borderRadius: 14, padding: 12,
+  },
+  assistantIcon: { fontSize: 22 },
+  assistantTitle: { color: C.accent, fontSize: 11, fontWeight: '700', marginBottom: 2 },
+  assistantTip: { color: C.dim, fontSize: 12, lineHeight: 17 },
+  assistantClose: { padding: 4 },
+  assistantCloseText: { color: C.muted, fontSize: 14 },
+  inputBar: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: 12, paddingVertical: 10,
+    borderTopWidth: 1, borderTopColor: C.border, backgroundColor: C.surface,
+  },
   input: {
-    flex: 1,
-    backgroundColor: C.surface2,
-    borderWidth: 1,
-    borderColor: C.border,
-    borderRadius: 14,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    color: '#ffffff',
-    fontSize: 15,
-    minHeight: 50,
-    maxHeight: 120,
+    flex: 1, backgroundColor: C.surface2, borderWidth: 1, borderColor: C.border,
+    borderRadius: 14, paddingHorizontal: 16, paddingVertical: 12,
+    color: '#ffffff', fontSize: 15, minHeight: 50, maxHeight: 120,
   },
   sendBtn: { width: 50, height: 50, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   sendIcon: { color: '#fff', fontSize: 18 },
