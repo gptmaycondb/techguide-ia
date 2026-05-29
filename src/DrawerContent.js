@@ -6,7 +6,7 @@ const C = {
   text: '#e4e8f0', dim: '#7a8299', muted: '#4a5168',
 };
 
-export default function DrawerContent({ manual, mode, onQuestion }) {
+export default function DrawerContent({ manual, mode, onQuestion, onLogout }) {
   if (!manual) return null;
   const topics = manual.topics[mode] || manual.topics.user;
 
@@ -37,6 +37,12 @@ export default function DrawerContent({ manual, mode, onQuestion }) {
             ))}
           </View>
         ))}
+        <View style={styles.logoutSection}>
+          <TouchableOpacity style={styles.logoutBtn} onPress={onLogout} activeOpacity={0.75}>
+            <Text style={styles.logoutIcon}>🚪</Text>
+            <Text style={styles.logoutText}>Sair</Text>
+          </TouchableOpacity>
+        </View>
       </ScrollView>
     </View>
   );
@@ -56,4 +62,8 @@ const styles = StyleSheet.create({
   sectionLabel: { color: C.muted, fontSize: 9, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 6 },
   chip: { paddingVertical: 10, paddingHorizontal: 10, borderRadius: 8, marginBottom: 2 },
   chipText: { color: C.dim, fontSize: 13, lineHeight: 18 },
+  logoutSection: { paddingHorizontal: 12, paddingVertical: 16, borderTopWidth: 1, borderTopColor: C.border, marginTop: 8 },
+  logoutBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, paddingHorizontal: 10, borderRadius: 10, borderWidth: 1, borderColor: '#4a1020', backgroundColor: '#1a0a10' },
+  logoutIcon: { fontSize: 16 },
+  logoutText: { color: '#ff6b8a', fontSize: 14, fontWeight: '600' },
 });

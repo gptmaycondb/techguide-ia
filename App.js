@@ -300,19 +300,11 @@ export default function App() {
                 <Text style={styles.drawerTitle}>Topicos Rapidos</Text>
                 {authEmail ? <Text style={styles.drawerEmail} numberOfLines={1}>{authEmail}</Text> : null}
               </View>
-              <View style={{ flexDirection: 'row', gap: 8 }}>
-                <TouchableOpacity
-                  style={[styles.closeBtn, { backgroundColor: '#1a0a10', borderColor: '#4a1020' }]}
-                  onPress={handleLogout}
-                >
-                  <Text style={{ fontSize: 13 }}>🚪</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={closeDrawer} style={styles.closeBtn}>
-                  <Text style={styles.closeBtnText}>✕</Text>
-                </TouchableOpacity>
-              </View>
+              <TouchableOpacity onPress={closeDrawer} style={styles.closeBtn}>
+                <Text style={styles.closeBtnText}>✕</Text>
+              </TouchableOpacity>
             </View>
-            <DrawerContent manual={manual} mode={mode} onQuestion={handleQuestion} />
+            <DrawerContent manual={manual} mode={mode} onQuestion={handleQuestion} onLogout={handleLogout} />
           </SafeAreaView>
         </Animated.View>
       )}

@@ -1,10 +1,10 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   SafeAreaView, StatusBar, ActivityIndicator, Image,
   KeyboardAvoidingView, ScrollView, Platform,
 } from 'react-native';
-import { login } from './auth';
+import { login, getRememberPreference, saveRecentEmail, getRecentEmails } from './auth';
 
 const C = {
   bg: '#0d0f14', surface: '#161920', surface2: '#1e2230',
@@ -14,14 +14,40 @@ const C = {
 };
 
 export default function LoginScreen({ onLoginSuccess }) {
-  const [email, setEmail]       = useState('');
-  const [password, setPassword] = useState('');
-  const [loading, setLoading]   = useState(false);
-  const [error, setError]       = useState('');
-  const [showPw, setShowPw]     = useState(false);
-  const [focused, setFocused]   = useState(null);
+  const [email, setEmail]           = useState('');
+  const [password, setPassword]     = useState('');
+  const [loading, setLoading]       = useState(false);
+  const [error, setError]           = useState('');
+  const [showPw, setShowPw]         = useState(false);
+  const [focused, setFocused]       = useState(null);
+  const [rememberMe, setRememberMe] = useState(true);
+  const [recentEmails, setRecentEmails] = useState([]);
+  const [showDropdown, setShowDropdown] = useState(false);
 
   const passwordRef = useRef(null);
+
+  useEffect(() => {
+    async function init() {
+      const [pref, recents] = await Promise.all([
+        getRememberPreference(),
+        getRecentEmails(),
+      ]);
+      if (pref.email) setEmail(pref.email);
+      setRememberMe(pref.remember);
+      setRecentEmails(recents);
+    }
+    init();
+  }, []);
+
+  const filteredEmails = recentEmails.filter(e =>
+    email.length === 0 || e.toLowerCase().startsWith(email.toLowerCase())
+  );
+
+  function handleSelectEmail(selected) {
+    setEmail(selected);
+    setShowDropdown(false);
+    passwordRef.current?.focus();
+  }
 
   async function handleLogin() {
     const trimmed = email.trim().toLowerCase();
@@ -32,7 +58,8 @@ export default function LoginScreen({ onLoginSuccess }) {
     setError('');
     setLoading(true);
     try {
-      const { email: confirmed } = await login(trimmed, password);
+      const { email: confirmed } = await login(trimmed, password, rememberMe);
+      await saveRecentEmail(confirmed);
       onLoginSuccess(confirmed);
     } catch (err) {
       setError(err.message);
@@ -59,23 +86,40 @@ export default function LoginScreen({ onLoginSuccess }) {
           <View style={styles.divider} />
 
           <View style={styles.form}>
+            {/* E-mail com dropdown */}
             <Text style={styles.label}>E-mail</Text>
-            <TextInput
-              style={[styles.input, focused === 'email' && styles.inputFocused]}
-              value={email}
-              onChangeText={setEmail}
-              onFocus={() => setFocused('email')}
-              onBlur={() => setFocused(null)}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              returnKeyType="next"
-              onSubmitEditing={() => passwordRef.current?.focus()}
-              placeholder="seu@email.com"
-              placeholderTextColor={C.muted}
-              editable={!loading}
-            />
+            <View style={styles.emailWrap}>
+              <TextInput
+                style={[styles.input, focused === 'email' && styles.inputFocused]}
+                value={email}
+                onChangeText={v => { setEmail(v); setShowDropdown(true); }}
+                onFocus={() => { setFocused('email'); setShowDropdown(true); }}
+                onBlur={() => { setFocused(null); setTimeout(() => setShowDropdown(false), 150); }}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                returnKeyType="next"
+                onSubmitEditing={() => passwordRef.current?.focus()}
+                placeholder="seu@email.com"
+                placeholderTextColor={C.muted}
+                editable={!loading}
+              />
+              {showDropdown && filteredEmails.length > 0 && (
+                <View style={styles.dropdown}>
+                  {filteredEmails.map((e, i) => (
+                    <TouchableOpacity
+                      key={e}
+                      style={[styles.dropItem, i < filteredEmails.length - 1 && styles.dropItemBorder]}
+                      onPress={() => handleSelectEmail(e)}
+                    >
+                      <Text style={styles.dropItemText}>{e}</Text>
+                    </TouchableOpacity>
+                  ))}
+                </View>
+              )}
+            </View>
 
+            {/* Senha */}
             <Text style={[styles.label, { marginTop: 14 }]}>Senha</Text>
             <View style={styles.pwWrap}>
               <TextInput
@@ -102,6 +146,18 @@ export default function LoginScreen({ onLoginSuccess }) {
                 <Text style={styles.eyeText}>{showPw ? '🙈' : '👁'}</Text>
               </TouchableOpacity>
             </View>
+
+            {/* Lembrar senha */}
+            <TouchableOpacity
+              style={styles.rememberRow}
+              onPress={() => setRememberMe(v => !v)}
+              activeOpacity={0.7}
+            >
+              <View style={[styles.checkbox, rememberMe && styles.checkboxChecked]}>
+                {rememberMe && <Text style={styles.checkmark}>✓</Text>}
+              </View>
+              <Text style={styles.rememberText}>Lembrar senha</Text>
+            </TouchableOpacity>
 
             {!!error && <Text style={styles.errorText}>{error}</Text>}
 
@@ -137,12 +193,27 @@ const styles = StyleSheet.create({
 
   form:     { width: '100%', maxWidth: 360 },
   label:    { color: C.dim, fontSize: 12, fontWeight: '600', marginBottom: 6, letterSpacing: 0.4 },
+
   input: {
     backgroundColor: C.surface2, borderWidth: 1, borderColor: C.border,
     borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14,
     color: C.text, fontSize: 15,
   },
   inputFocused: { borderColor: C.accent },
+
+  // Email dropdown
+  emailWrap: { position: 'relative' },
+  dropdown: {
+    position: 'absolute', top: '100%', left: 0, right: 0,
+    backgroundColor: C.surface2, borderWidth: 1, borderColor: C.border,
+    borderRadius: 12, marginTop: 4, zIndex: 100,
+    overflow: 'hidden',
+  },
+  dropItem:       { paddingHorizontal: 16, paddingVertical: 13 },
+  dropItemBorder: { borderBottomWidth: 1, borderBottomColor: C.border },
+  dropItemText:   { color: C.text, fontSize: 14 },
+
+  // Password
   inputPw:  { paddingRight: 50 },
   pwWrap:   { position: 'relative' },
   eyeBtn: {
@@ -151,10 +222,20 @@ const styles = StyleSheet.create({
   },
   eyeText:  { fontSize: 16 },
 
+  // Remember me
+  rememberRow:     { flexDirection: 'row', alignItems: 'center', gap: 10, marginTop: 16 },
+  checkbox: {
+    width: 20, height: 20, borderRadius: 5, borderWidth: 1.5,
+    borderColor: C.border, alignItems: 'center', justifyContent: 'center',
+  },
+  checkboxChecked: { backgroundColor: C.accent, borderColor: C.accent },
+  checkmark:       { color: '#fff', fontSize: 12, fontWeight: '800' },
+  rememberText:    { color: C.dim, fontSize: 13 },
+
   errorText: { color: C.error, fontSize: 13, marginTop: 10, textAlign: 'center' },
 
   btn: {
-    marginTop: 24, backgroundColor: C.accent, borderRadius: 14,
+    marginTop: 20, backgroundColor: C.accent, borderRadius: 14,
     paddingVertical: 16, alignItems: 'center', justifyContent: 'center',
     shadowColor: C.accent, shadowOpacity: 0.35, shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 }, elevation: 6,
