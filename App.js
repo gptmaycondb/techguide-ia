@@ -172,7 +172,7 @@ export default function App() {
 
       {/* Content */}
       <View style={{ flex: 1 }}>
-        {activeTab === 'chat' ? (
+        <View style={{ flex: 1, display: activeTab === 'chat' ? 'flex' : 'none' }}>
           <ChatScreen
             manual={manual}
             mode={mode}
@@ -182,9 +182,10 @@ export default function App() {
             messages={messages}
             setMessages={setMessages}
           />
-        ) : (
+        </View>
+        <View style={{ flex: 1, display: activeTab === 'manuals' ? 'flex' : 'none' }}>
           <ManualsScreen />
-        )}
+        </View>
       </View>
 
       {/* Bottom nav */}
