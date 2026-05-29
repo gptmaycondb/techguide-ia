@@ -20,6 +20,9 @@ jobs:
       - name: Install EAS CLI
         run: sudo npm install -g eas-cli@latest
 
+      - name: Install project dependencies
+        run: npm install
+
       - name: Build APK
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
