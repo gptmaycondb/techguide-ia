@@ -1,0 +1,32 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install EAS CLI
+        run: sudo npm install -g eas-cli@latest
+
+      - name: Install project dependencies
+        run: npm install
+
+      - name: Build APK
+        env:
+          EXPO_TOKEN: ${{ secrets.EXPO_TOKEN }}
+        run: /usr/local/bin/eas build --platform android --profile preview --non-interactive --no-wait
+
+      - name: Done
+        run: echo "Acompanhe em https://expo.dev/accounts/maycondb/projects/techguide-ia/builds"
