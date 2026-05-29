@@ -255,7 +255,7 @@ export const BRAND_GROUPS = [
           {
             id: 'ricoh_service',
             title: 'Service Manual',
-            subtitle: 'Manual de servico tecnico',
+            subtitle: 'Product Support Guide',
             desc: 'Procedimentos de reparo, ajustes e diagnostico',
             color: '#ff6b35',
             icon: '🔧',

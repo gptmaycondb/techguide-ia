@@ -161,7 +161,7 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
     return (
       <View style={[styles.msgRow, isUser ? styles.msgRowUser : styles.msgRowAi]}>
         <View style={[styles.avatar, isUser ? styles.avatarUser : styles.avatarAi]}>
-          <Text style={[styles.avatarText, { color: isUser ? C.accent : C.accent2 }]}>{isUser ? 'EU' : 'HP'}</Text>
+          <Text style={[styles.avatarText, { color: isUser ? C.accent : C.accent2 }]}>{isUser ? 'EU' : (manual.brand === 'ricoh' ? 'RC' : 'HP')}</Text>
         </View>
         <View style={{ flex: 1 }}>
           <View style={[styles.bubble,
@@ -186,8 +186,8 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
     const questions = Object.values(topics).flat().slice(0, 4);
     return (
       <View style={styles.welcome}>
-        <View style={[styles.welcomeIcon, { backgroundColor: C.accent }]}>
-          <Text style={styles.welcomeIconText}>HP</Text>
+        <View style={[styles.welcomeIcon, { backgroundColor: manual.color || C.accent }]}>
+          <Text style={styles.welcomeIconText}>{manual.brand === 'ricoh' ? 'RC' : 'HP'}</Text>
         </View>
         <Text style={styles.welcomeTitle}>{manual.label}</Text>
         <Text style={styles.welcomeSub}>{manual.subtitle}</Text>
