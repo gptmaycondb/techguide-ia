@@ -77,7 +77,7 @@ export default function LoginScreen({ onLoginSuccess }) {
             />
 
             <Text style={[styles.label, { marginTop: 14 }]}>Senha</Text>
-            <View style={styles.pwRow}>
+            <View style={styles.pwWrap}>
               <TextInput
                 ref={passwordRef}
                 style={[styles.input, styles.inputPw, focused === 'password' && styles.inputFocused]}
@@ -143,12 +143,11 @@ const styles = StyleSheet.create({
     color: C.text, fontSize: 15,
   },
   inputFocused: { borderColor: C.accent },
-  inputPw:      { flex: 1, borderTopRightRadius: 0, borderBottomRightRadius: 0, borderRightWidth: 0 },
-  pwRow:    { flexDirection: 'row', alignItems: 'center' },
+  inputPw:  { paddingRight: 50 },
+  pwWrap:   { position: 'relative' },
   eyeBtn: {
-    backgroundColor: C.surface2, borderWidth: 1, borderColor: C.border,
-    borderLeftWidth: 0, borderTopRightRadius: 12, borderBottomRightRadius: 12,
-    paddingHorizontal: 14, paddingVertical: 14,
+    position: 'absolute', right: 0, top: 0, bottom: 0,
+    width: 50, alignItems: 'center', justifyContent: 'center',
   },
   eyeText:  { fontSize: 16 },
 
