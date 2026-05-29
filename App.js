@@ -32,8 +32,17 @@ export default function App() {
   const [pendingQuestion, setPendingQuestion] = useState(null);
   const drawerAnim = useRef(new Animated.Value(-DRAWER_W)).current;
 
+  // Store messages per manual to preserve history when switching tabs
+  const [allMessages, setAllMessages] = useState({});
+
   const manual = MANUALS.find(m => m.id === currentId);
   const currentMode = mode ? USER_MODES[mode] : null;
+  const chatKey = currentId + '_' + mode;
+  const messages = allMessages[chatKey] || [];
+
+  function setMessages(msgs) {
+    setAllMessages(prev => ({ ...prev, [chatKey]: typeof msgs === 'function' ? msgs(prev[chatKey] || []) : msgs }));
+  }
 
   useEffect(() => {
     wakeUpServer();
@@ -50,9 +59,7 @@ export default function App() {
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 10000);
-      const res = await fetch('https://manuais-hp.onrender.com/', {
-        method: 'HEAD', signal: controller.signal,
-      });
+      const res = await fetch('https://manuais-hp.onrender.com/', { method: 'HEAD', signal: controller.signal });
       clearTimeout(timeout);
       setIsOnline(res.ok);
     } catch { setIsOnline(false); }
@@ -60,15 +67,11 @@ export default function App() {
 
   function openDrawer() {
     setDrawerOpen(true);
-    Animated.spring(drawerAnim, {
-      toValue: 0, useNativeDriver: true, tension: 65, friction: 11,
-    }).start();
+    Animated.spring(drawerAnim, { toValue: 0, useNativeDriver: true, tension: 65, friction: 11 }).start();
   }
 
   function closeDrawer() {
-    Animated.spring(drawerAnim, {
-      toValue: -DRAWER_W, useNativeDriver: true, tension: 65, friction: 11,
-    }).start(() => setDrawerOpen(false));
+    Animated.spring(drawerAnim, { toValue: -DRAWER_W, useNativeDriver: true, tension: 65, friction: 11 }).start(() => setDrawerOpen(false));
   }
 
   function handleQuestion(q) {
@@ -83,7 +86,6 @@ export default function App() {
     <View style={styles.root}>
       <StatusBar barStyle="light-content" backgroundColor={C.surface} />
 
-      {/* HEADER */}
       <SafeAreaView style={styles.headerSafe}>
         <View style={styles.header}>
           <View style={styles.headerLogo}>
@@ -94,50 +96,30 @@ export default function App() {
               {activeTab === 'chat' ? manual.label : 'Manuais HP'}
             </Text>
             <Text style={styles.headerSub} numberOfLines={1}>
-              {activeTab === 'chat' ? manual.subtitle : 'Visualizar e baixar PDFs'}
+              {activeTab === 'chat' ? manual.subtitle : 'Baixar PDFs originais'}
             </Text>
           </View>
-
-          <TouchableOpacity
-            style={[styles.profileBtn, { borderColor: currentMode.color }]}
-            onPress={() => setMode(null)}
-          >
+          <TouchableOpacity style={[styles.profileBtn, { borderColor: currentMode.color }]} onPress={() => setMode(null)}>
             <Text style={styles.profileEmoji}>{currentMode.icon}</Text>
-            <Text style={[styles.profileLabel, { color: currentMode.color }]}>
-              {currentMode.label}
-            </Text>
+            <Text style={[styles.profileLabel, { color: currentMode.color }]}>{currentMode.label}</Text>
           </TouchableOpacity>
-
           <TouchableOpacity
-            style={[styles.onlineDot, {
-              backgroundColor: isOnline ? '#00d4aa22' : '#6b21a822',
-              borderColor: isOnline ? '#00d4aa' : '#6b21a8',
-            }]}
+            style={[styles.onlineDot, { backgroundColor: isOnline ? '#00d4aa22' : '#6b21a822', borderColor: isOnline ? '#00d4aa' : '#6b21a8' }]}
             onPress={() => { wakeUpServer(); checkOnline(); }}
           >
-            <Text style={{ color: isOnline ? '#00d4aa' : '#a855f7', fontSize: 8, fontWeight: '700' }}>
-              {isOnline ? 'ON' : 'OFF'}
-            </Text>
+            <Text style={{ color: isOnline ? '#00d4aa' : '#a855f7', fontSize: 8, fontWeight: '700' }}>{isOnline ? 'ON' : 'OFF'}</Text>
           </TouchableOpacity>
-
           {activeTab === 'chat' && (
             <TouchableOpacity style={styles.menuBtn} onPress={openDrawer}>
               <Text style={styles.menuBtnText}>☰</Text>
             </TouchableOpacity>
           )}
         </View>
-
-        {/* Mode banner - only on chat tab */}
         {activeTab === 'chat' && (
-          <View style={[styles.modeBanner, {
-            backgroundColor: currentMode.color + '12',
-            borderBottomColor: currentMode.color + '30',
-          }]}>
+          <View style={[styles.modeBanner, { backgroundColor: currentMode.color + '12', borderBottomColor: currentMode.color + '30' }]}>
             <Text style={styles.modeBannerIcon}>{currentMode.icon}</Text>
             <Text style={[styles.modeBannerText, { color: currentMode.color }]}>
-              {mode === 'user'
-                ? 'Modo Usuario — respostas simples'
-                : 'Modo Tecnico — informacoes completas'}
+              {mode === 'user' ? 'Modo Usuario — respostas simples' : 'Modo Tecnico — informacoes completas'}
             </Text>
             <TouchableOpacity onPress={() => setMode(null)} style={styles.switchBtn}>
               <Text style={[styles.switchBtnText, { color: currentMode.color }]}>Trocar</Text>
@@ -146,46 +128,38 @@ export default function App() {
         )}
       </SafeAreaView>
 
-      {/* MODEL TABS - only on chat */}
       {activeTab === 'chat' && (
         <View style={styles.tabsWrapper}>
           <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabsContent}>
             {MANUALS.map(m => (
               <TouchableOpacity
                 key={m.id}
-                style={[styles.modelTab, currentId === m.id && {
-                  borderColor: m.color, backgroundColor: m.color + '15',
-                }]}
+                style={[styles.modelTab, currentId === m.id && { borderColor: m.color, backgroundColor: m.color + '15' }]}
                 onPress={() => setCurrentId(m.id)}
               >
-                <Text style={[styles.modelTabText, currentId === m.id && {
-                  color: m.color, fontWeight: '700',
-                }]}>
-                  {m.label}
-                </Text>
+                <Text style={[styles.modelTabText, currentId === m.id && { color: m.color, fontWeight: '700' }]}>{m.label}</Text>
               </TouchableOpacity>
             ))}
           </ScrollView>
         </View>
       )}
 
-      {/* CONTENT */}
       <View style={{ flex: 1 }}>
         {activeTab === 'chat' ? (
           <ChatScreen
-            key={currentId + mode}
             manual={manual}
             mode={mode}
             isOnline={isOnline}
             pendingQuestion={pendingQuestion}
             onQuestionSent={() => setPendingQuestion(null)}
+            messages={messages}
+            setMessages={setMessages}
           />
         ) : (
           <ManualsScreen />
         )}
       </View>
 
-      {/* BOTTOM NAVIGATION */}
       <View style={styles.bottomNav}>
         {BOTTOM_TABS.map(tab => (
           <TouchableOpacity
@@ -194,26 +168,19 @@ export default function App() {
             onPress={() => setActiveTab(tab.id)}
           >
             <Text style={styles.bottomTabIcon}>{tab.icon}</Text>
-            <Text style={[styles.bottomTabLabel, activeTab === tab.id && { color: C.accent }]}>
-              {tab.label}
-            </Text>
+            <Text style={[styles.bottomTabLabel, activeTab === tab.id && { color: C.accent }]}>{tab.label}</Text>
           </TouchableOpacity>
         ))}
       </View>
 
-      {/* DRAWER */}
-      {drawerOpen && (
-        <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={closeDrawer} />
-      )}
+      {drawerOpen && <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={closeDrawer} />}
       {drawerOpen && (
         <Animated.View style={[styles.drawer, { transform: [{ translateX: drawerAnim }] }]}>
           <SafeAreaView style={{ flex: 1 }}>
             <View style={styles.drawerHeader}>
               <View>
                 <Text style={styles.drawerTitle}>Topicos Rapidos</Text>
-                <Text style={[styles.drawerMode, { color: currentMode.color }]}>
-                  {currentMode.icon} Modo {currentMode.label}
-                </Text>
+                <Text style={[styles.drawerMode, { color: currentMode.color }]}>{currentMode.icon} Modo {currentMode.label}</Text>
               </View>
               <TouchableOpacity onPress={closeDrawer} style={styles.closeBtn}>
                 <Text style={styles.closeBtnText}>✕</Text>
