@@ -4,7 +4,7 @@ import {
   StyleSheet, ActivityIndicator, SafeAreaView, Keyboard,
   Platform, Animated, Linking,
 } from 'react-native';
-import { searchManual, searchErrorCode, hasRelevantContent, MANUAL_INDEX_MAP } from './search';
+import { searchManual, hasRelevantContent, MANUAL_INDEX_MAP } from './search';
 import { API_URL } from './data';
 
 const C = {
@@ -101,22 +101,28 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
     scrollToBottom();
 
     const history = newMsgs.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text }));
-    const indexKey = MANUAL_INDEX_MAP[manual.id] || manual.indexKey || 'e52645_guia';
-    const chunks = searchManual(q, indexKey, 6);
-    const ecChunks = searchErrorCode(q, indexKey);
-    const combined = [...new Set([...ecChunks, ...chunks])].slice(0, 8);
-    const foundInManual = combined.length > 0 && (ecChunks.length > 0 || hasRelevantContent(q, indexKey));
+    const primaryKey = MANUAL_INDEX_MAP[manual.id] || manual.indexKey || 'e52645_guia';
+    const searchKeys = manual.brand === 'ricoh'
+      ? ['ricoh_imc3000_service', 'ricoh_imc3000_guia', 'ricoh_imc3000_parts']
+      : [primaryKey, 'cpmd', 'service'].filter((v, i, a) => a.indexOf(v) === i);
 
-    const contextBlock = combined.length > 0
-      ? '\n\nTRECHOS DO MANUAL:\n\n' + combined.map((c, i) => `[${i+1}]\n${c}`).join('\n\n---\n\n')
+    const chunks = searchKeys.flatMap(k => searchManual(q, k, 4)).slice(0, 8);
+    const foundInManual = chunks.length > 0 && searchKeys.some(k => hasRelevantContent(q, k));
+
+    const noChunksMsg = manual.brand === 'ricoh'
+      ? '\n\nNenhum trecho localizado nos manuais indexados. Use seu conhecimento tecnico especializado em Ricoh IM C3000/3500 para responder — codigos SC, procedimentos, pecas e especificacoes.'
+      : '\n\nNenhum trecho encontrado nos manuais. Responda com conhecimento tecnico geral sobre a impressora.';
+
+    const contextBlock = chunks.length > 0
+      ? '\n\nTRECHOS DO MANUAL:\n\n' + chunks.map((c, i) => `[${i+1}]\n${c}`).join('\n\n---\n\n')
       + '\n\nResponda baseando-se nos trechos acima.'
-      : '\n\nNenhum trecho encontrado. Informe claramente e responda com conhecimento geral.';
+      : noChunksMsg;
 
     const systemPrompt = (manual.prompts?.[mode] || manual.prompts?.user || '') + contextBlock;
 
     if (!isOnline) {
       const offlineText = foundInManual
-        ? 'Modo offline — Trechos encontrados:\n\n' + combined.map((c,i) => `[${i+1}] ${c.substring(0,400)}${c.length>400?'...':''}`).join('\n\n')
+        ? 'Modo offline — Trechos encontrados:\n\n' + chunks.map((c,i) => `[${i+1}] ${c.substring(0,400)}${c.length>400?'...':''}`).join('\n\n')
         : 'Modo offline — Nenhum resultado encontrado. Conecte-se para usar a IA.';
       setMessages(m => [...m, { id: Date.now()+1, role: 'ai', text: offlineText, source: 'Manual (offline)', offline: true, fromManual: foundInManual }]);
       setLoading(false);
@@ -156,29 +162,15 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
     scrollToBottom();
   }
 
-  function renderRichText(text, style) {
-    const URL_REGEX = /\[([^\]]+)\]\((https?:\/\/[^)]+)\)|(https?:\/\/[^\s]+)/g;
-    const parts = [];
-    let lastIndex = 0;
-    let match;
-    while ((match = URL_REGEX.exec(text)) !== null) {
-      if (match.index > lastIndex) parts.push({ type: 'text', content: text.slice(lastIndex, match.index) });
-      parts.push(match[2]
-        ? { type: 'link', label: match[1], url: match[2] }
-        : { type: 'link', label: match[3], url: match[3] }
-      );
-      lastIndex = match.index + match[0].length;
-    }
-    if (lastIndex < text.length) parts.push({ type: 'text', content: text.slice(lastIndex) });
-    if (parts.length === 1 && parts[0].type === 'text') return <Text selectable style={style}>{text}</Text>;
-    return (
-      <Text selectable style={style}>
-        {parts.map((p, i) => p.type === 'link'
-          ? <Text key={i} style={styles.linkText} onPress={() => Linking.openURL(p.url)}>{p.label}</Text>
-          : <Text key={i}>{p.content}</Text>
-        )}
-      </Text>
-    );
+  function extractLinks(text) {
+    const links = [];
+    const mdRe = /\[([^\]]+)\]\((https?:\/\/[^)]+)\)/g;
+    const plainRe = /https?:\/\/[^\s\])"]+/g;
+    let m;
+    while ((m = mdRe.exec(text)) !== null) links.push({ label: m[1], url: m[2] });
+    const stripped = text.replace(/\[[^\]]+\]\(https?:\/\/[^)]+\)/g, '');
+    while ((m = plainRe.exec(stripped)) !== null) links.push({ label: m[0], url: m[0] });
+    return links;
   }
 
   function renderMessage({ item }) {
@@ -194,7 +186,19 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
             item.isError && { backgroundColor: '#1a0a10', borderColor: '#4a1020' },
             item.offline && { backgroundColor: '#1a0d2a', borderColor: '#6b21a8' },
           ]}>
-            {renderRichText(item.text, [styles.bubbleText, item.isError && { color: C.error }])}
+            <TextInput
+              editable={false}
+              multiline
+              scrollEnabled={false}
+              value={item.text}
+              style={[styles.bubbleText, item.isError && { color: C.error }]}
+              caretHidden
+            />
+            {!isUser && extractLinks(item.text).map((lnk, i) => (
+              <TouchableOpacity key={i} style={styles.linkBtn} onPress={() => Linking.openURL(lnk.url)}>
+                <Text style={styles.linkBtnText} numberOfLines={1}>🔗 {lnk.label}</Text>
+              </TouchableOpacity>
+            ))}
           </View>
           {item.source && (
             <Text style={[styles.source, !item.fromManual && { color: '#f59e0b' }]}>
@@ -301,8 +305,12 @@ const styles = StyleSheet.create({
   bubble: { padding: 10, borderRadius: 14 },
   bubbleUser: { backgroundColor: C.userBubble, borderWidth: 1, borderColor: '#2040a0', borderTopRightRadius: 4 },
   bubbleAi: { backgroundColor: C.aiBubble, borderWidth: 1, borderColor: C.border, borderTopLeftRadius: 4 },
-  bubbleText: { color: '#ffffff', fontSize: 13, lineHeight: 20 },
-  linkText: { color: C.accent, textDecorationLine: 'underline' },
+  bubbleText: {
+    color: '#ffffff', fontSize: 13, lineHeight: 20,
+    padding: 0, borderWidth: 0, backgroundColor: 'transparent',
+  },
+  linkBtn: { marginTop: 6, backgroundColor: '#0d1f3a', borderRadius: 8, borderWidth: 1, borderColor: C.accent + '50', paddingHorizontal: 10, paddingVertical: 6 },
+  linkBtnText: { color: C.accent, fontSize: 11, fontWeight: '600' },
   source: { color: C.muted, fontSize: 10, marginTop: 4, marginLeft: 2 },
   typingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 10, paddingLeft: 16 },
   typingText: { fontSize: 12 },

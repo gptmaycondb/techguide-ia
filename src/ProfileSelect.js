@@ -25,12 +25,12 @@ export default function ProfileSelect({ onSelect }) {
         />
 
         <Text style={styles.appName}>TechGuide IA</Text>
-        <Text style={styles.appSub}>Consulta inteligente de manuais técnicos multimarca</Text>
+        <Text style={styles.appSub}>Consulta e pesquisa de manuais técnicos de impressoras e multifuncionais multimarcas</Text>
 
         <View style={styles.divider} />
 
         <Text style={styles.welcome}>
-          Bem-vindo! O TechGuide IA reúne manuais técnicos de diferentes modelos e marcas — HP e Ricoh. Consulte códigos de erro, procedimentos de manutenção e especificações com o apoio da inteligência artificial.
+          Voltado a técnicos e usuários de impressoras e multifuncionais HP e Ricoh. Pesquise códigos de erro SC, mensagens do painel, procedimentos de manutenção, part numbers e especificações técnicas — tudo com suporte de inteligência artificial.
         </Text>
 
         <TouchableOpacity

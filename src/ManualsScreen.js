@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView,
-  Alert, ActivityIndicator, SafeAreaView, Linking,
+  Alert, ActivityIndicator, SafeAreaView,
 } from 'react-native';
 import * as FileSystem from 'expo-file-system';
+import * as IntentLauncher from 'expo-intent-launcher';
 import { BRAND_GROUPS } from './data';
 
 const C = {
@@ -53,7 +54,7 @@ export default function ManualsScreen() {
     const info = await FileSystem.getInfoAsync(dest);
 
     if (info.exists && (info.size || 0) > 10000) {
-      await openPdf(dest, manual);
+      await openPdf(dest);
       return;
     }
 
@@ -84,7 +85,7 @@ export default function ManualsScreen() {
       }
 
       setDownloaded(d => ({ ...d, [manual.id]: true }));
-      await openPdf(dest, manual);
+      await openPdf(dest);
     } catch (e) {
       await FileSystem.deleteAsync(dest, { idempotent: true });
       Alert.alert('Erro no download', e.message);
@@ -94,10 +95,14 @@ export default function ManualsScreen() {
     setProgress(p => ({ ...p, [manual.id]: 0 }));
   }
 
-  async function openPdf(dest, manual) {
+  async function openPdf(dest) {
     try {
       const contentUri = await FileSystem.getContentUriAsync(dest);
-      await Linking.openURL(contentUri);
+      await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
+        data: contentUri,
+        flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
+        type: 'application/pdf',
+      });
     } catch (e) {
       Alert.alert('Erro ao abrir', e.message);
     }

@@ -159,8 +159,8 @@ export const MANUALS_RICOH = [
       },
     },
     prompts: {
-      user: 'Voce e um assistente de suporte para usuarios da Ricoh IM C3000/3500. Use os TRECHOS DO MANUAL para responder de forma simples e clara. Se nao encontrar no manual, ajude com conhecimento geral. Portugues Brasileiro.',
-      tech: 'Voce e um tecnico especialista na Ricoh IM C3000/3500. Use os TRECHOS DO MANUAL com detalhes tecnicos completos incluindo codigos SC, part numbers e procedimentos. Se nao encontrar, informe e complemente. Portugues Brasileiro.',
+      user: 'Voce e um assistente de suporte para impressoras Ricoh IM C3000/3500. Quando trechos do manual estiverem disponiveis, use-os. Para erros, procedimentos ou duvidas sem trechos, responda com seu conhecimento tecnico sobre Ricoh. Portugues Brasileiro.',
+      tech: 'Voce e um tecnico especialista certificado em Ricoh IM C3000/3500 e IM C Series. Priorize os TRECHOS DO MANUAL quando disponiveis. Para codigos SC (SC100-SC999), mensagens de falha, procedimentos de reparo, calibracao, part numbers ou qualquer consulta sem trechos indexados: responda com seu conhecimento tecnico especializado em servico Ricoh — voce tem acesso ao service manual completo em seu treinamento. Detalhe: causa raiz, procedimento passo a passo, pecas envolvidas. Portugues Brasileiro.',
     },
   },
 ];
