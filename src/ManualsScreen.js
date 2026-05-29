@@ -21,7 +21,7 @@ const MANUALS_LIST = [
     desc: 'Manual completo de operacao, configuracao e solucao de problemas para o usuario final',
     color: C.accent2, icon: '📗',
     tags: ['E52645', 'MFP', 'PT-BR'],
-    url: 'https://github.com/gptmaycondb/techguide-ia/releases/download/untagged-98ad022da9c4ab02088c/Guia.do.usuario.pdf',
+    url: 'https://api.onedrive.com/v1.0/shares/u!aHR0cHM6Ly8xZHJ2Lm1zL2IvYy8wY2I5NzA1OWNjZTFhYjQyL0lRQ0F3aGExZHUxMVFhYTB4WDd2X2pzcUFmd25TekxJVWZDckEtMk5SZFVudU53P2U9TWRTU0pT/root/content',
     localName: 'tg_guia_e52645.pdf',
     size: '6.5 MB',
   },
@@ -31,7 +31,7 @@ const MANUALS_LIST = [
     desc: 'Codigos de erro do painel de controle, mensagens e procedimentos de solucao',
     color: C.purple, icon: '⚠️',
     tags: ['M501','M527','E52645','CPMD'],
-    url: 'https://github.com/gptmaycondb/techguide-ia/releases/download/untagged-98ad022da9c4ab02088c/CPMD_HP_E52645_2023.pdf',
+    url: 'https://api.onedrive.com/v1.0/shares/u!aHR0cHM6Ly8xZHJ2Lm1zL2IvYy8wY2I5NzA1OWNjZTFhYjQyL0lRQXo2SFA3OF96VlJKUThudUhBZU9DVUFYMzdkMXplVWg1RGlBVF9RQjNiTDJBP2U9bno1R0Qx/root/content',
     localName: 'tg_cpmd_2023.pdf',
     size: '6.0 MB',
   },
@@ -41,7 +41,7 @@ const MANUALS_LIST = [
     desc: 'Catalogo completo de pecas, teoria de operacao, troubleshooting e reparo',
     color: C.accent, icon: '🔧',
     tags: ['M501','M506','M527','E50045','E52645'],
-    url: 'https://github.com/gptmaycondb/techguide-ia/releases/download/untagged-98ad022da9c4ab02088c/Service_PartsCatalog_HP_E52645_2025.pdf',
+    url: 'https://api.onedrive.com/v1.0/shares/u!aHR0cHM6Ly8xZHJ2Lm1zL2IvYy8wY2I5NzA1OWNjZTFhYjQyL0lRRHBqRWZRSi1zTVQ3ZGZXZlAwS1FUVUFWTkxQSXdLYjEwcERWaGt5Q2VtZmMwP2U9SGs3cjZJ/root/content',
     localName: 'tg_service_2025.pdf',
     size: '90 MB',
   },
@@ -82,18 +82,8 @@ export default function ManualsScreen() {
       // Delete any partial file
       await FileSystem.deleteAsync(dest, { idempotent: true });
 
-      // Resolve GitHub redirect to get direct CDN URL
-      let downloadUrl = manual.url;
-      try {
-        const headRes = await fetch(manual.url, { method: 'GET', redirect: 'follow' });
-        if (headRes.url && headRes.url !== manual.url) {
-          downloadUrl = headRes.url;
-        }
-        await headRes.body?.cancel?.();
-      } catch {}
-
       const dl = FileSystem.createDownloadResumable(
-        downloadUrl,
+        manual.url,
         dest,
         { headers: { 'User-Agent': 'Mozilla/5.0' } },
         (dp) => {
