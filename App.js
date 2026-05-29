@@ -4,12 +4,13 @@ import {
   SafeAreaView, StatusBar, Animated, Dimensions, ScrollView,
 } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
+import { logout, restoreSession } from './src/auth';
+import LoginScreen from './src/LoginScreen';
 
 SplashScreen.preventAutoHideAsync();
 import { ALL_MANUALS } from './src/data';
 import ChatScreen from './src/ChatScreen';
 import DrawerContent from './src/DrawerContent';
-import ProfileSelect from './src/ProfileSelect';
 import ManualsScreen from './src/ManualsScreen';
 
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -41,7 +42,8 @@ const BRANDS = Object.entries(BRAND_MAP).map(([id, manuals]) => ({
 }));
 
 export default function App() {
-  const [started, setStarted] = useState(false);
+  const [authStatus, setAuthStatus] = useState('loading'); // 'loading'|'guest'|'authed'
+  const [authEmail, setAuthEmail]   = useState(null);
   const [activeTab, setActiveTab] = useState('chat');
   const mode = 'tech';
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -69,9 +71,17 @@ export default function App() {
   }
 
   useEffect(() => {
-    SplashScreen.hideAsync();
-    wakeUpServer();
-    checkOnline();
+    async function init() {
+      try {
+        const session = await restoreSession();
+        if (session) { setAuthEmail(session.email); setAuthStatus('authed'); }
+        else { setAuthStatus('guest'); }
+      } catch { setAuthStatus('guest'); }
+      finally { SplashScreen.hideAsync(); }
+      wakeUpServer();
+      checkOnline();
+    }
+    init();
     const interval = setInterval(checkOnline, 30000);
     return () => clearInterval(interval);
   }, []);
@@ -98,6 +108,15 @@ export default function App() {
     Animated.spring(drawerAnim, { toValue: -DRAWER_W, useNativeDriver: true, tension: 65, friction: 11 }).start(() => setDrawerOpen(false));
   }
 
+  async function handleLogout() {
+    closeDrawer();
+    await logout();
+    setAuthStatus('guest');
+    setAuthEmail(null);
+    setAllMessages({});
+    setActiveTab('chat');
+  }
+
   function handleQuestion(q) {
     closeDrawer();
     setActiveTab('chat');
@@ -110,7 +129,10 @@ export default function App() {
     if (brand?.manuals[0]) setSelectedManualId(brand.manuals[0].id);
   }
 
-  if (!started) return <ProfileSelect onSelect={() => setStarted(true)} />;
+  if (authStatus === 'loading') return null;
+  if (authStatus === 'guest') return (
+    <LoginScreen onLoginSuccess={(email) => { setAuthEmail(email); setAuthStatus('authed'); }} />
+  );
 
   return (
     <View style={styles.root}>
@@ -274,12 +296,21 @@ export default function App() {
         <Animated.View style={[styles.drawer, { transform: [{ translateX: drawerAnim }] }]}>
           <SafeAreaView style={{ flex: 1 }}>
             <View style={styles.drawerHeader}>
-              <View>
+              <View style={{ flex: 1 }}>
                 <Text style={styles.drawerTitle}>Topicos Rapidos</Text>
+                {authEmail ? <Text style={styles.drawerEmail} numberOfLines={1}>{authEmail}</Text> : null}
               </View>
-              <TouchableOpacity onPress={closeDrawer} style={styles.closeBtn}>
-                <Text style={styles.closeBtnText}>✕</Text>
-              </TouchableOpacity>
+              <View style={{ flexDirection: 'row', gap: 8 }}>
+                <TouchableOpacity
+                  style={[styles.closeBtn, { backgroundColor: '#1a0a10', borderColor: '#4a1020' }]}
+                  onPress={handleLogout}
+                >
+                  <Text style={{ fontSize: 13 }}>🚪</Text>
+                </TouchableOpacity>
+                <TouchableOpacity onPress={closeDrawer} style={styles.closeBtn}>
+                  <Text style={styles.closeBtnText}>✕</Text>
+                </TouchableOpacity>
+              </View>
             </View>
             <DrawerContent manual={manual} mode={mode} onQuestion={handleQuestion} />
           </SafeAreaView>
@@ -343,6 +374,7 @@ const styles = StyleSheet.create({
   drawer: { position: 'absolute', top: 0, left: 0, bottom: 0, width: DRAWER_W, backgroundColor: C.surface, zIndex: 50, elevation: 20 },
   drawerHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: C.border },
   drawerTitle: { color: C.text, fontSize: 14, fontWeight: '700' },
+  drawerEmail: { color: C.muted, fontSize: 10, marginTop: 2 },
   closeBtn: { width: 30, height: 30, borderRadius: 6, backgroundColor: C.surface2, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
   closeBtnText: { color: C.dim, fontSize: 14 },
 });
