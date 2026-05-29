@@ -3,6 +3,9 @@ import {
   View, Text, TouchableOpacity, StyleSheet,
   SafeAreaView, StatusBar, Animated, Dimensions, ScrollView,
 } from 'react-native';
+import * as SplashScreen from 'expo-splash-screen';
+
+SplashScreen.preventAutoHideAsync();
 import { ALL_MANUALS } from './src/data';
 import ChatScreen from './src/ChatScreen';
 import DrawerContent from './src/DrawerContent';
@@ -66,6 +69,7 @@ export default function App() {
   }
 
   useEffect(() => {
+    SplashScreen.hideAsync();
     wakeUpServer();
     checkOnline();
     const interval = setInterval(checkOnline, 30000);
