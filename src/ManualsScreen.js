@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView,
-  Alert, ActivityIndicator, SafeAreaView,
+  Alert, ActivityIndicator, SafeAreaView, Linking,
 } from 'react-native';
 import * as FileSystem from 'expo-file-system';
-import * as IntentLauncher from 'expo-intent-launcher';
 import { BRAND_GROUPS } from './data';
 
 const C = {
@@ -98,11 +97,7 @@ export default function ManualsScreen() {
   async function openPdf(dest, manual) {
     try {
       const contentUri = await FileSystem.getContentUriAsync(dest);
-      await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
-        data: contentUri,
-        flags: 1,
-        type: 'application/pdf',
-      });
+      await Linking.openURL(contentUri);
     } catch (e) {
       Alert.alert('Erro ao abrir', e.message);
     }
