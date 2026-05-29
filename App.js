@@ -163,43 +163,6 @@ export default function App() {
           )}
         </View>
 
-        {/* ── Model Picker (dropdown) ───────────────────── */}
-        {showPicker && activeTab === 'chat' && (
-          <View style={styles.picker}>
-            {/* Brand tabs */}
-            <View style={styles.brandTabs}>
-              {BRANDS.map(b => (
-                <TouchableOpacity
-                  key={b.id}
-                  style={[styles.brandTab, selectedBrandId === b.id && { borderBottomColor: b.color, borderBottomWidth: 2 }]}
-                  onPress={() => selectBrand(b.id)}
-                >
-                  <Text style={[styles.brandTabText, { color: selectedBrandId === b.id ? b.color : C.dim }]}>
-                    {b.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-            {/* Models of selected brand */}
-            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.modelPills}>
-              {selectedBrand.manuals.map(m => (
-                <TouchableOpacity
-                  key={m.id}
-                  style={[
-                    styles.modelPill,
-                    { borderColor: m.color + '60' },
-                    selectedManualId === m.id && { backgroundColor: m.color + '22', borderColor: m.color },
-                  ]}
-                  onPress={() => { setSelectedManualId(m.id); setShowPicker(false); }}
-                >
-                  <Text style={[styles.modelPillText, { color: selectedManualId === m.id ? m.color : C.dim }]}>
-                    {m.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        )}
       </SafeAreaView>
 
       {/* Content */}
@@ -233,13 +196,70 @@ export default function App() {
         ))}
       </View>
 
-      {/* Picker overlay dismiss */}
-      {showPicker && (
-        <TouchableOpacity
-          style={StyleSheet.absoluteFillObject}
-          activeOpacity={1}
-          onPress={() => setShowPicker(false)}
-        />
+      {/* Model Picker Overlay */}
+      {showPicker && activeTab === 'chat' && (
+        <View style={[StyleSheet.absoluteFillObject, { zIndex: 45 }]}>
+          <TouchableOpacity
+            style={StyleSheet.absoluteFillObject}
+            activeOpacity={1}
+            onPress={() => setShowPicker(false)}
+          />
+          <SafeAreaView style={styles.pickerPanel}>
+            <View style={styles.pickerPanelHeader}>
+              <Text style={styles.pickerPanelTitle}>Selecionar Equipamento</Text>
+              <TouchableOpacity onPress={() => setShowPicker(false)} hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}>
+                <Text style={styles.pickerPanelClose}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.brandRow}>
+              {BRANDS.map(b => (
+                <TouchableOpacity
+                  key={b.id}
+                  style={[
+                    styles.brandCard,
+                    { borderColor: selectedBrandId === b.id ? b.color : C.border },
+                    selectedBrandId === b.id && { backgroundColor: b.color + '15' },
+                  ]}
+                  onPress={() => selectBrand(b.id)}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.brandCardLabel, { color: selectedBrandId === b.id ? b.color : C.text }]}>
+                    {b.label}
+                  </Text>
+                  <Text style={[styles.brandCardSub, { color: selectedBrandId === b.id ? b.color + 'cc' : C.muted }]}>
+                    {b.manuals.length} modelo{b.manuals.length !== 1 ? 's' : ''}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+            <View style={styles.pickerDivider} />
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.modelRow}
+            >
+              {selectedBrand.manuals.map(m => (
+                <TouchableOpacity
+                  key={m.id}
+                  style={[
+                    styles.modelCard,
+                    { borderColor: m.color + '60' },
+                    selectedManualId === m.id && { backgroundColor: m.color + '22', borderColor: m.color },
+                  ]}
+                  onPress={() => { setSelectedManualId(m.id); setShowPicker(false); }}
+                  activeOpacity={0.7}
+                >
+                  <Text style={[styles.modelCardText, { color: selectedManualId === m.id ? m.color : C.dim }]}>
+                    {m.label}
+                  </Text>
+                  <Text style={[styles.modelCardSub, { color: selectedManualId === m.id ? m.color + 'aa' : C.muted }]}>
+                    {m.subtitle}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </SafeAreaView>
+        </View>
       )}
 
       {/* Drawer */}
@@ -280,14 +300,20 @@ const styles = StyleSheet.create({
   menuBtn: { width: 34, height: 34, borderRadius: 7, backgroundColor: C.surface2, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
   menuBtnText: { color: C.dim, fontSize: 17 },
 
-  // Picker
-  picker: { backgroundColor: C.surface2, borderTopWidth: 1, borderTopColor: C.border, paddingBottom: 10 },
-  brandTabs: { flexDirection: 'row', paddingHorizontal: 14, paddingTop: 8, gap: 4 },
-  brandTab: { paddingHorizontal: 14, paddingVertical: 7, borderBottomWidth: 2, borderBottomColor: 'transparent' },
-  brandTabText: { fontSize: 13, fontWeight: '700' },
-  modelPills: { paddingHorizontal: 14, paddingTop: 8 },
-  modelPill: { borderWidth: 1, borderRadius: 20, paddingHorizontal: 14, paddingVertical: 7, marginRight: 8 },
-  modelPillText: { fontSize: 12, fontWeight: '600' },
+  // Picker overlay
+  pickerPanel: { backgroundColor: C.surface2, borderBottomWidth: 1, borderBottomColor: C.border },
+  pickerPanelHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: C.border },
+  pickerPanelTitle: { color: C.text, fontSize: 14, fontWeight: '700' },
+  pickerPanelClose: { color: C.dim, fontSize: 18 },
+  brandRow: { flexDirection: 'row', padding: 12, gap: 10 },
+  brandCard: { flex: 1, paddingVertical: 18, paddingHorizontal: 12, borderRadius: 12, borderWidth: 2, backgroundColor: C.surface, alignItems: 'center', gap: 4 },
+  brandCardLabel: { fontSize: 22, fontWeight: '800' },
+  brandCardSub: { fontSize: 11 },
+  pickerDivider: { height: 1, backgroundColor: C.border, marginHorizontal: 14 },
+  modelRow: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 4, gap: 8 },
+  modelCard: { borderWidth: 1.5, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 12, minWidth: 130 },
+  modelCardText: { fontSize: 13, fontWeight: '700' },
+  modelCardSub: { fontSize: 10, marginTop: 3 },
 
   bottomNav: { flexDirection: 'row', backgroundColor: C.surface, borderTopWidth: 1, borderTopColor: C.border, paddingBottom: 8 },
   bottomTab: { flex: 1, alignItems: 'center', paddingVertical: 10, gap: 3 },
