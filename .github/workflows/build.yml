@@ -24,13 +24,6 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Install Android SDK components
-        run: |
-          sdkmanager "platforms;android-34" "build-tools;34.0.0" "platform-tools"
-
       - name: Cache Gradle
         uses: actions/cache@v4
         with:
@@ -51,6 +44,9 @@ jobs:
           cd android
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
+        env:
+          ANDROID_HOME: /usr/local/lib/android/sdk
+          ANDROID_SDK_ROOT: /usr/local/lib/android/sdk
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
@@ -61,6 +57,5 @@ jobs:
 
       - name: Build summary
         run: |
-          echo "### ✅ APK gerado com sucesso!" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "📥 Baixe o APK em **Actions → clique no run → Artifacts**" >> $GITHUB_STEP_SUMMARY
+          echo "### ✅ APK pronto!" >> $GITHUB_STEP_SUMMARY
+          echo "📥 Baixe em **Actions → este run → Artifacts**" >> $GITHUB_STEP_SUMMARY
