@@ -14,39 +14,47 @@ const C = {
   userBubble: '#1a2744', aiBubble: '#131a28', error: '#ff4d6d',
 };
 
-// Tips for the assistant bubble
 const TIPS = [
-  'Tente perguntar: "Como resolver atolamento na bandeja 2?"',
-  'Dica: Use o código de erro para buscar soluções, ex: "Erro 13.02"',
-  'Pesquise em português ou inglês — entendo os dois!',
-  'Dica: "Como substituir o fusor?" retorna resultados precisos',
-  'Experimente: "Qual o part number do rolo de puxada?"',
-  'Pesquise pelo modelo: "M527 scanner não calibra"',
-  'Dica: Perguntas curtas e diretas dão melhores resultados',
+  '💡 Tente: "Como resolver atolamento na bandeja 2?"',
+  '💡 Use o codigo de erro: "O que significa erro 13.02?"',
+  '💡 Pesquise em portugues ou ingles — entendo os dois!',
+  '💡 Tente: "Como substituir o fusor do E52645?"',
+  '💡 Pergunte: "Qual o part number do rolo de puxada?"',
+  '💡 Tente: "Scanner nao calibra, como resolver?"',
+  '💡 Perguntas diretas dao melhores resultados',
+  '💡 Tente: "Como configurar digitalizar para email?"',
+  '💡 Pergunte: "Impressao saindo com riscos, o que fazer?"',
+  '💡 Tente: "Como acessar o EWS da impressora?"',
+  '💡 Pergunte: "Erro 49.xx firmware, como resolver?"',
+  '💡 Tente: "Cartucho nao reconhecido, como resolver?"',
+  '💡 Pergunte: "Como imprimir frente e verso automatico?"',
+  '💡 Tente: "Bandeja 2 nao puxa papel, o que fazer?"',
+  '💡 Pergunte: "Como trocar o kit de manutencao?"',
 ];
 
-function AssistantBubble({ onSuggest }) {
-  const [tipIdx, setTipIdx] = useState(0);
-  const [visible, setVisible] = useState(true);
+function AssistantBubble({ onSuggest, onClose }) {
+  const [tipIdx, setTipIdx] = useState(Math.floor(Math.random() * TIPS.length));
   const scale = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.spring(scale, { toValue: 1, useNativeDriver: true, tension: 80, friction: 8 }).start();
-    const interval = setInterval(() => setTipIdx(i => (i + 1) % TIPS.length), 6000);
+    const interval = setInterval(() => setTipIdx(i => (i + 1) % TIPS.length), 5000);
     return () => clearInterval(interval);
   }, []);
 
-  if (!visible) return null;
-
   return (
     <Animated.View style={[styles.assistantWrap, { transform: [{ scale }] }]}>
-      <TouchableOpacity style={styles.assistantBubble} onPress={() => onSuggest(TIPS[tipIdx])} activeOpacity={0.8}>
+      <TouchableOpacity
+        style={styles.assistantBubble}
+        onPress={() => onSuggest(TIPS[tipIdx].replace(/^💡 Tente: |^💡 Pergunte: |^💡 Use o codigo de erro: |^💡 /,'').replace(/"/g,''))}
+        activeOpacity={0.8}
+      >
         <Text style={styles.assistantIcon}>🤖</Text>
         <View style={{ flex: 1 }}>
           <Text style={styles.assistantTitle}>Assistente TG</Text>
           <Text style={styles.assistantTip}>{TIPS[tipIdx]}</Text>
         </View>
-        <TouchableOpacity onPress={() => setVisible(false)} style={styles.assistantClose}>
+        <TouchableOpacity onPress={onClose} style={styles.assistantClose} hitSlop={{top:10,bottom:10,left:10,right:10}}>
           <Text style={styles.assistantCloseText}>✕</Text>
         </TouchableOpacity>
       </TouchableOpacity>
@@ -60,6 +68,7 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
   const [kbHeight, setKbHeight] = useState(0);
   const [showAssistant, setShowAssistant] = useState(true);
   const listRef = useRef(null);
+  const inputRef = useRef(null);
   const currentMode = USER_MODES[mode] || USER_MODES['user'];
 
   useEffect(() => {
@@ -72,46 +81,43 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
   useEffect(() => {
     const show = Keyboard.addListener('keyboardDidShow', e => {
       setKbHeight(e.endCoordinates.height);
-      setShowAssistant(false);
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 200);
     });
-    const hide = Keyboard.addListener('keyboardDidHide', () => {
-      setKbHeight(0);
-      if (messages.length === 0) setShowAssistant(true);
-    });
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKbHeight(0));
     return () => { show.remove(); hide.remove(); };
-  }, [messages.length]);
+  }, []);
 
   const scrollToBottom = () => setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 150);
 
   async function send(question) {
-    if (!question.trim() || loading) return;
+    const q = (question || input).trim();
+    if (!q || loading) return;
     setInput('');
     setShowAssistant(false);
     Keyboard.dismiss();
 
-    const userMsg = { id: Date.now(), role: 'user', text: question };
+    const userMsg = { id: Date.now(), role: 'user', text: q };
     const newMsgs = [...messages, userMsg];
     setMessages(newMsgs);
     setLoading(true);
     scrollToBottom();
 
     const history = newMsgs.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text }));
-    const indexKey = MANUAL_INDEX_MAP[manual.id] || manual.indexKey;
-    const chunks = searchManual(question, indexKey, 6);
-    const foundInManual = chunks.length > 0 && hasRelevantContent(question, indexKey);
+    const indexKey = MANUAL_INDEX_MAP[manual.id] || manual.indexKey || 'e52645_guia';
+    const chunks = searchManual(q, indexKey, 6);
+    const foundInManual = chunks.length > 0 && hasRelevantContent(q, indexKey);
 
     const contextBlock = chunks.length > 0
-      ? '\n\nTRECHOS RELEVANTES DO MANUAL:\n\n' + chunks.map((c, i) => `[${i+1}] ${c}`).join('\n\n---\n\n')
-      + '\n\nResponda baseando-se nos trechos acima. Se a informacao nao estiver clara nos trechos, diga ao usuario.'
-      : '\n\nNenhum trecho encontrado para esta consulta. Informe o usuario claramente e tente responder com conhecimento geral sobre impressoras HP.';
+      ? '\n\nTRECHOS DO MANUAL:\n\n' + chunks.map((c, i) => `[${i+1}]\n${c}`).join('\n\n---\n\n')
+      + '\n\nResponda baseando-se nos trechos acima.'
+      : '\n\nNenhum trecho encontrado. Informe claramente e responda com conhecimento geral.';
 
-    const systemPrompt = (manual.prompts?.[mode] || manual.prompts?.['user'] || '') + contextBlock;
+    const systemPrompt = (manual.prompts?.[mode] || manual.prompts?.user || '') + contextBlock;
 
     if (!isOnline) {
       const offlineText = foundInManual
-        ? 'Modo offline — Trechos encontrados no manual:\n\n' + chunks.map((c,i) => `[${i+1}] ${c.substring(0,400)}${c.length>400?'...':''}`).join('\n\n')
-        : 'Modo offline — Nenhum trecho encontrado para esta pesquisa. Conecte-se para usar a IA.';
+        ? 'Modo offline — Trechos encontrados:\n\n' + chunks.map((c,i) => `[${i+1}] ${c.substring(0,400)}${c.length>400?'...':''}`).join('\n\n')
+        : 'Modo offline — Nenhum resultado encontrado. Conecte-se para usar a IA.';
       setMessages(m => [...m, { id: Date.now()+1, role: 'ai', text: offlineText, source: 'Manual (offline)', offline: true, fromManual: foundInManual }]);
       setLoading(false);
       scrollToBottom();
@@ -130,15 +136,18 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
       clearTimeout(timeout);
       const text = await res.text();
       let data;
-      try { data = JSON.parse(text); } catch { throw new Error('Resposta invalida do servidor'); }
+      try { data = JSON.parse(text); } catch { throw new Error('Resposta invalida'); }
       if (data.error) throw new Error(typeof data.error === 'string' ? data.error : data.error.message);
       if (!data.content?.length) throw new Error('Resposta vazia');
       const answer = data.content.map(b => b.text || '').join('');
-      const source = foundInManual ? `Manual: ${manual.subtitle}` : 'Resposta geral (consulta online)';
-      setMessages(m => [...m, { id: Date.now()+1, role: 'ai', text: answer, source, fromManual: foundInManual }]);
+      setMessages(m => [...m, {
+        id: Date.now()+1, role: 'ai', text: answer,
+        source: foundInManual ? `Manual: ${manual.subtitle}` : 'Resposta geral',
+        fromManual: foundInManual,
+      }]);
     } catch (err) {
       const msg = err.name === 'AbortError'
-        ? 'Tempo limite excedido. O servidor pode estar iniciando — aguarde 30s e tente novamente.'
+        ? 'Tempo limite excedido. Servidor iniciando — tente novamente em 30s.'
         : 'Erro: ' + err.message;
       setMessages(m => [...m, { id: Date.now()+1, role: 'ai', text: msg, isError: true }]);
     }
@@ -174,7 +183,7 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
 
   function renderWelcome() {
     const topics = manual.topics?.[mode] || manual.topics?.user || {};
-    const questions = Object.values(topics).flat().slice(0, 3);
+    const questions = Object.values(topics).flat().slice(0, 4);
     return (
       <View style={styles.welcome}>
         <View style={[styles.welcomeIcon, { backgroundColor: C.accent }]}>
@@ -182,7 +191,7 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
         </View>
         <Text style={styles.welcomeTitle}>{manual.label}</Text>
         <Text style={styles.welcomeSub}>{manual.subtitle}</Text>
-        {questions.length > 0 && <Text style={styles.welcomeHint}>Sugestoes de pesquisa:</Text>}
+        <Text style={styles.welcomeHint}>Sugestoes de pesquisa:</Text>
         {questions.map((q, i) => (
           <TouchableOpacity key={i} style={styles.suggBtn} onPress={() => send(q)}>
             <Text style={styles.suggText}>→ {q}</Text>
@@ -211,20 +220,25 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
           </View>
         )}
 
-        {showAssistant && messages.length === 0 && (
-          <AssistantBubble onSuggest={(tip) => { setInput(tip); setShowAssistant(false); }} />
+        {showAssistant && messages.length === 0 && kbHeight === 0 && (
+          <AssistantBubble
+            onSuggest={(tip) => { setInput(tip); inputRef.current?.focus(); }}
+            onClose={() => setShowAssistant(false)}
+          />
         )}
 
         <View style={[styles.inputBar, { marginBottom: extraBottom }]}>
           <TextInput
+            ref={inputRef}
             style={styles.input}
             value={input}
             onChangeText={setInput}
             placeholder="Pesquise no manual..."
             placeholderTextColor={C.muted}
-            multiline
-            maxLength={500}
+            multiline={false}
+            maxLength={300}
             textAlignVertical="center"
+            returnKeyType="send"
             onSubmitEditing={() => send(input)}
             blurOnSubmit={false}
           />
@@ -269,7 +283,7 @@ const styles = StyleSheet.create({
   assistantWrap: { marginHorizontal: 14, marginBottom: 6 },
   assistantBubble: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: '#0d1f3a', borderWidth: 1, borderColor: C.accent + '60',
+    backgroundColor: '#0d1f3a', borderWidth: 1, borderColor: C.accent + '50',
     borderRadius: 14, padding: 12,
   },
   assistantIcon: { fontSize: 22 },
@@ -285,7 +299,7 @@ const styles = StyleSheet.create({
   input: {
     flex: 1, backgroundColor: C.surface2, borderWidth: 1, borderColor: C.border,
     borderRadius: 14, paddingHorizontal: 16, paddingVertical: 12,
-    color: '#ffffff', fontSize: 15, minHeight: 50, maxHeight: 120,
+    color: '#ffffff', fontSize: 15, height: 50,
   },
   sendBtn: { width: 50, height: 50, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   sendIcon: { color: '#fff', fontSize: 18 },

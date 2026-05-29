@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
-  View, Text, TouchableOpacity, ScrollView, StyleSheet,
+  View, Text, TouchableOpacity, StyleSheet,
   SafeAreaView, StatusBar, Animated, Dimensions,
 } from 'react-native';
 import { MANUALS, USER_MODES } from './src/data';
@@ -24,24 +24,26 @@ const BOTTOM_TABS = [
 ];
 
 export default function App() {
-  const [mode, setMode] = useState(null);
+  const [started, setStarted] = useState(false);
   const [activeTab, setActiveTab] = useState('chat');
-  const [currentId, setCurrentId] = useState(MANUALS[0].id);
+  const [mode, setMode] = useState('user');
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
   const [pendingQuestion, setPendingQuestion] = useState(null);
+  const [allMessages, setAllMessages] = useState({});
   const drawerAnim = useRef(new Animated.Value(-DRAWER_W)).current;
 
-  // Store messages per manual to preserve history when switching tabs
-  const [allMessages, setAllMessages] = useState({});
-
-  const manual = MANUALS.find(m => m.id === currentId);
-  const currentMode = mode ? USER_MODES[mode] : null;
-  const chatKey = currentId + '_' + mode;
+  // Only one manual for now
+  const manual = MANUALS[0];
+  const currentMode = USER_MODES[mode];
+  const chatKey = manual.id + '_' + mode;
   const messages = allMessages[chatKey] || [];
 
   function setMessages(msgs) {
-    setAllMessages(prev => ({ ...prev, [chatKey]: typeof msgs === 'function' ? msgs(prev[chatKey] || []) : msgs }));
+    setAllMessages(prev => ({
+      ...prev,
+      [chatKey]: typeof msgs === 'function' ? msgs(prev[chatKey] || []) : msgs
+    }));
   }
 
   useEffect(() => {
@@ -58,9 +60,8 @@ export default function App() {
   async function checkOnline() {
     try {
       const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 10000);
+      setTimeout(() => controller.abort(), 10000);
       const res = await fetch('https://manuais-hp.onrender.com/', { method: 'HEAD', signal: controller.signal });
-      clearTimeout(timeout);
       setIsOnline(res.ok);
     } catch { setIsOnline(false); }
   }
@@ -80,7 +81,11 @@ export default function App() {
     setPendingQuestion(q);
   }
 
-  if (!mode) return <ProfileSelect onSelect={setMode} />;
+  function toggleMode() {
+    setMode(m => m === 'user' ? 'tech' : 'user');
+  }
+
+  if (!started) return <ProfileSelect onSelect={() => setStarted(true)} />;
 
   return (
     <View style={styles.root}>
@@ -93,57 +98,39 @@ export default function App() {
           </View>
           <View style={styles.headerInfo}>
             <Text style={styles.headerTitle} numberOfLines={1}>
-              {activeTab === 'chat' ? manual.label : 'Manuais HP'}
+              {activeTab === 'chat' ? manual.label : 'Manuais'}
             </Text>
             <Text style={styles.headerSub} numberOfLines={1}>
-              {activeTab === 'chat' ? manual.subtitle : 'Baixar PDFs originais'}
+              {activeTab === 'chat' ? manual.subtitle : 'HP LaserJet'}
             </Text>
           </View>
-          <TouchableOpacity style={[styles.profileBtn, { borderColor: currentMode.color }]} onPress={() => setMode(null)}>
-            <Text style={styles.profileEmoji}>{currentMode.icon}</Text>
-            <Text style={[styles.profileLabel, { color: currentMode.color }]}>{currentMode.label}</Text>
+
+          {/* Mode toggle */}
+          <TouchableOpacity
+            style={[styles.modeBtn, { borderColor: currentMode.color }]}
+            onPress={toggleMode}
+          >
+            <Text style={styles.modeIcon}>{currentMode.icon}</Text>
+            <Text style={[styles.modeLabel, { color: currentMode.color }]}>{currentMode.label}</Text>
           </TouchableOpacity>
+
+          {/* Online indicator */}
           <TouchableOpacity
             style={[styles.onlineDot, { backgroundColor: isOnline ? '#00d4aa22' : '#6b21a822', borderColor: isOnline ? '#00d4aa' : '#6b21a8' }]}
             onPress={() => { wakeUpServer(); checkOnline(); }}
           >
             <Text style={{ color: isOnline ? '#00d4aa' : '#a855f7', fontSize: 8, fontWeight: '700' }}>{isOnline ? 'ON' : 'OFF'}</Text>
           </TouchableOpacity>
+
           {activeTab === 'chat' && (
             <TouchableOpacity style={styles.menuBtn} onPress={openDrawer}>
               <Text style={styles.menuBtnText}>☰</Text>
             </TouchableOpacity>
           )}
         </View>
-        {activeTab === 'chat' && (
-          <View style={[styles.modeBanner, { backgroundColor: currentMode.color + '12', borderBottomColor: currentMode.color + '30' }]}>
-            <Text style={styles.modeBannerIcon}>{currentMode.icon}</Text>
-            <Text style={[styles.modeBannerText, { color: currentMode.color }]}>
-              {mode === 'user' ? 'Modo Usuario — respostas simples' : 'Modo Tecnico — informacoes completas'}
-            </Text>
-            <TouchableOpacity onPress={() => setMode(null)} style={styles.switchBtn}>
-              <Text style={[styles.switchBtnText, { color: currentMode.color }]}>Trocar</Text>
-            </TouchableOpacity>
-          </View>
-        )}
       </SafeAreaView>
 
-      {activeTab === 'chat' && (
-        <View style={styles.tabsWrapper}>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.tabsContent}>
-            {MANUALS.map(m => (
-              <TouchableOpacity
-                key={m.id}
-                style={[styles.modelTab, currentId === m.id && { borderColor: m.color, backgroundColor: m.color + '15' }]}
-                onPress={() => setCurrentId(m.id)}
-              >
-                <Text style={[styles.modelTabText, currentId === m.id && { color: m.color, fontWeight: '700' }]}>{m.label}</Text>
-              </TouchableOpacity>
-            ))}
-          </ScrollView>
-        </View>
-      )}
-
+      {/* Content */}
       <View style={{ flex: 1 }}>
         {activeTab === 'chat' ? (
           <ChatScreen
@@ -160,6 +147,7 @@ export default function App() {
         )}
       </View>
 
+      {/* Bottom nav */}
       <View style={styles.bottomNav}>
         {BOTTOM_TABS.map(tab => (
           <TouchableOpacity
@@ -173,6 +161,7 @@ export default function App() {
         ))}
       </View>
 
+      {/* Drawer */}
       {drawerOpen && <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={closeDrawer} />}
       {drawerOpen && (
         <Animated.View style={[styles.drawer, { transform: [{ translateX: drawerAnim }] }]}>
@@ -180,7 +169,7 @@ export default function App() {
             <View style={styles.drawerHeader}>
               <View>
                 <Text style={styles.drawerTitle}>Topicos Rapidos</Text>
-                <Text style={[styles.drawerMode, { color: currentMode.color }]}>{currentMode.icon} Modo {currentMode.label}</Text>
+                <Text style={[styles.drawerMode, { color: currentMode.color }]}>{currentMode.icon} {currentMode.label}</Text>
               </View>
               <TouchableOpacity onPress={closeDrawer} style={styles.closeBtn}>
                 <Text style={styles.closeBtnText}>✕</Text>
@@ -203,21 +192,12 @@ const styles = StyleSheet.create({
   headerInfo: { flex: 1 },
   headerTitle: { color: C.text, fontSize: 13, fontWeight: '700' },
   headerSub: { color: C.dim, fontSize: 10, marginTop: 1 },
-  profileBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 16, borderWidth: 1, backgroundColor: C.surface2 },
-  profileEmoji: { fontSize: 13 },
-  profileLabel: { fontSize: 11, fontWeight: '700' },
+  modeBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 16, borderWidth: 1, backgroundColor: C.surface2 },
+  modeIcon: { fontSize: 13 },
+  modeLabel: { fontSize: 11, fontWeight: '700' },
   onlineDot: { width: 32, height: 22, borderRadius: 11, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   menuBtn: { width: 34, height: 34, borderRadius: 7, backgroundColor: C.surface2, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
   menuBtnText: { color: C.dim, fontSize: 17 },
-  modeBanner: { paddingHorizontal: 14, paddingVertical: 6, flexDirection: 'row', alignItems: 'center', gap: 6, borderBottomWidth: 1 },
-  modeBannerIcon: { fontSize: 12 },
-  modeBannerText: { flex: 1, fontSize: 11 },
-  switchBtn: { paddingHorizontal: 8, paddingVertical: 3 },
-  switchBtnText: { fontSize: 11, fontWeight: '700' },
-  tabsWrapper: { backgroundColor: C.surface, borderBottomWidth: 1, borderBottomColor: C.border },
-  tabsContent: { paddingHorizontal: 10, paddingVertical: 7, gap: 5 },
-  modelTab: { paddingHorizontal: 12, paddingVertical: 5, borderRadius: 20, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface2 },
-  modelTabText: { color: C.dim, fontSize: 11 },
   bottomNav: { flexDirection: 'row', backgroundColor: C.surface, borderTopWidth: 1, borderTopColor: C.border, paddingBottom: 8 },
   bottomTab: { flex: 1, alignItems: 'center', paddingVertical: 10, gap: 3 },
   bottomTabActive: { borderTopWidth: 2, borderTopColor: C.accent },
