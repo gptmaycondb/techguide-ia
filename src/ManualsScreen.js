@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView,
-  Alert, ActivityIndicator, SafeAreaView,
+  Alert, ActivityIndicator, SafeAreaView, Linking,
 } from 'react-native';
 import * as FileSystem from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
 import { BRAND_GROUPS } from './data';
 
 const C = {
@@ -97,11 +96,10 @@ export default function ManualsScreen() {
 
   async function openPdf(dest, manual) {
     try {
-      if (await Sharing.isAvailableAsync()) {
-        await Sharing.shareAsync(dest, { mimeType: 'application/pdf', dialogTitle: manual.title, UTI: 'com.adobe.pdf' });
-      }
+      const contentUri = await FileSystem.getContentUriAsync(dest);
+      await Linking.openURL(contentUri);
     } catch (e) {
-      Alert.alert('Erro', e.message);
+      Alert.alert('Erro ao abrir', e.message);
     }
   }
 
@@ -259,8 +257,9 @@ export default function ManualsScreen() {
 
         <View style={styles.footer}>
           <Text style={styles.footerText}>
-            💾 Salvos no dispositivo para acesso offline{'\n'}
-            🗑 Toque na lixeira para liberar espaço
+            📥 Baixe os manuais para consulta offline em campo{'\n'}
+            🔍 Pesquise códigos de erro e procedimentos na aba Consulta{'\n'}
+            🗑 Toque na lixeira para remover e liberar espaço
           </Text>
         </View>
       </ScrollView>

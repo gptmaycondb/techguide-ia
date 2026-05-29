@@ -1,4 +1,5 @@
 import searchData from '../assets/search_index.json';
+import errorCodesData from '../assets/error_codes_index.json';
 
 const SYNONYMS = {
   jam:'atolamento', jams:'atolamento', atolado:'atolamento', preso:'atolamento',
@@ -104,6 +105,37 @@ export function searchManual(query, indexKey, topK = 6) {
 
   scored.sort((a, b) => b.score - a.score);
   return scored.slice(0, topK).map(c => c.text);
+}
+
+export function searchErrorCode(query, indexKey) {
+  const q = query.trim();
+  const codes = [
+    ...(q.toUpperCase().match(/SC\d{3,6}/g) || []),
+    ...(q.match(/\b\d{2}\.\d{2}(?:\.\d{2}(?:\.\d{2})?)?\b/g) || []),
+    ...(q.toUpperCase().match(/\bJ\d{3,6}\b/g) || []),
+  ];
+
+  const direct = q.toUpperCase().replace(/^(ERRO|ERROR|CODIGO|CODE|FALHA)\s+/i, '').trim();
+  const toTry = codes.length > 0 ? codes : [direct];
+
+  const results = [];
+  for (const code of toTry) {
+    if (errorCodesData[code]) {
+      const entries = errorCodesData[code];
+      const filtered = indexKey ? entries.filter(e => e.key === indexKey) : entries;
+      results.push(...(filtered.length ? filtered : entries).map(e => e.text));
+    } else {
+      for (const [k, entries] of Object.entries(errorCodesData)) {
+        if (k.startsWith(code) || (code.length >= 4 && k.includes(code))) {
+          const filtered = indexKey ? entries.filter(e => e.key === indexKey) : entries;
+          results.push(...(filtered.length ? filtered : entries).map(e => e.text));
+          if (results.length >= 5) break;
+        }
+      }
+    }
+    if (results.length >= 5) break;
+  }
+  return results.slice(0, 5);
 }
 
 export function hasRelevantContent(query, indexKey, minScore = 2) {
