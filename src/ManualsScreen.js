@@ -4,7 +4,7 @@ import {
   Alert, ActivityIndicator, SafeAreaView,
 } from 'react-native';
 import * as FileSystem from 'expo-file-system';
-import * as IntentLauncher from 'expo-intent-launcher';
+import * as Sharing from 'expo-sharing';
 import { BRAND_GROUPS } from './data';
 
 const C = {
@@ -97,11 +97,10 @@ export default function ManualsScreen() {
 
   async function openPdf(dest) {
     try {
-      const contentUri = await FileSystem.getContentUriAsync(dest);
-      await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
-        data: contentUri,
-        flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
-        type: 'application/pdf',
+      await Sharing.shareAsync(dest, {
+        mimeType: 'application/pdf',
+        dialogTitle: 'Abrir manual com...',
+        UTI: 'com.adobe.pdf',
       });
     } catch (e) {
       Alert.alert('Erro ao abrir', e.message);
