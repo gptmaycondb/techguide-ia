@@ -187,9 +187,11 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
             item.offline && { backgroundColor: '#1a0d2a', borderColor: '#6b21a8' },
           ]}>
             <TextInput
-              editable={false}
+              editable={true}
               multiline
               scrollEnabled={false}
+              showSoftInputOnFocus={false}
+              onChangeText={() => {}}
               value={item.text}
               style={[styles.bubbleText, item.isError && { color: C.error }]}
               caretHidden

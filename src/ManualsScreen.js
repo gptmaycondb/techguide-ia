@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView,
-  Alert, ActivityIndicator, SafeAreaView, Linking,
+  Alert, ActivityIndicator, SafeAreaView,
 } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
+import * as IntentLauncher from 'expo-intent-launcher';
 import { BRAND_GROUPS } from './data';
 
 const C = {
@@ -97,18 +98,13 @@ export default function ManualsScreen() {
 
   async function openPdf(dest) {
     try {
-      // Build an intent:// URI that carries FLAG_GRANT_READ_URI_PERMISSION (0x1)
-      // so the chosen PDF reader can actually read the content:// URI.
-      // This produces the native "Abrir com" (ACTION_VIEW) chooser, not the share sheet.
       const contentUri = await FileSystem.getContentUriAsync(dest);
-      const uriPath = contentUri.replace('content://', '');
-      const intentUri =
-        `intent://${uriPath}#Intent;scheme=content;` +
-        `action=android.intent.action.VIEW;type=application/pdf;` +
-        `flags=0x00000001;end`;
-      await Linking.openURL(intentUri);
+      await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
+        data: contentUri,
+        flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
+        type: 'application/pdf',
+      });
     } catch {
-      // Fallback: share sheet (expo-sharing uses FileProvider — file actually opens)
       try {
         await Sharing.shareAsync(dest, {
           mimeType: 'application/pdf',
