@@ -1,6 +1,6 @@
 import * as SecureStore from 'expo-secure-store';
 
-const FIREBASE_API_KEY = 'YOUR_FIREBASE_WEB_API_KEY';
+const FIREBASE_API_KEY = 'AIzaSyAMZXXVH3b4KIMLOOe7UNAzBFgRTAfdDMk';
 
 const SIGN_IN_URL =
   'https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=' + FIREBASE_API_KEY;
