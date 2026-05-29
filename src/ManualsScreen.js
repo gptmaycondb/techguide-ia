@@ -86,7 +86,6 @@ export default function ManualsScreen() {
       }
 
       setDownloaded(d => ({ ...d, [manual.id]: true }));
-      await openPdf(dest);
     } catch (e) {
       await FileSystem.deleteAsync(dest, { idempotent: true });
       Alert.alert('Erro no download', e.message);
@@ -217,7 +216,7 @@ export default function ManualsScreen() {
                         ))}
                       </View>
 
-                      {isLoading && (
+                      {isLoading && pct > 0 && (
                         <View style={styles.progressWrap}>
                           <View style={styles.progressBg}>
                             <View style={[styles.progressFill, { width: pct + '%', backgroundColor: manual.color }]} />
@@ -246,7 +245,7 @@ export default function ManualsScreen() {
                             <View style={styles.btnRow}>
                               <ActivityIndicator size="small" color={manual.color} />
                               <Text style={[styles.btnLoadText, { color: manual.color }]}>
-                                {pct > 0 ? `${pct}%` : 'Iniciando...'}
+                                {pct > 0 ? `${pct}%` : 'Baixando...'}
                               </Text>
                             </View>
                           ) : isUnavailable ? (
