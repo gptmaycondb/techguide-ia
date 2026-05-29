@@ -3,7 +3,7 @@ import {
   View, Text, TouchableOpacity, StyleSheet,
   SafeAreaView, StatusBar, Animated, Dimensions, ScrollView,
 } from 'react-native';
-import { ALL_MANUALS, USER_MODES } from './src/data';
+import { ALL_MANUALS } from './src/data';
 import ChatScreen from './src/ChatScreen';
 import DrawerContent from './src/DrawerContent';
 import ProfileSelect from './src/ProfileSelect';
@@ -40,7 +40,7 @@ const BRANDS = Object.entries(BRAND_MAP).map(([id, manuals]) => ({
 export default function App() {
   const [started, setStarted] = useState(false);
   const [activeTab, setActiveTab] = useState('chat');
-  const [mode, setMode] = useState('user');
+  const mode = 'tech';
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
   const [pendingQuestion, setPendingQuestion] = useState(null);
@@ -55,8 +55,7 @@ export default function App() {
 
   const selectedBrand = BRANDS.find(b => b.id === selectedBrandId) || BRANDS[0];
   const manual = ALL_MANUALS.find(m => m.id === selectedManualId) || ALL_MANUALS[0];
-  const currentMode = USER_MODES[mode];
-  const chatKey = manual.id + '_' + mode;
+  const chatKey = manual.id;
   const messages = allMessages[chatKey] || [];
 
   function setMessages(msgs) {
@@ -101,10 +100,6 @@ export default function App() {
     setPendingQuestion(q);
   }
 
-  function toggleMode() {
-    setMode(m => m === 'user' ? 'tech' : 'user');
-  }
-
   function selectBrand(brandId) {
     setSelectedBrandId(brandId);
     const brand = BRANDS.find(b => b.id === brandId);
@@ -123,30 +118,15 @@ export default function App() {
             <Text style={styles.headerLogoText}>TG</Text>
           </View>
 
-          {/* Tappable title → opens picker */}
-          <TouchableOpacity
-            style={styles.headerInfo}
-            onPress={() => activeTab === 'chat' && setShowPicker(p => !p)}
-            activeOpacity={activeTab === 'chat' ? 0.7 : 1}
-          >
+          {/* Title */}
+          <View style={styles.headerInfo}>
             <Text style={styles.headerTitle} numberOfLines={1}>
               {activeTab === 'chat' ? manual.label : 'Manuais'}
             </Text>
             <Text style={styles.headerSub} numberOfLines={1}>
-              {activeTab === 'chat'
-                ? manual.subtitle + (activeTab === 'chat' ? ' ▾' : '')
-                : 'HP · Ricoh'}
+              {activeTab === 'chat' ? manual.subtitle : 'HP · Ricoh'}
             </Text>
-          </TouchableOpacity>
-
-          {/* Mode toggle */}
-          <TouchableOpacity
-            style={[styles.modeBtn, { borderColor: currentMode.color }]}
-            onPress={toggleMode}
-          >
-            <Text style={styles.modeIcon}>{currentMode.icon}</Text>
-            <Text style={[styles.modeLabel, { color: currentMode.color }]}>{currentMode.label}</Text>
-          </TouchableOpacity>
+          </View>
 
           {/* Online indicator */}
           <TouchableOpacity
@@ -163,6 +143,27 @@ export default function App() {
           )}
         </View>
 
+        {/* Equipment selector strip — chat tab only */}
+        {activeTab === 'chat' && (
+          <TouchableOpacity
+            style={[styles.equipStrip, { borderLeftColor: manual.color }]}
+            onPress={() => setShowPicker(p => !p)}
+            activeOpacity={0.75}
+          >
+            <View style={[styles.equipBrandTag, { backgroundColor: manual.color + '20', borderColor: manual.color + '80' }]}>
+              <Text style={[styles.equipBrandText, { color: manual.color }]}>
+                {manual.brand === 'ricoh' ? 'Ricoh' : 'HP'}
+              </Text>
+            </View>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.equipModelText}>{manual.label}</Text>
+              <Text style={styles.equipSubText}>{manual.subtitle}</Text>
+            </View>
+            <View style={styles.equipChangeBtn}>
+              <Text style={styles.equipChangeTxt}>Trocar ▾</Text>
+            </View>
+          </TouchableOpacity>
+        )}
       </SafeAreaView>
 
       {/* Content */}
@@ -270,7 +271,6 @@ export default function App() {
             <View style={styles.drawerHeader}>
               <View>
                 <Text style={styles.drawerTitle}>Topicos Rapidos</Text>
-                <Text style={[styles.drawerMode, { color: currentMode.color }]}>{currentMode.icon} {currentMode.label}</Text>
               </View>
               <TouchableOpacity onPress={closeDrawer} style={styles.closeBtn}>
                 <Text style={styles.closeBtnText}>✕</Text>
@@ -293,12 +293,26 @@ const styles = StyleSheet.create({
   headerInfo: { flex: 1 },
   headerTitle: { color: C.text, fontSize: 13, fontWeight: '700' },
   headerSub: { color: C.dim, fontSize: 10, marginTop: 1 },
-  modeBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 8, paddingVertical: 5, borderRadius: 16, borderWidth: 1, backgroundColor: C.surface2 },
-  modeIcon: { fontSize: 13 },
-  modeLabel: { fontSize: 11, fontWeight: '700' },
   onlineDot: { width: 32, height: 22, borderRadius: 11, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
   menuBtn: { width: 34, height: 34, borderRadius: 7, backgroundColor: C.surface2, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
   menuBtnText: { color: C.dim, fontSize: 17 },
+
+  // Equipment selector strip
+  equipStrip: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+    paddingHorizontal: 14, paddingVertical: 10,
+    borderTopWidth: 1, borderTopColor: C.border,
+    borderLeftWidth: 3, backgroundColor: C.surface2,
+  },
+  equipBrandTag: { borderWidth: 1, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
+  equipBrandText: { fontSize: 10, fontWeight: '800' },
+  equipModelText: { color: C.text, fontSize: 12, fontWeight: '700' },
+  equipSubText: { color: C.dim, fontSize: 10, marginTop: 1 },
+  equipChangeBtn: {
+    backgroundColor: C.surface, borderRadius: 8, borderWidth: 1, borderColor: C.border,
+    paddingHorizontal: 10, paddingVertical: 5,
+  },
+  equipChangeTxt: { color: C.accent, fontSize: 10, fontWeight: '700' },
 
   // Picker overlay
   pickerPanel: { backgroundColor: C.surface2, borderBottomWidth: 1, borderBottomColor: C.border },
@@ -324,7 +338,6 @@ const styles = StyleSheet.create({
   drawer: { position: 'absolute', top: 0, left: 0, bottom: 0, width: DRAWER_W, backgroundColor: C.surface, zIndex: 50, elevation: 20 },
   drawerHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: C.border },
   drawerTitle: { color: C.text, fontSize: 14, fontWeight: '700' },
-  drawerMode: { fontSize: 11, marginTop: 2 },
   closeBtn: { width: 30, height: 30, borderRadius: 6, backgroundColor: C.surface2, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
   closeBtnText: { color: C.dim, fontSize: 14 },
 });

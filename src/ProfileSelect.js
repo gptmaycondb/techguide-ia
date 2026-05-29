@@ -25,12 +25,12 @@ export default function ProfileSelect({ onSelect }) {
         />
 
         <Text style={styles.appName}>TechGuide IA</Text>
-        <Text style={styles.appSub}>Consulta inteligente de manuais HP LaserJet</Text>
+        <Text style={styles.appSub}>Consulta inteligente de manuais técnicos multimarca</Text>
 
         <View style={styles.divider} />
 
         <Text style={styles.welcome}>
-          Bem-vindo! Consulte manuais técnicos, códigos de erro e procedimentos de manutenção com ajuda da inteligência artificial.
+          Bem-vindo! O TechGuide IA reúne manuais técnicos de diferentes modelos e marcas — HP e Ricoh. Consulte códigos de erro, procedimentos de manutenção e especificações com o apoio da inteligência artificial.
         </Text>
 
         <TouchableOpacity

@@ -267,7 +267,7 @@ export const BRAND_GROUPS = [
           {
             id: 'ricoh_parts',
             title: 'Product Support Guide',
-            subtitle: 'Catalogo de Pecas',
+            subtitle: 'Vida util das pecas de desgaste natural',
             desc: 'Part numbers, pecas e diagramas de montagem',
             color: '#f59e0b',
             icon: '📋',
