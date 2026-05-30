@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, FlatList,
   StyleSheet, ActivityIndicator, SafeAreaView, Keyboard,
-  Platform, Animated, Linking,
+  Platform, Linking,
 } from 'react-native';
 import { searchManual, hasRelevantContent, MANUAL_INDEX_MAP } from './search';
 import { API_URL } from './data';
@@ -14,59 +14,10 @@ const C = {
   userBubble: '#1a2744', aiBubble: '#131a28', error: '#ff4d6d',
 };
 
-const TIPS = [
-  '💡 Tente: "Como resolver atolamento na bandeja 2?"',
-  '💡 Use o codigo de erro: "O que significa erro 13.02?"',
-  '💡 Pesquise em portugues ou ingles — entendo os dois!',
-  '💡 Tente: "Como substituir o fusor do E52645?"',
-  '💡 Pergunte: "Qual o part number do rolo de puxada?"',
-  '💡 Tente: "Scanner nao calibra, como resolver?"',
-  '💡 Perguntas diretas dao melhores resultados',
-  '💡 Tente: "Como configurar digitalizar para email?"',
-  '💡 Pergunte: "Impressao saindo com riscos, o que fazer?"',
-  '💡 Tente: "Como acessar o EWS da impressora?"',
-  '💡 Pergunte: "Erro 49.xx firmware, como resolver?"',
-  '💡 Tente: "Cartucho nao reconhecido, como resolver?"',
-  '💡 Pergunte: "Como imprimir frente e verso automatico?"',
-  '💡 Tente: "Bandeja 2 nao puxa papel, o que fazer?"',
-  '💡 Pergunte: "Como trocar o kit de manutencao?"',
-];
-
-function AssistantBubble({ onSuggest, onClose }) {
-  const [tipIdx, setTipIdx] = useState(Math.floor(Math.random() * TIPS.length));
-  const scale = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.spring(scale, { toValue: 1, useNativeDriver: true, tension: 80, friction: 8 }).start();
-    const interval = setInterval(() => setTipIdx(i => (i + 1) % TIPS.length), 5000);
-    return () => clearInterval(interval);
-  }, []);
-
-  return (
-    <Animated.View style={[styles.assistantWrap, { transform: [{ scale }] }]}>
-      <TouchableOpacity
-        style={styles.assistantBubble}
-        onPress={() => onSuggest(TIPS[tipIdx].replace(/^💡 Tente: |^💡 Pergunte: |^💡 Use o codigo de erro: |^💡 /,'').replace(/"/g,''))}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.assistantIcon}>🤖</Text>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.assistantTitle}>Assistente TG</Text>
-          <Text style={styles.assistantTip}>{TIPS[tipIdx]}</Text>
-        </View>
-        <TouchableOpacity onPress={onClose} style={styles.assistantClose} hitSlop={{top:10,bottom:10,left:10,right:10}}>
-          <Text style={styles.assistantCloseText}>✕</Text>
-        </TouchableOpacity>
-      </TouchableOpacity>
-    </Animated.View>
-  );
-}
-
 export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, onQuestionSent, messages, setMessages }) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [kbHeight, setKbHeight] = useState(0);
-  const [showAssistant, setShowAssistant] = useState(true);
   const listRef = useRef(null);
   const inputRef = useRef(null);
   useEffect(() => {
@@ -254,13 +205,6 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
           </View>
         )}
 
-        {showAssistant && messages.length === 0 && kbHeight === 0 && (
-          <AssistantBubble
-            onSuggest={(tip) => { setInput(tip); inputRef.current?.focus(); }}
-            onClose={() => setShowAssistant(false)}
-          />
-        )}
-
         <View style={[styles.inputBar, { marginBottom: extraBottom }]}>
           <TextInput
             ref={inputRef}
@@ -319,17 +263,6 @@ const styles = StyleSheet.create({
   source: { color: C.muted, fontSize: 10, marginTop: 4, marginLeft: 2 },
   typingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 10, paddingLeft: 16 },
   typingText: { fontSize: 12 },
-  assistantWrap: { marginHorizontal: 14, marginBottom: 6 },
-  assistantBubble: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: '#0d1f3a', borderWidth: 1, borderColor: C.accent + '50',
-    borderRadius: 14, padding: 12,
-  },
-  assistantIcon: { fontSize: 22 },
-  assistantTitle: { color: C.accent, fontSize: 11, fontWeight: '700', marginBottom: 2 },
-  assistantTip: { color: C.dim, fontSize: 12, lineHeight: 17 },
-  assistantClose: { padding: 4 },
-  assistantCloseText: { color: C.muted, fontSize: 14 },
   inputBar: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     paddingHorizontal: 12, paddingVertical: 10,

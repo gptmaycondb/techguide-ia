@@ -39,13 +39,13 @@ export default function AssistantBubble({ visible, onDismiss }) {
   useEffect(() => {
     if (dragging || tipOpen) {
       pulseAnim.stopAnimation();
-      Animated.spring(pulseAnim, { toValue: 1, useNativeDriver: true }).start();
+      Animated.spring(pulseAnim, { toValue: 1, useNativeDriver: false }).start();
       return;
     }
     const loop = Animated.loop(
       Animated.sequence([
-        Animated.timing(pulseAnim, { toValue: 1.06, duration: 900, useNativeDriver: true }),
-        Animated.timing(pulseAnim, { toValue: 1.0,  duration: 900, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1.06, duration: 900, useNativeDriver: false }),
+        Animated.timing(pulseAnim, { toValue: 1.0,  duration: 900, useNativeDriver: false }),
       ])
     );
     loop.start();
@@ -54,14 +54,14 @@ export default function AssistantBubble({ visible, onDismiss }) {
 
   // Dismiss zone fade in/out
   useEffect(() => {
-    Animated.timing(zoneAnim, { toValue: dragging ? 1 : 0, duration: 180, useNativeDriver: true }).start();
+    Animated.timing(zoneAnim, { toValue: dragging ? 1 : 0, duration: 180, useNativeDriver: false }).start();
   }, [dragging, zoneAnim]);
 
   // TipCard scale animation
   useEffect(() => {
     if (tipOpen) {
       cardAnim.setValue(0.82);
-      Animated.spring(cardAnim, { toValue: 1, tension: 120, friction: 8, useNativeDriver: true }).start();
+      Animated.spring(cardAnim, { toValue: 1, tension: 120, friction: 8, useNativeDriver: false }).start();
     }
   }, [tipOpen, cardAnim]);
 
