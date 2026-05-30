@@ -11,3 +11,5 @@ npm-debug.*
 web-build/
 android/
 ios/
+__pycache__/
+*.pyc
