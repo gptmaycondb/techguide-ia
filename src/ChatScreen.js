@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, FlatList,
   StyleSheet, ActivityIndicator, SafeAreaView, Keyboard,
-  Platform, Animated, Linking,
+  Linking,
 } from 'react-native';
 import { searchManual, searchErrorCode, hasRelevantContent, MANUAL_INDEX_MAP } from './search';
 import { API_URL } from './data';
@@ -14,59 +14,9 @@ const C = {
   userBubble: '#1a2744', aiBubble: '#131a28', error: '#ff4d6d',
 };
 
-const TIPS = [
-  '💡 Tente: "Como resolver atolamento na bandeja 2?"',
-  '💡 Use o codigo de erro: "O que significa erro 13.02?"',
-  '💡 Pesquise em portugues ou ingles — entendo os dois!',
-  '💡 Tente: "Como substituir o fusor do E52645?"',
-  '💡 Pergunte: "Qual o part number do rolo de puxada?"',
-  '💡 Tente: "Scanner nao calibra, como resolver?"',
-  '💡 Perguntas diretas dao melhores resultados',
-  '💡 Tente: "Como configurar digitalizar para email?"',
-  '💡 Pergunte: "Impressao saindo com riscos, o que fazer?"',
-  '💡 Tente: "Como acessar o EWS da impressora?"',
-  '💡 Pergunte: "Erro 49.xx firmware, como resolver?"',
-  '💡 Tente: "Cartucho nao reconhecido, como resolver?"',
-  '💡 Pergunte: "Como imprimir frente e verso automatico?"',
-  '💡 Tente: "Bandeja 2 nao puxa papel, o que fazer?"',
-  '💡 Pergunte: "Como trocar o kit de manutencao?"',
-];
-
-function AssistantBubble({ onSuggest, onClose }) {
-  const [tipIdx, setTipIdx] = useState(Math.floor(Math.random() * TIPS.length));
-  const scale = useRef(new Animated.Value(0)).current;
-
-  useEffect(() => {
-    Animated.spring(scale, { toValue: 1, useNativeDriver: true, tension: 80, friction: 8 }).start();
-    const interval = setInterval(() => setTipIdx(i => (i + 1) % TIPS.length), 5000);
-    return () => clearInterval(interval);
-  }, []);
-
-  return (
-    <Animated.View style={[styles.assistantWrap, { transform: [{ scale }] }]}>
-      <TouchableOpacity
-        style={styles.assistantBubble}
-        onPress={() => onSuggest(TIPS[tipIdx].replace(/^💡 Tente: |^💡 Pergunte: |^💡 Use o codigo de erro: |^💡 /,'').replace(/"/g,''))}
-        activeOpacity={0.8}
-      >
-        <Text style={styles.assistantIcon}>🤖</Text>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.assistantTitle}>Assistente TG</Text>
-          <Text style={styles.assistantTip}>{TIPS[tipIdx]}</Text>
-        </View>
-        <TouchableOpacity onPress={onClose} style={styles.assistantClose} hitSlop={{top:10,bottom:10,left:10,right:10}}>
-          <Text style={styles.assistantCloseText}>✕</Text>
-        </TouchableOpacity>
-      </TouchableOpacity>
-    </Animated.View>
-  );
-}
-
 export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, onQuestionSent, messages, setMessages }) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [kbHeight, setKbHeight] = useState(0);
-  const [showAssistant, setShowAssistant] = useState(true);
   const listRef = useRef(null);
   const inputRef = useRef(null);
   useEffect(() => {
@@ -77,12 +27,10 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
   }, [pendingQuestion]);
 
   useEffect(() => {
-    const show = Keyboard.addListener('keyboardDidShow', e => {
-      setKbHeight(e.endCoordinates.height);
+    const show = Keyboard.addListener('keyboardDidShow', () => {
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 200);
     });
-    const hide = Keyboard.addListener('keyboardDidHide', () => setKbHeight(0));
-    return () => { show.remove(); hide.remove(); };
+    return () => show.remove();
   }, []);
 
   const scrollToBottom = () => setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 150);
@@ -91,7 +39,6 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
     const q = (question || input).trim();
     if (!q || loading) return;
     setInput('');
-    setShowAssistant(false);
     Keyboard.dismiss();
 
     const userMsg = { id: Date.now(), role: 'user', text: q };
@@ -100,21 +47,24 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
     setLoading(true);
     scrollToBottom();
 
-    const history = newMsgs.map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text }));
+    // Limit history to last 6 messages (3 exchanges) to avoid growing token cost
+    const history = newMsgs.slice(-6).map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text }));
     const primaryKey = MANUAL_INDEX_MAP[manual.id] || manual.indexKey || 'e52645_guia';
     const searchKeys = manual.brand === 'ricoh'
       ? ['ricoh_imc3000_service', 'ricoh_imc3000_guia', 'ricoh_imc3000_parts']
       : [primaryKey, 'cpmd', 'service'].filter((v, i, a) => a.indexOf(v) === i);
 
-    const manualChunks = searchKeys.flatMap(k => searchManual(q, k, 4));
-    const errorChunks = searchErrorCode(q);
+    // Error code entries first, then manual chunks; all capped at 700 chars, max 8 total
+    const cap = c => c.length > 700 ? c.substring(0, 700) + '…' : c;
+    const errorChunks = searchErrorCode(q).map(cap);
+    const manualChunks = searchKeys.flatMap(k => searchManual(q, k, 3)).slice(0, 5).map(cap);
     const seen = new Set();
     const chunks = [...errorChunks, ...manualChunks].filter(c => {
       const key = c.slice(0, 80);
       if (seen.has(key)) return false;
       seen.add(key);
       return true;
-    }).slice(0, 10);
+    }).slice(0, 8);
     const foundInManual = chunks.length > 0 && searchKeys.some(k => hasRelevantContent(q, k));
 
     const noChunksMsg = manual.brand === 'ricoh'
@@ -144,7 +94,7 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
       const res = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ system: systemPrompt, messages: history, manualId: manual.id }),
+        body: JSON.stringify({ system: systemPrompt, messages: history, manualId: manual.id, max_tokens: 1024 }),
         signal: controller.signal,
       });
       clearTimeout(timeout);
@@ -195,9 +145,11 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
             item.offline && { backgroundColor: '#1a0d2a', borderColor: '#6b21a8' },
           ]}>
             <TextInput
-              editable={false}
+              editable={true}
               multiline
               scrollEnabled={false}
+              showSoftInputOnFocus={false}
+              onChangeText={() => {}}
               value={item.text}
               style={[styles.bubbleText, item.isError && { color: C.error }]}
               caretHidden
@@ -238,11 +190,12 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
     );
   }
 
-  const extraBottom = Platform.OS === 'android' && kbHeight > 0 ? kbHeight : 0;
+  // softwareKeyboardLayoutMode 'pan' já desloca a tela; não compensar manualmente
+  const extraBottom = 0;
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={{ flex: 1 }}>
+      <View style={{ flex: 1, backgroundColor: C.bg }}>
         {messages.length === 0
           ? <FlatList data={[{ key: 'w' }]} renderItem={renderWelcome} style={styles.list} keyExtractor={i => i.key} />
           : <FlatList ref={listRef} data={messages} keyExtractor={m => m.id.toString()}
@@ -255,13 +208,6 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
             <ActivityIndicator size="small" color={C.accent2} />
             <Text style={[styles.typingText, { color: C.accent2 }]}>Consultando manual...</Text>
           </View>
-        )}
-
-        {showAssistant && messages.length === 0 && kbHeight === 0 && (
-          <AssistantBubble
-            onSuggest={(tip) => { setInput(tip); inputRef.current?.focus(); }}
-            onClose={() => setShowAssistant(false)}
-          />
         )}
 
         <View style={[styles.inputBar, { marginBottom: extraBottom }]}>
@@ -322,17 +268,6 @@ const styles = StyleSheet.create({
   source: { color: C.muted, fontSize: 10, marginTop: 4, marginLeft: 2 },
   typingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 10, paddingLeft: 16 },
   typingText: { fontSize: 12 },
-  assistantWrap: { marginHorizontal: 14, marginBottom: 6 },
-  assistantBubble: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: '#0d1f3a', borderWidth: 1, borderColor: C.accent + '50',
-    borderRadius: 14, padding: 12,
-  },
-  assistantIcon: { fontSize: 22 },
-  assistantTitle: { color: C.accent, fontSize: 11, fontWeight: '700', marginBottom: 2 },
-  assistantTip: { color: C.dim, fontSize: 12, lineHeight: 17 },
-  assistantClose: { padding: 4 },
-  assistantCloseText: { color: C.muted, fontSize: 14 },
   inputBar: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     paddingHorizontal: 12, paddingVertical: 10,

@@ -3,11 +3,16 @@ import {
   View, Text, TouchableOpacity, StyleSheet,
   SafeAreaView, StatusBar, Animated, Dimensions, ScrollView,
 } from 'react-native';
+import * as SplashScreen from 'expo-splash-screen';
+import { logout, restoreSession } from './src/auth';
+import LoginScreen from './src/LoginScreen';
+
+SplashScreen.preventAutoHideAsync();
 import { ALL_MANUALS } from './src/data';
 import ChatScreen from './src/ChatScreen';
 import DrawerContent from './src/DrawerContent';
-import ProfileSelect from './src/ProfileSelect';
 import ManualsScreen from './src/ManualsScreen';
+import AssistantBubble from './src/AssistantBubble';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const DRAWER_W = Math.min(SCREEN_W * 0.82, 300);
@@ -38,7 +43,8 @@ const BRANDS = Object.entries(BRAND_MAP).map(([id, manuals]) => ({
 }));
 
 export default function App() {
-  const [started, setStarted] = useState(false);
+  const [authStatus, setAuthStatus] = useState('loading'); // 'loading'|'guest'|'authed'
+  const [authEmail, setAuthEmail]   = useState(null);
   const [activeTab, setActiveTab] = useState('chat');
   const mode = 'tech';
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -50,6 +56,7 @@ export default function App() {
   const [selectedBrandId, setSelectedBrandId] = useState(BRANDS[0]?.id);
   const [selectedManualId, setSelectedManualId] = useState(ALL_MANUALS[0]?.id);
   const [showPicker, setShowPicker] = useState(false);
+  const [showAssistant, setShowAssistant] = useState(true);
 
   const drawerAnim = useRef(new Animated.Value(-DRAWER_W)).current;
 
@@ -66,8 +73,17 @@ export default function App() {
   }
 
   useEffect(() => {
-    wakeUpServer();
-    checkOnline();
+    async function init() {
+      try {
+        const session = await restoreSession();
+        if (session) { setAuthEmail(session.email); setAuthStatus('authed'); }
+        else { setAuthStatus('guest'); }
+      } catch { setAuthStatus('guest'); }
+      finally { SplashScreen.hideAsync(); }
+      wakeUpServer();
+      checkOnline();
+    }
+    init();
     const interval = setInterval(checkOnline, 30000);
     return () => clearInterval(interval);
   }, []);
@@ -94,6 +110,16 @@ export default function App() {
     Animated.spring(drawerAnim, { toValue: -DRAWER_W, useNativeDriver: true, tension: 65, friction: 11 }).start(() => setDrawerOpen(false));
   }
 
+  async function handleLogout() {
+    closeDrawer();
+    await logout();
+    setAuthStatus('guest');
+    setAuthEmail(null);
+    setAllMessages({});
+    setActiveTab('chat');
+    setShowAssistant(true);
+  }
+
   function handleQuestion(q) {
     closeDrawer();
     setActiveTab('chat');
@@ -106,7 +132,10 @@ export default function App() {
     if (brand?.manuals[0]) setSelectedManualId(brand.manuals[0].id);
   }
 
-  if (!started) return <ProfileSelect onSelect={() => setStarted(true)} />;
+  if (authStatus === 'loading') return null;
+  if (authStatus === 'guest') return (
+    <LoginScreen onLoginSuccess={(email) => { setAuthEmail(email); setAuthStatus('authed'); setShowAssistant(true); }} />
+  );
 
   return (
     <View style={styles.root}>
@@ -167,8 +196,8 @@ export default function App() {
       </SafeAreaView>
 
       {/* Content */}
-      <View style={{ flex: 1 }}>
-        {activeTab === 'chat' ? (
+      <View style={{ flex: 1, backgroundColor: C.bg }}>
+        <View style={{ flex: 1, display: activeTab === 'chat' ? 'flex' : 'none' }}>
           <ChatScreen
             manual={manual}
             mode={mode}
@@ -178,9 +207,10 @@ export default function App() {
             messages={messages}
             setMessages={setMessages}
           />
-        ) : (
+        </View>
+        <View style={{ flex: 1, display: activeTab === 'manuals' ? 'flex' : 'none' }}>
           <ManualsScreen />
-        )}
+        </View>
       </View>
 
       {/* Bottom nav */}
@@ -263,20 +293,30 @@ export default function App() {
         </View>
       )}
 
+      <AssistantBubble visible={showAssistant} onDismiss={() => setShowAssistant(false)} brand={selectedBrandId} />
+
       {/* Drawer */}
       {drawerOpen && <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={closeDrawer} />}
       {drawerOpen && (
         <Animated.View style={[styles.drawer, { transform: [{ translateX: drawerAnim }] }]}>
           <SafeAreaView style={{ flex: 1 }}>
             <View style={styles.drawerHeader}>
-              <View>
+              <View style={{ flex: 1 }}>
                 <Text style={styles.drawerTitle}>Topicos Rapidos</Text>
+                {authEmail ? <Text style={styles.drawerEmail} numberOfLines={1}>{authEmail}</Text> : null}
               </View>
               <TouchableOpacity onPress={closeDrawer} style={styles.closeBtn}>
                 <Text style={styles.closeBtnText}>✕</Text>
               </TouchableOpacity>
             </View>
-            <DrawerContent manual={manual} mode={mode} onQuestion={handleQuestion} />
+            <DrawerContent
+              manual={manual}
+              mode={mode}
+              onQuestion={handleQuestion}
+              onLogout={handleLogout}
+              showAssistant={showAssistant}
+              onOpenAssistant={() => { closeDrawer(); setShowAssistant(true); }}
+            />
           </SafeAreaView>
         </Animated.View>
       )}
@@ -338,6 +378,7 @@ const styles = StyleSheet.create({
   drawer: { position: 'absolute', top: 0, left: 0, bottom: 0, width: DRAWER_W, backgroundColor: C.surface, zIndex: 50, elevation: 20 },
   drawerHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', padding: 16, borderBottomWidth: 1, borderBottomColor: C.border },
   drawerTitle: { color: C.text, fontSize: 14, fontWeight: '700' },
+  drawerEmail: { color: C.muted, fontSize: 10, marginTop: 2 },
   closeBtn: { width: 30, height: 30, borderRadius: 6, backgroundColor: C.surface2, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
   closeBtnText: { color: C.dim, fontSize: 14 },
 });

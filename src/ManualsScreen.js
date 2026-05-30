@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet, ScrollView,
-  Alert, ActivityIndicator, SafeAreaView, Linking,
+  Alert, ActivityIndicator, SafeAreaView,
 } from 'react-native';
 import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
+import * as IntentLauncher from 'expo-intent-launcher';
 import { BRAND_GROUPS } from './data';
 
 const C = {
@@ -85,7 +86,6 @@ export default function ManualsScreen() {
       }
 
       setDownloaded(d => ({ ...d, [manual.id]: true }));
-      await openPdf(dest);
     } catch (e) {
       await FileSystem.deleteAsync(dest, { idempotent: true });
       Alert.alert('Erro no download', e.message);
@@ -97,18 +97,13 @@ export default function ManualsScreen() {
 
   async function openPdf(dest) {
     try {
-      // Build an intent:// URI that carries FLAG_GRANT_READ_URI_PERMISSION (0x1)
-      // so the chosen PDF reader can actually read the content:// URI.
-      // This produces the native "Abrir com" (ACTION_VIEW) chooser, not the share sheet.
       const contentUri = await FileSystem.getContentUriAsync(dest);
-      const uriPath = contentUri.replace('content://', '');
-      const intentUri =
-        `intent://${uriPath}#Intent;scheme=content;` +
-        `action=android.intent.action.VIEW;type=application/pdf;` +
-        `flags=0x00000001;end`;
-      await Linking.openURL(intentUri);
+      await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
+        data: contentUri,
+        flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
+        type: 'application/pdf',
+      });
     } catch {
-      // Fallback: share sheet (expo-sharing uses FileProvider — file actually opens)
       try {
         await Sharing.shareAsync(dest, {
           mimeType: 'application/pdf',
@@ -221,7 +216,7 @@ export default function ManualsScreen() {
                         ))}
                       </View>
 
-                      {isLoading && (
+                      {isLoading && pct > 0 && (
                         <View style={styles.progressWrap}>
                           <View style={styles.progressBg}>
                             <View style={[styles.progressFill, { width: pct + '%', backgroundColor: manual.color }]} />
@@ -250,7 +245,7 @@ export default function ManualsScreen() {
                             <View style={styles.btnRow}>
                               <ActivityIndicator size="small" color={manual.color} />
                               <Text style={[styles.btnLoadText, { color: manual.color }]}>
-                                {pct > 0 ? `${pct}%` : 'Iniciando...'}
+                                {pct > 0 ? `${pct}%` : 'Baixando...'}
                               </Text>
                             </View>
                           ) : isUnavailable ? (
