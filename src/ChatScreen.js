@@ -194,7 +194,7 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
         style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
       <View style={{ flex: 1, backgroundColor: C.bg }}>
         {messages.length === 0

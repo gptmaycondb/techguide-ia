@@ -96,6 +96,9 @@ export async function restoreSession() {
 
   if (!refreshToken || !email) return null;
 
+  // Se o usuário desmarcou "lembrar senha", não restaurar sessão
+  if (remember === 'false') return null;
+
   const expiryMs = Number(expiry) || 0;
   if (idToken && expiryMs > Date.now() + 60000) return { email };
 
