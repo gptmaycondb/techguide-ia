@@ -4,7 +4,7 @@ import {
   StyleSheet, ActivityIndicator, SafeAreaView, Keyboard,
   Linking,
 } from 'react-native';
-import { searchManual, hasRelevantContent, MANUAL_INDEX_MAP } from './search';
+import { searchManual, searchErrorCode, hasRelevantContent, MANUAL_INDEX_MAP } from './search';
 import { API_URL } from './data';
 
 const C = {
@@ -54,9 +54,17 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
       ? ['ricoh_imc3000_service', 'ricoh_imc3000_guia', 'ricoh_imc3000_parts']
       : [primaryKey, 'cpmd', 'service'].filter((v, i, a) => a.indexOf(v) === i);
 
-    // 3 chunks per source, max 5 total, each capped at 700 chars
-    const chunks = searchKeys.flatMap(k => searchManual(q, k, 3)).slice(0, 5)
-      .map(c => c.length > 700 ? c.substring(0, 700) + '…' : c);
+    // Error code entries first, then manual chunks; all capped at 700 chars, max 8 total
+    const cap = c => c.length > 700 ? c.substring(0, 700) + '…' : c;
+    const errorChunks = searchErrorCode(q).map(cap);
+    const manualChunks = searchKeys.flatMap(k => searchManual(q, k, 3)).slice(0, 5).map(cap);
+    const seen = new Set();
+    const chunks = [...errorChunks, ...manualChunks].filter(c => {
+      const key = c.slice(0, 80);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).slice(0, 8);
     const foundInManual = chunks.length > 0 && searchKeys.some(k => hasRelevantContent(q, k));
 
     const noChunksMsg = manual.brand === 'ricoh'

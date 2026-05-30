@@ -91,6 +91,15 @@ def is_toc_line(line: str) -> bool:
     dots = line.count('.')
     return dots > 5 and dots / max(len(line), 1) > 0.25
 
+# Padrão de capa/cabeçalho de manual que polui o índice com keywords gerais
+COVER_PAGE_RE = re.compile(
+    r"reader'?s responsibility|SERVICE MANUAL Ver\.\s*\d|"
+    r"It is the reader'?s responsibility|Rev\.\s*\d{2}/\d{2}/\d{4}|"
+    r"Contact Information.*Technical Services|Subject to Change.*Contact Information|"
+    r"Revisions.*Original.*Revised.*Added",
+    re.IGNORECASE | re.DOTALL
+)
+
 def clean_text(text: str) -> str:
     """Remove linhas de sumário e normaliza espaços."""
     lines = text.splitlines()
@@ -155,7 +164,7 @@ def smart_chunk(text: str, size: int = CHUNK_SIZE, overlap: int = CHUNK_OVERLAP)
     if buf:
         chunks.append('\n\n'.join(buf))
 
-    return [c for c in chunks if len(c) >= 80]
+    return [c for c in chunks if len(c) >= 80 and not COVER_PAGE_RE.search(c)]
 
 # ─── Extração de keywords ─────────────────────────────────────────────────────
 

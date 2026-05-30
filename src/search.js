@@ -93,10 +93,13 @@ export function searchManual(query, indexKey, topK = 6) {
     for (const term of qAll) {
       if (kTerms.has(term)) score += 3;
       else if (tTokens.has(term) || tBigrams.has(term)) score += 1;
-      // Partial match
+      // Partial match — limita comprimento para evitar "ricoh" inflar contra "ricohlearninginstitute"
       if (term.length > 4) {
         for (const kt of kTerms) {
-          if (kt !== term && (kt.includes(term) || term.includes(kt))) score += 0.5;
+          if (kt !== term && (kt.includes(term) || term.includes(kt))
+              && kt.length <= term.length * 2.5 && term.length <= kt.length * 2.5) {
+            score += 0.5;
+          }
         }
       }
     }
@@ -108,7 +111,8 @@ export function searchManual(query, indexKey, topK = 6) {
 }
 
 export function searchErrorCode(query, indexKey) {
-  const q = query.trim();
+  // Normaliza "SC 400" → "SC400", "SC 543-00" → "SC543-00"
+  const q = query.trim().replace(/\b(SC)\s+(\d)/gi, '$1$2');
   const codes = [
     ...(q.toUpperCase().match(/SC\d{3,6}/g) || []),
     ...(q.match(/\b\d{2}\.\d{2}(?:\.\d{2}(?:\.\d{2})?)?\b/g) || []),
