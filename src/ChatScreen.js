@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, FlatList,
   StyleSheet, ActivityIndicator, SafeAreaView, Keyboard,
-  Linking,
+  Linking, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { searchManual, searchErrorCode, hasRelevantContent, MANUAL_INDEX_MAP } from './search';
 import { API_URL } from './data';
@@ -190,11 +190,12 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
     );
   }
 
-  // softwareKeyboardLayoutMode 'pan' já desloca a tela; não compensar manualmente
-  const extraBottom = 0;
-
   return (
     <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
       <View style={{ flex: 1, backgroundColor: C.bg }}>
         {messages.length === 0
           ? <FlatList data={[{ key: 'w' }]} renderItem={renderWelcome} style={styles.list} keyExtractor={i => i.key} />
@@ -210,7 +211,7 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
           </View>
         )}
 
-        <View style={[styles.inputBar, { marginBottom: extraBottom }]}>
+        <View style={styles.inputBar}>
           <TextInput
             ref={inputRef}
             style={styles.input}
@@ -234,6 +235,7 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
           </TouchableOpacity>
         </View>
       </View>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
