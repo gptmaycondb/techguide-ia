@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, FlatList,
   StyleSheet, ActivityIndicator, SafeAreaView, Keyboard,
-  Platform, Linking,
+  Linking,
 } from 'react-native';
 import { searchManual, hasRelevantContent, MANUAL_INDEX_MAP } from './search';
 import { API_URL } from './data';
@@ -17,7 +17,6 @@ const C = {
 export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, onQuestionSent, messages, setMessages }) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
-  const [kbHeight, setKbHeight] = useState(0);
   const listRef = useRef(null);
   const inputRef = useRef(null);
   useEffect(() => {
@@ -28,12 +27,10 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
   }, [pendingQuestion]);
 
   useEffect(() => {
-    const show = Keyboard.addListener('keyboardDidShow', e => {
-      setKbHeight(e.endCoordinates.height);
+    const show = Keyboard.addListener('keyboardDidShow', () => {
       setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 200);
     });
-    const hide = Keyboard.addListener('keyboardDidHide', () => setKbHeight(0));
-    return () => { show.remove(); hide.remove(); };
+    return () => show.remove();
   }, []);
 
   const scrollToBottom = () => setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 150);
@@ -42,7 +39,6 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
     const q = (question || input).trim();
     if (!q || loading) return;
     setInput('');
-    setShowAssistant(false);
     Keyboard.dismiss();
 
     const userMsg = { id: Date.now(), role: 'user', text: q };
@@ -186,7 +182,8 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
     );
   }
 
-  const extraBottom = Platform.OS === 'android' && kbHeight > 0 ? kbHeight : 0;
+  // softwareKeyboardLayoutMode 'pan' já desloca a tela; não compensar manualmente
+  const extraBottom = 0;
 
   return (
     <SafeAreaView style={styles.container}>
