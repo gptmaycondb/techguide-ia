@@ -190,7 +190,7 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
 
   return (
     <SafeAreaView style={styles.container}>
-      <View style={{ flex: 1 }}>
+      <View style={{ flex: 1, backgroundColor: C.bg }}>
         {messages.length === 0
           ? <FlatList data={[{ key: 'w' }]} renderItem={renderWelcome} style={styles.list} keyExtractor={i => i.key} />
           : <FlatList ref={listRef} data={messages} keyExtractor={m => m.id.toString()}

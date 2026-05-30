@@ -196,7 +196,7 @@ export default function App() {
       </SafeAreaView>
 
       {/* Content */}
-      <View style={{ flex: 1 }}>
+      <View style={{ flex: 1, backgroundColor: C.bg }}>
         <View style={{ flex: 1, display: activeTab === 'chat' ? 'flex' : 'none' }}>
           <ChatScreen
             manual={manual}
@@ -293,7 +293,7 @@ export default function App() {
         </View>
       )}
 
-      <AssistantBubble visible={showAssistant} onDismiss={() => setShowAssistant(false)} />
+      <AssistantBubble visible={showAssistant} onDismiss={() => setShowAssistant(false)} brand={selectedBrandId} />
 
       {/* Drawer */}
       {drawerOpen && <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={closeDrawer} />}

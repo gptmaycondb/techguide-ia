@@ -7,33 +7,55 @@ import { ASSISTANT_TIPS } from './tips';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
-const BUBBLE_SIZE   = 62;
-const EDGE_PADDING  = 14;
-const DISMISS_ZONE_H = 90;
-const DISMISS_THRESHOLD = SCREEN_H - DISMISS_ZONE_H;
-const DISMISS_CENTER_X  = SCREEN_W / 2 - BUBBLE_SIZE / 2;
-const DISMISS_CENTER_Y  = SCREEN_H - 60;
+const BUBBLE_SIZE      = 62;
+const EDGE_PADDING     = 14;
+const DISMISS_ZONE_H   = 90;
+const DISMISS_THRESHOLD  = SCREEN_H - DISMISS_ZONE_H;
+const DISMISS_CENTER_X   = SCREEN_W / 2 - BUBBLE_SIZE / 2;
+const DISMISS_CENTER_Y   = SCREEN_H - 60;
 
 const C = {
   bg: '#0d0f14', surface2: '#1e2230', border: '#2a2f3e',
-  accent: '#0096ff', accent2: '#00d4aa',
-  text: '#e4e8f0', dim: '#7a8299', muted: '#4a5168',
+  accent: '#0096ff', text: '#e4e8f0', dim: '#7a8299', muted: '#4a5168',
   error: '#ff4d6d',
 };
 
 const MAX_DOTS = 5;
 
-export default function AssistantBubble({ visible, onDismiss }) {
-  const pan        = useRef(new Animated.ValueXY({ x: SCREEN_W - BUBBLE_SIZE - EDGE_PADDING, y: SCREEN_H * 0.55 })).current;
-  const pulseAnim  = useRef(new Animated.Value(1)).current;
-  const zoneAnim   = useRef(new Animated.Value(0)).current;
-  const cardAnim   = useRef(new Animated.Value(0)).current;
-  const fadeAnim   = useRef(new Animated.Value(1)).current;
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
 
-  const [dragging, setDragging]     = useState(false);
-  const [nearDismiss, setNearDismiss] = useState(false);
-  const [tipOpen, setTipOpen]       = useState(false);
-  const [currentTip, setCurrentTip] = useState(0);
+function buildShuffledTips(brand) {
+  const filtered = ASSISTANT_TIPS.filter(t => t.brand === brand || t.brand === 'general');
+  return shuffle(filtered);
+}
+
+export default function AssistantBubble({ visible, onDismiss, brand = 'hp' }) {
+  const pan       = useRef(new Animated.ValueXY({ x: SCREEN_W - BUBBLE_SIZE - EDGE_PADDING, y: SCREEN_H * 0.55 })).current;
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  const zoneAnim  = useRef(new Animated.Value(0)).current;
+  const cardAnim  = useRef(new Animated.Value(0)).current;
+  const fadeAnim  = useRef(new Animated.Value(1)).current;
+
+  const [dragging, setDragging]         = useState(false);
+  const [nearDismiss, setNearDismiss]   = useState(false);
+  const [tipOpen, setTipOpen]           = useState(false);
+  const [shuffledTips, setShuffledTips] = useState(() => buildShuffledTips(brand));
+  const [currentTip, setCurrentTip]     = useState(0);
+
+  // Re-shuffle when brand changes
+  useEffect(() => {
+    const next = buildShuffledTips(brand);
+    setShuffledTips(next);
+    setCurrentTip(0);
+    setTipOpen(false);
+  }, [brand]);
 
   // Pulse loop when idle
   useEffect(() => {
@@ -52,7 +74,7 @@ export default function AssistantBubble({ visible, onDismiss }) {
     return () => loop.stop();
   }, [dragging, tipOpen, pulseAnim]);
 
-  // Dismiss zone fade in/out
+  // Dismiss zone fade
   useEffect(() => {
     Animated.timing(zoneAnim, { toValue: dragging ? 1 : 0, duration: 180, useNativeDriver: false }).start();
   }, [dragging, zoneAnim]);
@@ -65,11 +87,9 @@ export default function AssistantBubble({ visible, onDismiss }) {
     }
   }, [tipOpen, cardAnim]);
 
-  const openTip  = useCallback(() => setTipOpen(true),  []);
   const closeTip = useCallback(() => setTipOpen(false), []);
-
-  const nextTip = useCallback(() => setCurrentTip(i => (i + 1) % ASSISTANT_TIPS.length), []);
-  const prevTip = useCallback(() => setCurrentTip(i => (i - 1 + ASSISTANT_TIPS.length) % ASSISTANT_TIPS.length), []);
+  const nextTip  = useCallback(() => setCurrentTip(i => (i + 1) % shuffledTips.length), [shuffledTips.length]);
+  const prevTip  = useCallback(() => setCurrentTip(i => (i - 1 + shuffledTips.length) % shuffledTips.length), [shuffledTips.length]);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -85,7 +105,7 @@ export default function AssistantBubble({ visible, onDismiss }) {
 
       onPanResponderMove: (_, g) => {
         pan.setValue({ x: g.dx, y: g.dy });
-        const currentY = pan.__getValue().y + (pan.y._offset || 0);
+        const currentY = (pan.y._offset || 0) + g.dy;
         setNearDismiss(currentY > DISMISS_THRESHOLD - 20);
       },
 
@@ -107,8 +127,7 @@ export default function AssistantBubble({ visible, onDismiss }) {
           Animated.parallel([
             Animated.timing(pan, {
               toValue: { x: DISMISS_CENTER_X, y: DISMISS_CENTER_Y },
-              duration: 220,
-              useNativeDriver: false,
+              duration: 220, useNativeDriver: false,
             }),
             Animated.timing(fadeAnim, { toValue: 0, duration: 280, useNativeDriver: false }),
           ]).start(() => onDismiss());
@@ -116,15 +135,12 @@ export default function AssistantBubble({ visible, onDismiss }) {
         }
 
         // Snap to nearest horizontal edge
-        const currentX = pan.x.__getValue();
         const snapX = moveX < SCREEN_W / 2 ? EDGE_PADDING : SCREEN_W - BUBBLE_SIZE - EDGE_PADDING;
-        // Clamp Y within screen
         const rawY  = pan.y.__getValue();
         const snapY = Math.max(60, Math.min(rawY, SCREEN_H - BUBBLE_SIZE - 60));
         Animated.spring(pan, {
           toValue: { x: snapX, y: snapY },
-          tension: 120, friction: 9,
-          useNativeDriver: false,
+          tension: 120, friction: 9, useNativeDriver: false,
         }).start();
       },
     })
@@ -132,18 +148,16 @@ export default function AssistantBubble({ visible, onDismiss }) {
 
   // Reset fade when becoming visible again
   useEffect(() => {
-    if (visible) {
-      fadeAnim.setValue(1);
-    }
+    if (visible) fadeAnim.setValue(1);
   }, [visible, fadeAnim]);
 
   if (!visible) return null;
 
-  // Dot indicators (max MAX_DOTS visible)
-  const total      = ASSISTANT_TIPS.length;
-  const halfDots   = Math.floor(MAX_DOTS / 2);
-  let   dotStart   = Math.max(0, Math.min(currentTip - halfDots, total - MAX_DOTS));
-  const dots       = Array.from({ length: Math.min(MAX_DOTS, total) }, (_, i) => dotStart + i);
+  const total    = shuffledTips.length;
+  const halfDots = Math.floor(MAX_DOTS / 2);
+  const dotStart = Math.max(0, Math.min(currentTip - halfDots, total - MAX_DOTS));
+  const dots     = Array.from({ length: Math.min(MAX_DOTS, total) }, (_, i) => dotStart + i);
+  const tipText  = shuffledTips[currentTip]?.text ?? '';
 
   return (
     <Animated.View style={[styles.root, { opacity: fadeAnim }]} pointerEvents="box-none">
@@ -159,7 +173,7 @@ export default function AssistantBubble({ visible, onDismiss }) {
             </TouchableOpacity>
           </View>
           <View style={styles.cardDivider} />
-          <Text style={styles.cardText}>{ASSISTANT_TIPS[currentTip]}</Text>
+          <Text style={styles.cardText}>{tipText}</Text>
           <View style={styles.cardDivider} />
           <View style={styles.cardNav}>
             <TouchableOpacity onPress={prevTip} style={styles.navBtn}>
@@ -178,10 +192,7 @@ export default function AssistantBubble({ visible, onDismiss }) {
       )}
 
       {/* Dismiss zone */}
-      <Animated.View
-        style={[styles.dismissZone, { opacity: zoneAnim }]}
-        pointerEvents="none"
-      >
+      <Animated.View style={[styles.dismissZone, { opacity: zoneAnim }]} pointerEvents="none">
         <View style={[styles.dismissCircle, nearDismiss && styles.dismissCircleActive]}>
           <Text style={styles.dismissIcon}>✕</Text>
         </View>
@@ -191,13 +202,7 @@ export default function AssistantBubble({ visible, onDismiss }) {
       <Animated.View
         style={[
           styles.bubbleWrap,
-          {
-            transform: [
-              { translateX: pan.x },
-              { translateY: pan.y },
-              { scale: pulseAnim },
-            ],
-          },
+          { transform: [{ translateX: pan.x }, { translateY: pan.y }, { scale: pulseAnim }] },
         ]}
         {...panResponder.panHandlers}
       >
@@ -211,35 +216,19 @@ export default function AssistantBubble({ visible, onDismiss }) {
 }
 
 const styles = StyleSheet.create({
-  root: {
-    ...StyleSheet.absoluteFillObject,
-    zIndex: 60,
-  },
+  root: { ...StyleSheet.absoluteFillObject, zIndex: 60 },
 
-  // ── Bubble ──────────────────────────────────────────────────────────────────
-  bubbleWrap: {
-    position: 'absolute',
-    top: 0, left: 0,
-    width: BUBBLE_SIZE, height: BUBBLE_SIZE,
-  },
+  bubbleWrap: { position: 'absolute', top: 0, left: 0, width: BUBBLE_SIZE, height: BUBBLE_SIZE },
   bubble: {
     width: BUBBLE_SIZE, height: BUBBLE_SIZE, borderRadius: BUBBLE_SIZE / 2,
-    borderWidth: 2.5, borderColor: C.accent,
-    overflow: 'hidden',
+    borderWidth: 2.5, borderColor: C.accent, overflow: 'hidden',
     shadowColor: C.accent, shadowOpacity: 0.55, shadowRadius: 10,
-    shadowOffset: { width: 0, height: 0 },
-    elevation: 8,
-    backgroundColor: C.bg,
+    shadowOffset: { width: 0, height: 0 }, elevation: 8, backgroundColor: C.bg,
   },
   bubbleDismiss: { borderColor: C.error, shadowColor: C.error },
   bubbleImg: { width: '100%', height: '100%', borderRadius: BUBBLE_SIZE / 2 },
 
-  // ── Dismiss zone ────────────────────────────────────────────────────────────
-  dismissZone: {
-    position: 'absolute',
-    bottom: 20, left: 0, right: 0,
-    alignItems: 'center',
-  },
+  dismissZone: { position: 'absolute', bottom: 20, left: 0, right: 0, alignItems: 'center' },
   dismissCircle: {
     width: 56, height: 56, borderRadius: 28,
     backgroundColor: '#1a0a10', borderWidth: 2, borderColor: '#4a1020',
@@ -251,36 +240,22 @@ const styles = StyleSheet.create({
   },
   dismissIcon: { color: '#ff6b8a', fontSize: 20, fontWeight: '700' },
 
-  // ── TipCard ─────────────────────────────────────────────────────────────────
   card: {
     position: 'absolute',
     top: Platform.OS === 'ios' ? 80 : 60,
-    left: (SCREEN_W - 310) / 2,
-    width: 310,
-    backgroundColor: C.surface2,
-    borderRadius: 20,
+    left: (SCREEN_W - 310) / 2, width: 310,
+    backgroundColor: C.surface2, borderRadius: 20,
     borderWidth: 1, borderColor: C.border,
     shadowColor: '#000', shadowOpacity: 0.45, shadowRadius: 20,
-    shadowOffset: { width: 0, height: 6 },
-    elevation: 12,
-    overflow: 'hidden',
+    shadowOffset: { width: 0, height: 6 }, elevation: 12, overflow: 'hidden',
   },
-  cardHeader: {
-    flexDirection: 'row', alignItems: 'center', gap: 8,
-    paddingHorizontal: 16, paddingVertical: 12,
-  },
+  cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 12 },
   cardHeaderIcon: { fontSize: 16 },
   cardHeaderLabel: { flex: 1, color: C.accent, fontSize: 12, fontWeight: '700', letterSpacing: 0.3 },
   cardClose: { color: C.dim, fontSize: 18, paddingLeft: 4 },
-  cardDivider: { height: 1, backgroundColor: C.border, marginHorizontal: 0 },
-  cardText: {
-    color: C.text, fontSize: 14, lineHeight: 21,
-    paddingHorizontal: 18, paddingVertical: 16,
-  },
-  cardNav: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
-    paddingHorizontal: 8, paddingVertical: 10,
-  },
+  cardDivider: { height: 1, backgroundColor: C.border },
+  cardText: { color: C.text, fontSize: 14, lineHeight: 21, paddingHorizontal: 18, paddingVertical: 16 },
+  cardNav: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 8, paddingVertical: 10 },
   navBtn: { width: 40, height: 40, alignItems: 'center', justifyContent: 'center' },
   navArrow: { color: C.accent, fontSize: 28, fontWeight: '300', lineHeight: 34 },
   dots: { flexDirection: 'row', gap: 6, alignItems: 'center' },
