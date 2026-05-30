@@ -4,7 +4,7 @@ export const ASSISTANT_TIPS = [
   { brand: 'hp', text: 'Erro 13.xx no E52645 indica atolamento. Abra a porta direita e verifique o percurso do papel com cuidado.' },
   { brand: 'hp', text: 'Atolamento na bandeja 2 do E52645? Puxe a bandeja completamente, remova o papel e verifique o rolo de puxada.' },
   { brand: 'hp', text: 'Papel rasgado dentro do E52645? Nunca force a remoção — puxe sempre na direção do percurso de impressão.' },
-  { brand: 'hp', text: 'Atolamento frequente no E52645 pode indicar rolo de puxada desgastado. Part number: RM1-6467.' },
+  { brand: 'hp', text: 'Atolamento frequente no E52645 pode indicar rolo de puxada desgastado. Kit Tray 2: RM2-5752-000CN. Kit Tray 1: F2A68-67914.' },
   { brand: 'hp', text: 'Antes de limpar um atolamento no E52645, anote o código de erro completo (ex.: 13.02.00) para diagnóstico.' },
 
   // ─── HP MFP E52645 — Toner e suprimentos ─────────────────────────────────
@@ -12,12 +12,12 @@ export const ASSISTANT_TIPS = [
   { brand: 'hp', text: 'Para substituir o toner do E52645, abra a porta superior, gire o cartucho 90° e puxe pela alça azul.' },
   { brand: 'hp', text: 'Cartuchos compatíveis no E52645 podem acionar alarme de "cartucho não HP". Use CF287A para resultado garantido.' },
   { brand: 'hp', text: 'Depois de instalar toner novo no E52645, imprima uma página de teste em Menu > Relatórios > Página de configuração.' },
-  { brand: 'hp', text: 'O fusor do E52645 tem vida útil de aprox. 200.000 páginas. Kit de manutenção: B3M78-67901.' },
+  { brand: 'hp', text: 'O fusor do E52645 é monitorado por rotações, não por páginas. Para manutenção preventiva, use o kit de rolos ADF (W5U23-67901) e kit de rolos Tray 2 (RM2-5752-000CN) conforme indicação do contador.' },
 
   // ─── HP MFP E52645 — Rede e conectividade ────────────────────────────────
   { brand: 'hp', text: 'Para acessar o EWS (Embedded Web Server) do E52645, descubra o IP em: Painel > Configurações > Rede > Ethernet.' },
   { brand: 'hp', text: 'E52645 não aparece na rede? Verifique se o protocolo TCP/IP está ativado no EWS em Rede > Configuração.' },
-  { brand: 'hp', text: 'Para imprimir via e-mail no E52645, ative HP ePrint no EWS e anote o endereço gerado em HP Connected.' },
+  { brand: 'hp', text: 'Para imprimir via e-mail no E52645, ative HP Web Services no EWS em Configurações > HP Web Services e anote o endereço gerado.' },
   { brand: 'hp', text: 'Digitalizar para e-mail no E52645 falha? Verifique a porta SMTP (587 para TLS) nas configurações do EWS.' },
   { brand: 'hp', text: 'Resetar configurações de rede no E52645: Menu > Configurações > Serviço > Restaurar padrões de rede.' },
 
@@ -30,12 +30,12 @@ export const ASSISTANT_TIPS = [
   // ─── HP MFP E52645 — Firmware e erros críticos ───────────────────────────
   { brand: 'hp', text: 'Erro 49.xx no E52645 é falha de firmware ou trabalho de impressão corrompido. Desligue, aguarde 60s e ligue.' },
   { brand: 'hp', text: 'Para atualizar firmware do E52645 offline: baixe o arquivo .rfu em support.hp.com e envie via EWS > Serviço > Firmware.' },
-  { brand: 'hp', text: 'Erro 79.xxxx no E52645 indica memória insuficiente ou driver incompatível. Reinstale o driver PCL 6 mais recente.' },
+  { brand: 'hp', text: 'Erro 82.WX.YZ no E52645 indica falha de hardware no disco/eMMC. Desligue, aguarde 60s e ligue. Se persistir, verifique o eMMC ou substitua o formatter.' },
   { brand: 'hp', text: 'Erro 50.x Fuser no E52645 indica falha no fusor. Desligue, aguarde 10 min e verifique o conector do fusor.' },
   { brand: 'hp', text: 'Erro 59.x Motor no E52645 pode ser solucionado verificando obstruções no mecanismo de transporte de papel.' },
 
   // ─── HP MFP E52645 — Qualidade de impressão ──────────────────────────────
-  { brand: 'hp', text: 'Impressão com riscos verticais no E52645? Limpe o cartucho de toner e o tambor com pano seco sem fiapos.' },
+  { brand: 'hp', text: 'Impressão com riscos verticais no E52645? O cartucho CF287A integra tambor e toner — troque o cartucho completo. Nunca toque na superfície do tambor OPC.' },
   { brand: 'hp', text: 'Impressão muito clara no E52645? Verifique: densidade do toner em Menu > Configurações > Qualidade de impressão.' },
   { brand: 'hp', text: 'Manchas de toner no E52645 podem indicar fusor defeituoso ou tipo de papel incompatível com a temperatura do fusor.' },
   { brand: 'hp', text: 'Fantasma de impressão (imagem repetida levemente) no E52645 indica tambor desgastado — troque o cartucho.' },
@@ -49,18 +49,18 @@ export const ASSISTANT_TIPS = [
   { brand: 'ricoh', text: 'No Ricoh IM C3000, após limpar atolamento, sempre feche TODAS as tampas antes de retomar — o painel confirma.' },
 
   // ─── Ricoh IM C3000/C3500 — SC Codes ─────────────────────────────────────
-  { brand: 'ricoh', text: 'SC 302 no Ricoh IM C3000 indica problema no motor de polígono do laser. Exige visita técnica para calibração.' },
-  { brand: 'ricoh', text: 'SC 543 no Ricoh indica falha no sensor de temperatura do fusor. Desligue e aguarde 30 min antes de religar.' },
-  { brand: 'ricoh', text: 'SC 400 series no Ricoh geralmente indica problema no sistema de desenvolvimento de toner — documente e chame suporte.' },
+  { brand: 'ricoh', text: 'SC 202 no Ricoh IM C3000 indica problema no motor de polígono do laser (Image Writing). Exige visita técnica para substituição do laser unit ou BICU.' },
+  { brand: 'ricoh', text: 'SC 543 no Ricoh indica temperatura excessiva no fusor (≥240°C detectada na termopilha central). Desligue imediatamente — pode indicar Triac ou BICU com defeito. Exige visita técnica.' },
+  { brand: 'ricoh', text: 'SC 400 series no Ricoh indica problema na área do drum: motor de transferência ou ITB (Image Transfer Belt). Problemas no sistema de desenvolvimento de toner = SC 300 series.' },
   { brand: 'ricoh', text: 'Código SC no Ricoh não limpa sozinho — exige reset via modo de serviço ou intervenção técnica presencial.' },
-  { brand: 'ricoh', text: 'Anote sempre o código SC completo (ex.: SC 302-01) ao chamar suporte — facilita o diagnóstico remoto.' },
+  { brand: 'ricoh', text: 'Anote sempre o código SC completo (ex.: SC 202-00, SC 543-00) ao chamar suporte — facilita o diagnóstico remoto.' },
 
   // ─── Ricoh IM C3000/C3500 — Toner e suprimentos ──────────────────────────
   { brand: 'ricoh', text: 'No Ricoh IM C3000, substitua o toner pela cor indicada no painel — nunca force um cartucho errado no slot.' },
   { brand: 'ricoh', text: 'Toner com menos de 10% no Ricoh? Peça reposição antes de acabar — o sistema bloqueia quando atinge zero.' },
-  { brand: 'ricoh', text: 'Tambor do Ricoh IM C3000: vida útil de ~120.000 páginas. O painel avisa quando está perto do fim.' },
+  { brand: 'ricoh', text: 'PCU do Ricoh IM C3000/C3500: unidades coloridas (CMY) chegam a ~175.000 páginas cada; PCU preto (K) chega a ~400.000 páginas. O painel avisa separadamente para cada unidade.' },
   { brand: 'ricoh', text: 'Substituir a unidade de coleta de toner residual no Ricoh é simples: abra a porta frontal, gire e puxe o container.' },
-  { brand: 'ricoh', text: 'Grampeador do Ricoh IM C3500 usa cartucho tipo SR3130. Reponha quando o painel indicar "grampos acabando".' },
+  { brand: 'ricoh', text: 'Grampeador do Ricoh IM C3500 usa cartucho Staple Type K (cód. 416566 / 414865). Reponha quando o painel indicar "grampos acabando".' },
 
   // ─── Ricoh IM C3000/C3500 — Rede e conectividade ─────────────────────────
   { brand: 'ricoh', text: 'O IP do Ricoh IM C3000 fica em: Tela inicial > Configurações do usuário > Consultar informações do dispositivo.' },
@@ -71,7 +71,7 @@ export const ASSISTANT_TIPS = [
 
   // ─── Ricoh IM C3500 — Qualidade de impressão ─────────────────────────────
   { brand: 'ricoh', text: 'Cores descalibradas no Ricoh IM C3000? Execute calibração em Ferramentas de usuário > Manutenção > Calibração de cor.' },
-  { brand: 'ricoh', text: 'Linhas brancas horizontais no Ricoh indicam cabeça de impressão suja. Execute "Limpeza do cabeçote" no menu.' },
+  { brand: 'ricoh', text: 'Linhas brancas horizontais no Ricoh IM C3000/C3500 (laser) indicam PCU desgastada ou contaminação no rolo de revelação — não há cabeçote para limpar. Execute calibração de cor ou substitua a PCDU afetada.' },
   { brand: 'ricoh', text: 'Impressão manchada no Ricoh pode ser papel inadequado. Use papel certificado para laser (75-90g/m²).' },
   { brand: 'ricoh', text: 'Fundo cinza nas impressões do Ricoh? Ajuste a densidade do toner em Ferramentas > Qualidade de imagem.' },
 
@@ -92,5 +92,5 @@ export const ASSISTANT_TIPS = [
   { brand: 'general', text: 'Papel de boa qualidade reduz até 60% dos atolamentos. Evite papel reciclado de gramatura irregular.' },
   { brand: 'general', text: 'Kit de manutenção deve ser trocado conforme o contador de páginas — não espere o equipamento apresentar erro.' },
   { brand: 'general', text: 'Documente todos os erros com data e hora — um padrão de falhas recorrentes indica peça com desgaste acelerado.' },
-  { brand: 'general', text: 'Papel de boa qualidade reduz até 60% dos atolamentos. Evite papel reciclado de gramatura irregular.' },
+  { brand: 'general', text: 'Especificação recomendada: papel 75–90 g/m², certificado para laser. Papéis fora da especificação aumentam o desgaste do fusor e a frequência de atolamentos.' },
 ];
