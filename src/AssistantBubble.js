@@ -207,7 +207,7 @@ export default function AssistantBubble({ visible, onDismiss, brand = 'hp' }) {
         {...panResponder.panHandlers}
       >
         <View style={[styles.bubble, nearDismiss && styles.bubbleDismiss]}>
-          <Image source={require('../assets/icon.png')} style={styles.bubbleImg} />
+          <Image source={require('../assets/assistant.png')} style={styles.bubbleImg} />
         </View>
       </Animated.View>
 
