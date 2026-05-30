@@ -250,7 +250,7 @@ def extract_hp_error_sections(text: str, source_key: str) -> dict:
         end = min(end, start + 2500)
         section = text[start:end].strip()
 
-        if len(section) < 80:
+        if len(section) < 80 or is_toc_chunk(section) or is_book_index_chunk(section):
             continue
 
         entry = {'key': source_key, 'text': section}
@@ -270,15 +270,56 @@ def extract_hp_error_sections(text: str, source_key: str) -> dict:
 
 def is_toc_chunk(text: str) -> bool:
     """Detecta se o texto é majoritariamente sumário (ToC)."""
-    # Conta linhas com "... N" (referências de página)
+    # Linhas com "... N" (sumário com pontos)
     lines = text.split('\n')
     toc_lines = sum(1 for l in lines if re.search(r'\.{3,}\s*\d+', l))
     if len(lines) > 0 and toc_lines / len(lines) > 0.3:
         return True
-    # Conta proporção de pontos consecutivos
     dot_runs = len(re.findall(r'\.{4,}', text))
     if dot_runs > 3:
         return True
+    return False
+
+
+def is_book_index_chunk(text: str) -> bool:
+    """
+    Detecta índice remissivo alfabético (back-of-book index) do HP service manual
+    e tabelas-resumo de erro do CPMD — que não contêm troubleshooting real.
+
+    Padrões detectados:
+    - "accessories, FAX remove and replace 1267" → índice alfabético do service manual
+    - "B backup error 32.WX.YZ error 4 reset error 4..." → tabela resumo do CPMD
+    - "80.WX.YZ error 136, 270 embedded Multi-Media Card..." → entrada de índice
+
+    NÃO deve filtrar:
+    - Seções SC do Ricoh que têm "Type" codes (D, D, D) como coluna da tabela
+    """
+    # Múltiplas ocorrências de "remove/removing and replace/replacing NNN"
+    # → índice remissivo do HP service manual
+    if len(re.findall(r'remov(?:e|ing) and replac(?:e|ing)\s+\d{3,4}', text, re.IGNORECASE)) >= 2:
+        return True
+
+    # Tabela resumo do CPMD: letra de seção + "word error XX.YY error N"
+    # Ex: "B backup error 32.WX.YZ error 4 reset error 4..."
+    if re.search(r'(?:^|\n)[A-Z]\s+\w+ error \d{2}\.', text):
+        return True
+
+    # Muitas referências a páginas via "error/features/replacing/installing NNN"
+    # (padrão típico de índice HP: "error 136, 270", "features 136, 182")
+    page_label_refs = re.findall(
+        r'\b(?:error|features?|replacing|installing|diagnostics)\s+\d{3,4}',
+        text, re.IGNORECASE
+    )
+    if len(page_label_refs) >= 4:
+        return True
+
+    # Alta densidade de números de 3-4 dígitos (página de índice tem muitos refs)
+    # Exige mínimo absoluto de 10 refs para evitar falsos positivos em seções Ricoh
+    standalone_pages = re.findall(r'(?<!\d)(\d{3,4})(?!\d)', text)
+    long_words = re.findall(r'[a-zA-Z]{5,}', text)
+    if len(standalone_pages) >= 10 and len(long_words) > 0 and len(standalone_pages) / len(long_words) > 0.3:
+        return True
+
     return False
 
 
@@ -308,7 +349,7 @@ def extract_hp_error_type_table(text: str) -> dict:
     for m in entries_re.finditer(table_text):
         prefix = m.group(1)
         description = m.group(0).strip()[:400]
-        if len(description) > 40 and not is_toc_chunk(description):
+        if len(description) > 40 and not is_toc_chunk(description) and not is_book_index_chunk(description):
             entry = {'key': 'cpmd', 'text': description}
             results[prefix].append(entry)
 
@@ -343,7 +384,7 @@ def extract_hp_errors_from_cpmd(text: str) -> dict:
         end = min(end, start + 3000)
         section = text[start:end].strip()
 
-        if is_toc_chunk(section) or len(section) < 80:
+        if is_toc_chunk(section) or is_book_index_chunk(section) or len(section) < 80:
             continue
 
         # Extrair todos os códigos desta entrada (ex.: "82.73.46, 82.73.47")
@@ -560,16 +601,24 @@ def dedup_entries(entries: list) -> list:
 def finalize_error_index(raw: dict) -> dict:
     """
     Pós-processa o índice de erros:
-    - Remove duplicatas
+    - Remove duplicatas e entradas contaminadas (índice remissivo / ToC)
     - Limita a 5 entradas por código
     - Ordena: entradas com texto mais longo (mais contexto) primeiro
     """
     final = {}
+    filtered_out = 0
     for code, entries in raw.items():
         entries = dedup_entries(entries)
-        # Preferir entradas com mais contexto real (mais longa)
-        entries.sort(key=lambda x: -len(x['text']))
-        final[code] = entries[:5]
+        # Filtrar entradas de índice remissivo / ToC que escaparam
+        clean = [e for e in entries
+                 if not is_toc_chunk(e['text']) and not is_book_index_chunk(e['text'])]
+        filtered_out += len(entries) - len(clean)
+        if not clean:
+            continue
+        clean.sort(key=lambda x: -len(x['text']))
+        final[code] = clean[:5]
+    if filtered_out:
+        print(f'  [finalize] {filtered_out} entradas contaminadas removidas')
     return final
 
 # ─── Validação de qualidade ───────────────────────────────────────────────────
