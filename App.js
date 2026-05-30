@@ -12,6 +12,7 @@ import { ALL_MANUALS } from './src/data';
 import ChatScreen from './src/ChatScreen';
 import DrawerContent from './src/DrawerContent';
 import ManualsScreen from './src/ManualsScreen';
+import AssistantBubble from './src/AssistantBubble';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const DRAWER_W = Math.min(SCREEN_W * 0.82, 300);
@@ -55,6 +56,7 @@ export default function App() {
   const [selectedBrandId, setSelectedBrandId] = useState(BRANDS[0]?.id);
   const [selectedManualId, setSelectedManualId] = useState(ALL_MANUALS[0]?.id);
   const [showPicker, setShowPicker] = useState(false);
+  const [showAssistant, setShowAssistant] = useState(true);
 
   const drawerAnim = useRef(new Animated.Value(-DRAWER_W)).current;
 
@@ -115,6 +117,7 @@ export default function App() {
     setAuthEmail(null);
     setAllMessages({});
     setActiveTab('chat');
+    setShowAssistant(true);
   }
 
   function handleQuestion(q) {
@@ -131,7 +134,7 @@ export default function App() {
 
   if (authStatus === 'loading') return null;
   if (authStatus === 'guest') return (
-    <LoginScreen onLoginSuccess={(email) => { setAuthEmail(email); setAuthStatus('authed'); }} />
+    <LoginScreen onLoginSuccess={(email) => { setAuthEmail(email); setAuthStatus('authed'); setShowAssistant(true); }} />
   );
 
   return (
@@ -290,6 +293,8 @@ export default function App() {
         </View>
       )}
 
+      <AssistantBubble visible={showAssistant} onDismiss={() => setShowAssistant(false)} />
+
       {/* Drawer */}
       {drawerOpen && <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={closeDrawer} />}
       {drawerOpen && (
@@ -304,7 +309,14 @@ export default function App() {
                 <Text style={styles.closeBtnText}>✕</Text>
               </TouchableOpacity>
             </View>
-            <DrawerContent manual={manual} mode={mode} onQuestion={handleQuestion} onLogout={handleLogout} />
+            <DrawerContent
+              manual={manual}
+              mode={mode}
+              onQuestion={handleQuestion}
+              onLogout={handleLogout}
+              showAssistant={showAssistant}
+              onOpenAssistant={() => { closeDrawer(); setShowAssistant(true); }}
+            />
           </SafeAreaView>
         </Animated.View>
       )}
