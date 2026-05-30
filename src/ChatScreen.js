@@ -4,7 +4,7 @@ import {
   StyleSheet, ActivityIndicator, SafeAreaView, Keyboard,
   Platform, Animated, Linking,
 } from 'react-native';
-import { searchManual, hasRelevantContent, MANUAL_INDEX_MAP } from './search';
+import { searchManual, searchErrorCode, hasRelevantContent, MANUAL_INDEX_MAP } from './search';
 import { API_URL } from './data';
 
 const C = {
@@ -106,7 +106,15 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
       ? ['ricoh_imc3000_service', 'ricoh_imc3000_guia', 'ricoh_imc3000_parts']
       : [primaryKey, 'cpmd', 'service'].filter((v, i, a) => a.indexOf(v) === i);
 
-    const chunks = searchKeys.flatMap(k => searchManual(q, k, 4)).slice(0, 8);
+    const manualChunks = searchKeys.flatMap(k => searchManual(q, k, 4));
+    const errorChunks = searchErrorCode(q);
+    const seen = new Set();
+    const chunks = [...errorChunks, ...manualChunks].filter(c => {
+      const key = c.slice(0, 80);
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    }).slice(0, 10);
     const foundInManual = chunks.length > 0 && searchKeys.some(k => hasRelevantContent(q, k));
 
     const noChunksMsg = manual.brand === 'ricoh'
