@@ -20,7 +20,7 @@
         "backgroundColor": "#0096ff"
       },
       "package": "com.techguide.ia",
-      "softwareKeyboardLayoutMode": "pan",
+      "softwareKeyboardLayoutMode": "resize",
       "permissions": [
         "INTERNET"
       ]

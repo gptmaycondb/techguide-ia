@@ -6,6 +6,7 @@ import {
 import * as SplashScreen from 'expo-splash-screen';
 import { logout, restoreSession } from './src/auth';
 import LoginScreen from './src/LoginScreen';
+import WelcomeScreen from './src/WelcomeScreen';
 
 SplashScreen.preventAutoHideAsync();
 import { ALL_MANUALS } from './src/data';
@@ -57,6 +58,7 @@ export default function App() {
   const [selectedManualId, setSelectedManualId] = useState(ALL_MANUALS[0]?.id);
   const [showPicker, setShowPicker] = useState(false);
   const [showAssistant, setShowAssistant] = useState(true);
+  const [showWelcome, setShowWelcome] = useState(false);
 
   const drawerAnim = useRef(new Animated.Value(-DRAWER_W)).current;
 
@@ -118,6 +120,7 @@ export default function App() {
     setAllMessages({});
     setActiveTab('chat');
     setShowAssistant(true);
+    setShowWelcome(false);
   }
 
   function handleQuestion(q) {
@@ -134,7 +137,17 @@ export default function App() {
 
   if (authStatus === 'loading') return null;
   if (authStatus === 'guest') return (
-    <LoginScreen onLoginSuccess={(email) => { setAuthEmail(email); setAuthStatus('authed'); setShowAssistant(true); }} />
+    <LoginScreen onLoginSuccess={(email) => { setAuthEmail(email); setAuthStatus('authed'); setShowAssistant(true); setShowWelcome(true); }} />
+  );
+  if (authStatus === 'authed' && showWelcome) return (
+    <WelcomeScreen
+      brands={BRANDS}
+      onSelectBrand={(brandId, manualId) => {
+        selectBrand(brandId);
+        setSelectedManualId(manualId);
+        setShowWelcome(false);
+      }}
+    />
   );
 
   return (
