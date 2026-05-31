@@ -34,11 +34,15 @@ function mapFirebaseError(code) {
 
 async function _refreshToken(refreshToken, email) {
   try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 15000);
     const res = await fetch(REFRESH_URL, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ grant_type: 'refresh_token', refresh_token: refreshToken }),
+      signal: controller.signal,
     });
+    clearTimeout(timer);
     const data = await res.json();
     if (!res.ok) throw new Error('refresh_failed');
     const expiry = String(Date.now() + Number(data.expires_in) * 1000);
@@ -54,11 +58,21 @@ async function _refreshToken(refreshToken, email) {
 }
 
 export async function login(email, password, rememberPassword = false) {
-  const res = await fetch(SIGN_IN_URL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password, returnSecureToken: true }),
-  });
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  let res;
+  try {
+    res = await fetch(SIGN_IN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, returnSecureToken: true }),
+      signal: controller.signal,
+    });
+  } catch {
+    clearTimeout(timer);
+    throw new Error('Sem conexão. Verifique sua internet e tente novamente.');
+  }
+  clearTimeout(timer);
   const data = await res.json();
   if (!res.ok) {
     throw new Error(mapFirebaseError(data?.error?.message || 'LOGIN_FAILED'));
