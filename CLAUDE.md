@@ -81,6 +81,24 @@ O filtro em `AssistantBubble.js` seleciona por `model` quando presente, caindo p
 
 ---
 
+## Manuais somente-consulta (download, sem busca no chat)
+
+A aba **Manuais** (`BRAND_GROUPS` em `src/data.js`) e a **busca do chat** (`MANUALS` /
+`MANUALS_RICOH` + `searchKeys` + `search_index.json`) são **estruturas desacopladas**.
+Para disponibilizar um PDF **apenas para download/consulta** (sem influenciar as respostas
+do chat), adicione-o **somente** em `BRAND_GROUPS` — nunca em `MANUALS`/`searchKeys` nem
+no índice. Não é preciso reindexar nem tocar em `search.js`/`build_index.py`.
+
+Cada manual em `BRAND_GROUPS` precisa de: `id`, `title`, `subtitle`, `desc`, `color`,
+`icon`, `tags`, `url`, `localName`, `size`. A `url` é o link direto do Drive no formato
+`https://drive.usercontent.google.com/download?id=<FILE_ID>&export=download&confirm=t`.
+Sem `url`, o card aparece como "⏳ Em breve".
+
+> **Convenção:** todo manual Ricoh nomeado **"Parts Catalog"** é **somente consulta** —
+> entra apenas em `BRAND_GROUPS` (grupo Ricoh), nunca em `searchKeys`/índice.
+
+---
+
 ## Melhorias planejadas (não implementadas)
 
 ### A) `scripts/sources.json` — configuração de PDFs externalizada
