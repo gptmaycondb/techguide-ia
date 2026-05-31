@@ -31,12 +31,16 @@ function shuffle(arr) {
   return a;
 }
 
-function buildShuffledTips(brand) {
-  const filtered = ASSISTANT_TIPS.filter(t => t.brand === brand || t.brand === 'general');
+function buildShuffledTips(brand, modelId) {
+  const filtered = ASSISTANT_TIPS.filter(t => {
+    if (t.brand === 'general') return true;            // sempre incluídas
+    if (t.model) return t.model === modelId;           // dica específica do modelo
+    return t.brand === brand;                           // dica genérica da marca (sem modelo)
+  });
   return shuffle(filtered);
 }
 
-export default function AssistantBubble({ visible, onDismiss, brand = 'hp' }) {
+export default function AssistantBubble({ visible, onDismiss, brand = 'hp', modelId }) {
   const pan       = useRef(new Animated.ValueXY({ x: SCREEN_W - BUBBLE_SIZE - EDGE_PADDING, y: SCREEN_H * 0.55 })).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const zoneAnim  = useRef(new Animated.Value(0)).current;
@@ -46,16 +50,16 @@ export default function AssistantBubble({ visible, onDismiss, brand = 'hp' }) {
   const [dragging, setDragging]         = useState(false);
   const [nearDismiss, setNearDismiss]   = useState(false);
   const [tipOpen, setTipOpen]           = useState(false);
-  const [shuffledTips, setShuffledTips] = useState(() => buildShuffledTips(brand));
+  const [shuffledTips, setShuffledTips] = useState(() => buildShuffledTips(brand, modelId));
   const [currentTip, setCurrentTip]     = useState(0);
 
-  // Re-shuffle when brand changes
+  // Re-shuffle when brand or model changes
   useEffect(() => {
-    const next = buildShuffledTips(brand);
+    const next = buildShuffledTips(brand, modelId);
     setShuffledTips(next);
     setCurrentTip(0);
     setTipOpen(false);
-  }, [brand]);
+  }, [brand, modelId]);
 
   // Pulse loop when idle
   useEffect(() => {

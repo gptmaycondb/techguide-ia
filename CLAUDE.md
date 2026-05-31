@@ -25,7 +25,12 @@ Cada manual precisa de:
 - `id` único (ex: `'canon_ir2630'`)
 - `brand` (ex: `'canon'`)
 - `indexKey` — chave no search_index.json (ex: `'canon_ir2630_service'`)
+- `searchKeys` — array de índices consultados na busca (ex: `['canon_ir2630_guia', 'canon_ir2630_service']`)
+- `topics` — perguntas sugeridas por perfil (user/tecnico); aparecem como "Sugestões de pesquisa"
 - `prompts` — instruções de sistema por perfil (user/tecnico)
+
+Também adicionar uma entrada do modelo em `BRAND_GROUPS` (usado pela ManualsScreen para
+download dos PDFs) com os links do Google Drive.
 
 ### 2. Adicionar PDFs em `scripts/build_index.py`
 No dicionário `PDF_SOURCES`, adicionar:
@@ -37,20 +42,40 @@ Se a marca usa formato de código de erro diferente (ex: Canon `Exxx`, Kyocera `
 adicionar um parser dedicado similar a `extract_ricoh_sc_sections()` ou
 `extract_hp_errors_from_cpmd()`.
 
-### 3. Reindexar
+### 3. Mapear índices em `src/search.js`
+Adicionar as chaves do modelo em `MANUAL_INDEX_MAP` (id do manual → índice primário,
+e cada índice apontando para si mesmo). Ex:
+```javascript
+'canon_ir2630':         'canon_ir2630_guia',
+'canon_ir2630_guia':    'canon_ir2630_guia',
+'canon_ir2630_service': 'canon_ir2630_service',
+```
+
+### 4. Reindexar
 ```bash
 # Colocar os PDFs nas paths configuradas, depois:
 python3 scripts/build_index.py
 ```
 
-### 4. Atualizar routing de busca no `ChatScreen.js`
-O trecho abaixo precisa ser expandido para novas marcas:
+### 5. Roteamento de busca (já data-driven)
+O `ChatScreen.js` usa `manual.searchKeys` diretamente — **não precisa mais editar**
+o ChatScreen por marca (Melhoria B implementada). Basta declarar `searchKeys` no `data.js`.
 ```javascript
-// LINHA ~54 — hoje hardcoded para ricoh/hp
-const searchKeys = manual.brand === 'ricoh'
-  ? ['ricoh_imc3000_service', 'ricoh_imc3000_guia', 'ricoh_imc3000_parts']
-  : [primaryKey, 'cpmd', 'service']...
+// ChatScreen.js — roteamento data-driven
+const searchKeys = (manual.searchKeys && manual.searchKeys.length
+  ? manual.searchKeys
+  : [primaryKey]).filter((v, i, a) => a.indexOf(v) === i);
 ```
+
+### 6. Dicas do assistente flutuante em `src/tips.js`
+Adicionar um bloco de dicas **específicas do modelo** com o campo `model` igual ao `id`
+do manual (ex: `model: 'canon_ir2630'`). Sem isso, o modelo só mostra as dicas genéricas
+da marca + as `general`. Basear as dicas nos manuais reais (part numbers, códigos de erro).
+```javascript
+{ brand: 'canon', model: 'canon_ir2630', text: 'Erro Exxx no iR2630 indica...' },
+```
+O filtro em `AssistantBubble.js` já seleciona por `model` quando presente, caindo para
+`brand` quando a dica não tem `model`. O `App.js` passa `modelId={activeManual.id}`.
 
 ---
 
