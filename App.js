@@ -324,7 +324,7 @@ export default function App() {
         </View>
       )}
 
-      <AssistantBubble visible={showAssistant} onDismiss={() => setShowAssistant(false)} brand={selectedBrandId} />
+      <AssistantBubble visible={showAssistant} onDismiss={() => setShowAssistant(false)} brand={selectedBrandId} modelId={selectedManualId} />
 
       {/* Drawer */}
       {drawerOpen && <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={closeDrawer} />}

@@ -28,6 +28,7 @@ export const MANUALS = [
     subtitle: 'HP LaserJet Managed',
     color: '#0096ff',
     indexKey: 'e52645_guia',
+    searchKeys: ['e52645_guia', 'cpmd', 'service'],
     tags: ['E52645', 'MFP', 'Gerenciado'],
     topics: {
       user: {
@@ -90,6 +91,76 @@ export const MANUALS = [
       tech: 'Voce e um tecnico especialista na HP LaserJet Managed MFP E52645. Use os TRECHOS DO MANUAL com detalhes tecnicos completos incluindo codigos, part numbers e procedimentos. Se nao encontrar, informe e complemente. Portugues Brasileiro.',
     },
   },
+  {
+    id: 'mfpe62655',
+    brand: 'hp',
+    label: 'MFP E62655',
+    subtitle: 'HP LaserJet Managed',
+    color: '#0096ff',
+    indexKey: 'e62655_guia',
+    searchKeys: ['e62655_guia', 'e62655_service', 'e62655_cpmd'],
+    tags: ['E62655', 'MFP', 'Gerenciado'],
+    topics: {
+      user: {
+        'Uso Diario': [
+          'Como colocar papel na impressora?',
+          'Como imprimir dos dois lados?',
+          'Como digitalizar um documento?',
+          'O papel atolou, o que faco?',
+          'A impressora nao liga',
+          'Impressao saindo borrada ou clara',
+        ],
+        'Suprimentos': [
+          'Como trocar o cartucho de toner?',
+          'A impressora diz que o toner esta baixo',
+          'Como repor grampos?',
+          'Qual cartucho usar nesta impressora?',
+        ],
+        'Conexao': [
+          'Como conectar a impressora ao Wi-Fi?',
+          'Nao consigo imprimir do celular',
+          'Como configurar impressao por e-mail?',
+          'Como acessar as configuracoes da impressora?',
+        ],
+        'Erros': [
+          'O que significa esse erro na tela?',
+          'Mensagem de cartucho incorreto',
+          'Impressora mostra Checking engine',
+          'Fax nao funciona',
+        ],
+      },
+      tech: {
+        'Operacao': [
+          'Configurar bandejas de papel',
+          'Impressao frente e verso duplex',
+          'Digitalizar para pasta de rede SMB',
+          'Configurar Quick Sets',
+        ],
+        'Suprimentos': [
+          'Substituir cartucho de toner',
+          'Numero de peca do cartucho E62655',
+          'Substituir kit de manutencao',
+          'Cartucho de grampos part number',
+        ],
+        'Rede': [
+          'Configurar endereco IP estatico',
+          'Acessar EWS Servidor Web Incorporado',
+          'Configurar LDAP autenticacao',
+          'Protocolo IPSec certificados',
+        ],
+        'Service': [
+          'Codigos de erro painel de controle',
+          'Procedimento de calibracao do scanner',
+          'Substituir fusor E62655',
+          'Diagnostico motor principal',
+        ],
+      },
+    },
+    prompts: {
+      user: 'Voce e um assistente de suporte para usuarios da HP LaserJet Managed MFP E62655. Use os TRECHOS DO MANUAL para responder de forma simples e clara. Se nao encontrar no manual, ajude com conhecimento geral. Portugues Brasileiro.',
+      tech: 'Voce e um tecnico especialista na HP LaserJet Managed MFP E62655. Use os TRECHOS DO MANUAL com detalhes tecnicos completos incluindo codigos, part numbers e procedimentos. Se nao encontrar, informe e complemente. Portugues Brasileiro.',
+    },
+  },
 ];
 
 // ─── RICOH ────────────────────────────────────────────────────────────────────
@@ -101,6 +172,7 @@ export const MANUALS_RICOH = [
     subtitle: 'Ricoh IM C Series',
     color: '#e63946',
     indexKey: 'ricoh_imc3000_guia',
+    searchKeys: ['ricoh_imc3000_service', 'ricoh_imc3000_guia', 'ricoh_imc3000_parts'],
     tags: ['IM C3000', 'IM C3500', 'Color MFP'],
     topics: {
       user: {
@@ -220,6 +292,51 @@ export const BRAND_GROUPS = [
             url: 'https://drive.usercontent.google.com/download?id=1ApI5qiLHTZaPKicn2SD5G6rqTrIFpPcQ&export=download&confirm=t',
             localName: 'tg_service_2025.pdf',
             size: '90 MB',
+          },
+        ],
+      },
+      {
+        id: 'mfpe62655_group',
+        label: 'MFP E62655',
+        subtitle: 'HP LaserJet Managed MFP E62655',
+        color: '#0096ff',
+        icon: '🖨️',
+        manuals: [
+          {
+            id: 'e62655_guia',
+            title: 'Guia do Usuario',
+            subtitle: 'Manual de operacao PT-BR',
+            desc: 'Operacao, configuracao e solucao de problemas',
+            color: '#00d4aa',
+            icon: '📗',
+            tags: ['E62655', 'PT-BR', '3.3 MB'],
+            url: 'https://drive.usercontent.google.com/download?id=1nReLfTlkWvTXU8JEdUNnkqrYZ_kNEdG8&export=download&confirm=t',
+            localName: 'tg_guia_e62655.pdf',
+            size: '3.3 MB',
+          },
+          {
+            id: 'e62655_cpmd',
+            title: 'Codigos de Erro (CPMD)',
+            subtitle: 'Control Panel Message Document 2023',
+            desc: 'Codigos de erro e procedimentos de solucao',
+            color: '#a855f7',
+            icon: '⚠️',
+            tags: ['CPMD', '2023', '10 MB'],
+            url: 'https://drive.usercontent.google.com/download?id=1PKE-eD_-Ixk5vfC9ANb45nyDlHiJbcDf&export=download&confirm=t',
+            localName: 'tg_cpmd_e62655.pdf',
+            size: '10 MB',
+          },
+          {
+            id: 'e62655_service',
+            title: 'Service Parts Catalog',
+            subtitle: 'Manual de servico e catalogo de pecas 2022',
+            desc: 'Pecas, troubleshooting e procedimentos de reparo',
+            color: '#0096ff',
+            icon: '🔧',
+            tags: ['Service', '2022', '71 MB'],
+            url: 'https://drive.usercontent.google.com/download?id=1hg-Ji4DNHCQXu2y1w5pO9cOj3oD-NsaJ&export=download&confirm=t',
+            localName: 'tg_service_e62655.pdf',
+            size: '71 MB',
           },
         ],
       },

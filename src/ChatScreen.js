@@ -49,10 +49,13 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
 
     // Limit history to last 6 messages (3 exchanges) to avoid growing token cost
     const history = newMsgs.slice(-6).map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text }));
+    // Cada manual declara seus próprios índices de busca (src/data.js → searchKeys).
+    // Fallback para a chave primária do MANUAL_INDEX_MAP quando não declarado.
     const primaryKey = MANUAL_INDEX_MAP[manual.id] || manual.indexKey || 'e52645_guia';
-    const searchKeys = manual.brand === 'ricoh'
-      ? ['ricoh_imc3000_service', 'ricoh_imc3000_guia', 'ricoh_imc3000_parts']
-      : [primaryKey, 'cpmd', 'service'].filter((v, i, a) => a.indexOf(v) === i);
+    const searchKeys = (manual.searchKeys && manual.searchKeys.length
+      ? manual.searchKeys
+      : [primaryKey]
+    ).filter((v, i, a) => a.indexOf(v) === i);
 
     // Error code entries first, then manual chunks; all capped at 700 chars, max 8 total
     const cap = c => c.length > 700 ? c.substring(0, 700) + '…' : c;

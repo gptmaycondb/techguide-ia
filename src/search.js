@@ -31,6 +31,11 @@ export const MANUAL_INDEX_MAP = {
   'm527_catalog':   'service',
   'e50045_catalog': 'service',
   'e52545_catalog': 'service',
+  // HP E62655
+  'mfpe62655':      'e62655_guia',
+  'e62655_guia':    'e62655_guia',
+  'e62655_cpmd':    'e62655_cpmd',
+  'e62655_service': 'e62655_service',
   // Ricoh
   'ricoh_imc3000':         'ricoh_imc3000_guia',
   'ricoh_imc3000_guia':    'ricoh_imc3000_guia',

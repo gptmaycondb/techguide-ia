@@ -32,6 +32,9 @@ PDF_SOURCES = {
     'ricoh_imc3000_guia':    [Path('/tmp/ricoh_guia.pdf')],
     'ricoh_imc3000_service': [Path('/tmp/ricoh_service.pdf')],
     'ricoh_imc3000_parts':   [Path('/tmp/ricoh_parts.pdf')],
+    'e62655_guia':           [Path('/tmp/e62655_guia.pdf')],
+    'e62655_cpmd':           [Path('/tmp/e62655_cpmd.pdf')],
+    'e62655_service':        [Path('/tmp/e62655_service.pdf')],
 }
 
 OUT_SEARCH = PROJECT_ROOT / 'assets/search_index.json'
@@ -559,6 +562,36 @@ def build_error_codes_index() -> dict:
             if not any(x['key'] == 'service' and x['text'] == e['text'] for x in index[code]):
                 index[code].append(e)
     print(f'  → {len(svc_errors)} códigos do service')
+
+    # ── HP E62655 CPMD ────────────────────────────────────────────────────────
+    print('[errors] HP E62655 CPMD')
+    e62655_cpmd_text = ''
+    for p in PDF_SOURCES['e62655_cpmd']:
+        e62655_cpmd_text += pdf_to_text(p)
+    e62655_cpmd_text = clean_text(e62655_cpmd_text)
+    e62655_cpmd_errors = extract_hp_errors_from_cpmd(e62655_cpmd_text)
+    for code, entries in e62655_cpmd_errors.items():
+        for e in entries:
+            ee = {'key': 'e62655_cpmd', 'text': e['text']}
+            if not any(x['key'] == 'e62655_cpmd' and x['text'] == ee['text'] for x in index[code]):
+                index[code].append(ee)
+    print(f'  → {len(e62655_cpmd_errors)} códigos do E62655 CPMD')
+
+    # ── HP E62655 Service Manual ──────────────────────────────────────────────
+    print('[errors] HP E62655 Service Manual')
+    e62655_svc_text = ''
+    for p in PDF_SOURCES['e62655_service']:
+        t = pdf_to_text(p)
+        if t:
+            e62655_svc_text += t
+    e62655_svc_text = clean_text(e62655_svc_text)
+    e62655_svc_errors = extract_hp_errors_from_cpmd(e62655_svc_text)
+    for code, entries in e62655_svc_errors.items():
+        for e in entries:
+            ee = {'key': 'e62655_service', 'text': e['text']}
+            if not any(x['key'] == 'e62655_service' and x['text'] == ee['text'] for x in index[code]):
+                index[code].append(ee)
+    print(f'  → {len(e62655_svc_errors)} códigos do E62655 service')
 
     # ── Ricoh Service Manual ──────────────────────────────────────────────────
     print('[errors] Ricoh Service Manual')
