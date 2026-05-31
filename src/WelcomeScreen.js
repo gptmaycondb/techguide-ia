@@ -27,11 +27,7 @@ export default function WelcomeScreen({ brands, onSelectBrand }) {
               onPress={() => onSelectBrand(b.id, b.manuals[0].id)}
               activeOpacity={0.7}
             >
-              <View style={[styles.cardIcon, { backgroundColor: b.color + '20' }]}>
-                <Text style={[styles.cardIconText, { color: b.color }]}>
-                  {b.label.toUpperCase()}
-                </Text>
-              </View>
+              <Text style={{ fontSize: 36 }}>🖨️</Text>
               <Text style={[styles.cardLabel, { color: b.color }]}>{b.label}</Text>
               <Text style={styles.cardSub}>
                 {b.manuals.length} modelo{b.manuals.length !== 1 ? 's' : ''}
@@ -63,8 +59,6 @@ const styles = StyleSheet.create({
     flex: 1, borderWidth: 2, borderRadius: 16, backgroundColor: C.surface,
     alignItems: 'center', paddingVertical: 24, paddingHorizontal: 12, gap: 10,
   },
-  cardIcon: { borderRadius: 12, paddingHorizontal: 14, paddingVertical: 8 },
-  cardIconText: { fontSize: 18, fontWeight: '900' },
   cardLabel: { fontSize: 20, fontWeight: '800' },
   cardSub: { color: C.muted, fontSize: 12 },
 });
