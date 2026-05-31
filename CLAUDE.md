@@ -128,6 +128,9 @@ regex que captura o código + seção de texto até o próximo código.
 | `ricoh_imc3000_guia`     | `/tmp/ricoh_guia.pdf` (Google Drive)| 218   |
 | `ricoh_imc3000_service`  | `/tmp/ricoh_service.pdf` (84 MB)   | 1763   |
 | `ricoh_imc3000_parts`    | `/tmp/ricoh_parts.pdf`             | 10     |
+| `e62655_guia`            | `/tmp/e62655_guia.pdf` (Google Drive)| 160  |
+| `e62655_cpmd`            | `/tmp/e62655_cpmd.pdf` (Google Drive)| 316  |
+| `e62655_service`         | `/tmp/e62655_service.pdf` (71 MB)  | 1094   |
 
 > **Nota:** Os PDFs Ricoh estão no Google Drive (ver URLs em `src/data.js`).
 > Para reindexar, baixar para `/tmp/` com os nomes acima antes de rodar o script.
