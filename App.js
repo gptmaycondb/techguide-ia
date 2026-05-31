@@ -5,8 +5,10 @@ import {
 } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { logout, restoreSession } from './src/auth';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import LoginScreen from './src/LoginScreen';
 import WelcomeScreen from './src/WelcomeScreen';
+import TutorialScreen from './src/TutorialScreen';
 
 SplashScreen.preventAutoHideAsync();
 import { ALL_MANUALS } from './src/data';
@@ -36,12 +38,14 @@ ALL_MANUALS.forEach(m => {
   if (!BRAND_MAP[b]) BRAND_MAP[b] = [];
   BRAND_MAP[b].push(m);
 });
-const BRANDS = Object.entries(BRAND_MAP).map(([id, manuals]) => ({
-  id,
-  label: id === 'hp' ? 'HP' : id.charAt(0).toUpperCase() + id.slice(1),
-  color: manuals[0].color,
-  manuals,
-}));
+const BRANDS = [...new Map(
+  Object.entries(BRAND_MAP).map(([id, manuals]) => [id, {
+    id,
+    label: id === 'hp' ? 'HP' : id.charAt(0).toUpperCase() + id.slice(1),
+    color: manuals[0].color,
+    manuals,
+  }])
+).values()];
 
 export default function App() {
   const [authStatus, setAuthStatus] = useState('loading'); // 'loading'|'guest'|'authed'
@@ -59,6 +63,8 @@ export default function App() {
   const [showPicker, setShowPicker] = useState(false);
   const [showAssistant, setShowAssistant] = useState(true);
   const [showWelcome, setShowWelcome] = useState(false);
+  const [tutorialSeen, setTutorialSeen] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
 
   const drawerAnim = useRef(new Animated.Value(-DRAWER_W)).current;
 
@@ -77,7 +83,11 @@ export default function App() {
   useEffect(() => {
     async function init() {
       try {
-        const session = await restoreSession();
+        const [session, seen] = await Promise.all([
+          restoreSession(),
+          AsyncStorage.getItem('tg_tutorial_seen'),
+        ]);
+        if (seen) setTutorialSeen(true);
         if (session) { setAuthEmail(session.email); setAuthStatus('authed'); }
         else { setAuthStatus('guest'); }
       } catch { setAuthStatus('guest'); }
@@ -146,8 +156,16 @@ export default function App() {
         selectBrand(brandId);
         setSelectedManualId(manualId);
         setShowWelcome(false);
+        if (!tutorialSeen) setShowTutorial(true);
       }}
     />
+  );
+  if (authStatus === 'authed' && showTutorial) return (
+    <TutorialScreen onComplete={async () => {
+      await AsyncStorage.setItem('tg_tutorial_seen', '1');
+      setTutorialSeen(true);
+      setShowTutorial(false);
+    }} />
   );
 
   return (

@@ -58,7 +58,7 @@ const styles = StyleSheet.create({
   logoText: { color: '#fff', fontWeight: '800', fontSize: 26 },
   title: { color: C.text, fontSize: 22, fontWeight: '800', textAlign: 'center' },
   sub: { color: C.dim, fontSize: 14, textAlign: 'center', lineHeight: 20 },
-  brandRow: { flexDirection: 'row', gap: 16, marginTop: 8 },
+  brandRow: { flexDirection: 'row', gap: 16, marginTop: 8, width: '100%' },
   card: {
     flex: 1, borderWidth: 2, borderRadius: 16, backgroundColor: C.surface,
     alignItems: 'center', paddingVertical: 24, paddingHorizontal: 12, gap: 10,
