@@ -397,7 +397,7 @@ export const BRAND_GROUPS = [
             // Somente consulta (download) — nao entra na busca do chat (searchKeys/indice)
             id: 'ricoh_parts_catalog',
             title: 'Parts Catalog',
-            subtitle: 'Catalogo de pecas IM C3000/3500',
+            subtitle: 'Catálogo completo de peças',
             desc: 'Part numbers e diagramas de montagem — somente consulta',
             color: '#f59e0b',
             icon: '📦',
