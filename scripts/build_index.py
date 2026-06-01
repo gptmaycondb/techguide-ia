@@ -421,9 +421,13 @@ def extract_hp_errors_from_cpmd(text: str) -> dict:
 
 # ─── Extração de error codes — Ricoh SC ──────────────────────────────────────
 
-# SC codes no service manual aparecem como "SC20200" no início de uma linha
+# SC codes no service manual aparecem em dois formatos conforme o modelo:
+#   IM C3000/3500 → "SC20200" (sem separador, no início de uma linha)
+#   MP C3004/3504 → "SC285-00" (com hífen, seguido de \n ou parêntese)
+# O grupo 2 captura os 3 dígitos do grupo (202/285) e o grupo 3 o sufixo (00),
+# com o hífen opcional para cobrir ambos.
 RICOH_SC_RE = re.compile(
-    r'(?:^|\n)(SC(\d{3})(\d{2}))\s*\n',   # SC20200 → SC202, sufixo 00
+    r'(?:^|\n)(SC(\d{3})-?(\d{2}))\s*(?:\n|\()',
     re.MULTILINE
 )
 
@@ -438,9 +442,9 @@ def extract_ricoh_sc_sections(text: str, service_key: str = 'ricoh_imc3000_servi
     matches = list(RICOH_SC_RE.finditer(text))
 
     for i, m in enumerate(matches):
-        full   = m.group(1)            # SC20200
         group  = 'SC' + m.group(2)    # SC202
         suffix = m.group(3)           # 00
+        full   = f'{group}{suffix}'   # SC20200 (forma canônica sem separador)
         hyphen = f'{group}-{suffix}'  # SC202-00
 
         start = m.start()
@@ -504,12 +508,17 @@ def extract_ricoh_sc_groups(text: str, service_key: str = 'ricoh_imc3000_service
         else:
             # Fallback: criar entrada descritiva com grupo + exemplos de códigos
             prefix_num = group[2:]  # '400' de 'SC400'
-            # Coletar alguns códigos específicos deste grupo do texto
-            sub_codes = re.findall(rf'SC{prefix_num}\d{{2,3}}\b', text)
+            # Coletar alguns códigos específicos deste grupo do texto.
+            # Cobre os dois formatos: SC40001 (IM C3000) e SC400-01 (MP C3004).
+            sub_codes = re.findall(rf'SC{prefix_num}-?\d{{2,3}}\b', text)
             sub_codes = list(dict.fromkeys(sub_codes))[:8]   # primeiros 8 únicos
+            # Nome do modelo derivado do índice de origem para não fixar IM C3000.
+            modelo = ('MP C3004/3504' if 'mpc3004' in service_key
+                      else 'IM C3000/C3500' if 'imc3000' in service_key
+                      else 'Ricoh')
             desc = (
                 f'{group} — {category}\n\n'
-                f'Grupo de erros Ricoh IM C3000/C3500.\n'
+                f'Grupo de erros Ricoh {modelo}.\n'
                 f'Códigos específicos neste grupo: {", ".join(sub_codes) if sub_codes else "consulte o service manual"}.\n'
                 f'Consulte o código completo (ex.: {sub_codes[0] if sub_codes else group + "xx"}) '
                 f'para diagnóstico e solução detalhados.'
@@ -609,7 +618,7 @@ def build_error_codes_index() -> dict:
             for e in entries:
                 if not any(x['key'] == 'ricoh_imc3000_service' and x['text'] == e['text'] for x in index[code]):
                     index[code].append(e)
-    unique_sc = len([k for k in ricoh_errors if k.startswith('SC') and '-' not in k and len(k) == 8])
+    unique_sc = len([k for k in ricoh_errors if re.fullmatch(r'SC\d{3}-\d{2}', k)])
     print(f'  → {unique_sc} SC codes completos + {len(sc_groups)} grupos do service Ricoh')
 
     # ── Ricoh MP C3004/3504 Service Manual ────────────────────────────────────
@@ -623,7 +632,7 @@ def build_error_codes_index() -> dict:
             for e in entries:
                 if not any(x['key'] == 'ricoh_mpc3004_service' and x['text'] == e['text'] for x in index[code]):
                     index[code].append(e)
-    mpc_unique = len([k for k in mpc_errors if k.startswith('SC') and '-' not in k and len(k) == 8])
+    mpc_unique = len([k for k in mpc_errors if re.fullmatch(r'SC\d{3}-\d{2}', k)])
     print(f'  → {mpc_unique} SC codes completos + {len(mpc_groups)} grupos do service MP C3004/3504')
 
     # ── Ricoh Parts (Product Support Guide) ───────────────────────────────────
