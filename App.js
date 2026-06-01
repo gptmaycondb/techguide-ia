@@ -88,7 +88,7 @@ export default function App() {
           AsyncStorage.getItem('tg_tutorial_seen'),
         ]);
         if (seen) setTutorialSeen(true);
-        if (session) { setAuthEmail(session.email); setAuthStatus('authed'); }
+        if (session) { setAuthEmail(session.email); setAuthStatus('authed'); setShowWelcome(true); }
         else { setAuthStatus('guest'); }
       } catch { setAuthStatus('guest'); }
       finally { SplashScreen.hideAsync(); }

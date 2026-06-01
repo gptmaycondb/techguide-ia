@@ -36,11 +36,15 @@ export const MANUAL_INDEX_MAP = {
   'e62655_guia':    'e62655_guia',
   'e62655_cpmd':    'e62655_cpmd',
   'e62655_service': 'e62655_service',
-  // Ricoh
+  // Ricoh IM C3000/3500
   'ricoh_imc3000':         'ricoh_imc3000_guia',
   'ricoh_imc3000_guia':    'ricoh_imc3000_guia',
   'ricoh_imc3000_service': 'ricoh_imc3000_service',
   'ricoh_imc3000_parts':   'ricoh_imc3000_parts',
+  // Ricoh MP C3004/3504
+  'ricoh_mpc3004':         'ricoh_mpc3004_guia',
+  'ricoh_mpc3004_guia':    'ricoh_mpc3004_guia',
+  'ricoh_mpc3004_service': 'ricoh_mpc3004_service',
 };
 
 const STOPWORDS = new Set([

@@ -7,27 +7,34 @@ Usa RAG local (índices JSON) + Claude API via backend em `https://manuais-hp.on
 
 ```
 assets/
-  manuals/          ← PDFs HP (guia_e52645, cpmd_2023, service_part1-4)
-  search_index.json ← chunks de texto para busca semântica (~9.7 MB)
-  error_codes_index.json ← código → descrição do erro (~1.7 MB)
+  manuals/          ← PDFs HP E52645 (guia_e52645, cpmd_2023, service_part1-4) — bundled no app
+  search_index.json ← chunks de texto para busca semântica (~14.7 MB)
+  error_codes_index.json ← código → descrição do erro (~2.7 MB, 1682 entradas)
 scripts/
   build_index.py    ← indexador v2; reprocessa todos os PDFs
 src/
-  data.js           ← registro de todos os manuais (id, brand, indexKey, prompts)
+  data.js           ← registro de todos os manuais (id, brand, indexKey, searchKeys, prompts)
   search.js         ← searchManual(), searchErrorCode(), hasRelevantContent()
   ChatScreen.js     ← fluxo de chat; monta contexto e chama API
+  tips.js           ← ASSISTANT_TIPS[] com dicas por model/brand
+  AssistantBubble.js← bolha flutuante; filtra dicas por modelId
 ```
 
 ## Como adicionar um novo modelo
 
 ### 1. Registrar o manual em `src/data.js`
+> **Onde registrar:** modelos **HP** entram em `MANUALS`; modelos de **outras marcas**
+> (Ricoh, Canon, etc.) entram em `MANUALS_RICOH`. `ALL_MANUALS` junta os dois e a
+> WelcomeScreen deriva o picker por marca automaticamente — não há lista de marcas
+> hardcoded para editar.
+
 Cada manual precisa de:
 - `id` único (ex: `'canon_ir2630'`)
 - `brand` (ex: `'canon'`)
-- `indexKey` — chave no search_index.json (ex: `'canon_ir2630_service'`)
-- `searchKeys` — array de índices consultados na busca (ex: `['canon_ir2630_guia', 'canon_ir2630_service']`)
-- `topics` — perguntas sugeridas por perfil (user/tecnico); aparecem como "Sugestões de pesquisa"
-- `prompts` — instruções de sistema por perfil (user/tecnico)
+- `indexKey` — chave primária no search_index.json (ex: `'canon_ir2630_guia'`)
+- `searchKeys` — array de todos os índices consultados na busca (ex: `['canon_ir2630_guia', 'canon_ir2630_service']`)
+- `topics` — perguntas sugeridas por perfil (user/tech); aparecem como "Sugestões de pesquisa"
+- `prompts` — instruções de sistema por perfil (user/tech)
 
 Também adicionar uma entrada do modelo em `BRAND_GROUPS` (usado pela ManualsScreen para
 download dos PDFs) com os links do Google Drive.
@@ -41,6 +48,12 @@ No dicionário `PDF_SOURCES`, adicionar:
 Se a marca usa formato de código de erro diferente (ex: Canon `Exxx`, Kyocera `C-xxxx`),
 adicionar um parser dedicado similar a `extract_ricoh_sc_sections()` ou
 `extract_hp_errors_from_cpmd()`.
+
+**Codes de erro do service:** adicionar também um bloco em `build_error_codes_index()`
+para o service do modelo (espelhe o bloco "Ricoh MP C3004/3504 Service Manual").
+Os parsers Ricoh SC são parametrizados por `service_key` — passe a chave do modelo
+(ex.: `extract_ricoh_sc_sections(text, 'ricoh_mpc3004_service')`) para que os códigos
+SC fiquem atribuídos ao índice correto e não ao IM C3000.
 
 ### 3. Mapear índices em `src/search.js`
 Adicionar as chaves do modelo em `MANUAL_INDEX_MAP` (id do manual → índice primário,
@@ -58,8 +71,8 @@ python3 scripts/build_index.py
 ```
 
 ### 5. Roteamento de busca (já data-driven)
-O `ChatScreen.js` usa `manual.searchKeys` diretamente — **não precisa mais editar**
-o ChatScreen por marca (Melhoria B implementada). Basta declarar `searchKeys` no `data.js`.
+O `ChatScreen.js` usa `manual.searchKeys` diretamente — **não precisa editar o ChatScreen**.
+Basta declarar `searchKeys` no `data.js`.
 ```javascript
 // ChatScreen.js — roteamento data-driven
 const searchKeys = (manual.searchKeys && manual.searchKeys.length
@@ -69,13 +82,31 @@ const searchKeys = (manual.searchKeys && manual.searchKeys.length
 
 ### 6. Dicas do assistente flutuante em `src/tips.js`
 Adicionar um bloco de dicas **específicas do modelo** com o campo `model` igual ao `id`
-do manual (ex: `model: 'canon_ir2630'`). Sem isso, o modelo só mostra as dicas genéricas
+do manual (ex: `model: 'canon_ir2630'`). Sem isso, o modelo mostra apenas as dicas genéricas
 da marca + as `general`. Basear as dicas nos manuais reais (part numbers, códigos de erro).
 ```javascript
 { brand: 'canon', model: 'canon_ir2630', text: 'Erro Exxx no iR2630 indica...' },
 ```
-O filtro em `AssistantBubble.js` já seleciona por `model` quando presente, caindo para
-`brand` quando a dica não tem `model`. O `App.js` passa `modelId={activeManual.id}`.
+O filtro em `AssistantBubble.js` seleciona por `model` quando presente, caindo para
+`brand` quando a dica não tem `model`. O `App.js` passa `modelId={selectedManualId}`.
+
+---
+
+## Manuais somente-consulta (download, sem busca no chat)
+
+A aba **Manuais** (`BRAND_GROUPS` em `src/data.js`) e a **busca do chat** (`MANUALS` /
+`MANUALS_RICOH` + `searchKeys` + `search_index.json`) são **estruturas desacopladas**.
+Para disponibilizar um PDF **apenas para download/consulta** (sem influenciar as respostas
+do chat), adicione-o **somente** em `BRAND_GROUPS` — nunca em `MANUALS`/`searchKeys` nem
+no índice. Não é preciso reindexar nem tocar em `search.js`/`build_index.py`.
+
+Cada manual em `BRAND_GROUPS` precisa de: `id`, `title`, `subtitle`, `desc`, `color`,
+`icon`, `tags`, `url`, `localName`, `size`. A `url` é o link direto do Drive no formato
+`https://drive.usercontent.google.com/download?id=<FILE_ID>&export=download&confirm=t`.
+Sem `url`, o card aparece como "⏳ Em breve".
+
+> **Convenção:** todo manual Ricoh nomeado **"Parts Catalog"** é **somente consulta** —
+> entra apenas em `BRAND_GROUPS` (grupo Ricoh), nunca em `searchKeys`/índice.
 
 ---
 
@@ -99,28 +130,13 @@ Em vez de hardcodar `PDF_SOURCES` em `build_index.py`, ler de um JSON:
 ```
 O indexador leria esse arquivo e escolheria o parser correto por `"parser"`.
 
-### B) `searchKeys` data-driven em `src/data.js`
-Em vez do `if (brand === 'ricoh') ...` no ChatScreen, cada manual declararia
-seus próprios índices de busca:
-```javascript
-// src/data.js
-{
-  id: 'ricoh_imc3000',
-  brand: 'ricoh',
-  searchKeys: ['ricoh_imc3000_service', 'ricoh_imc3000_guia', 'ricoh_imc3000_parts'],
-  ...
-}
-```
-O ChatScreen usaria `manual.searchKeys` diretamente, sem if/else por marca.
-
-### C) Tips filtradas por marca
-O array `TIPS[]` em `ChatScreen.js` é genérico. Para múltiplas marcas,
-organizar por brand e filtrar pelo manual ativo:
+### B) Tips de placeholder do chat filtradas por marca
+O array `TIPS[]` exibido como sugestão na barra de input do `ChatScreen.js` ainda é genérico.
+Para múltiplas marcas, organizar por brand e filtrar pelo manual ativo:
 ```javascript
 const TIPS_BY_BRAND = {
   hp:     ['💡 "Como resolver erro 50 no E52645?"', ...],
   ricoh:  ['💡 "O que significa SC 543?"', ...],
-  canon:  ['💡 "Erro E002 no Canon iR2630?"', ...],
   generic:['💡 "Digite o código de erro para diagnóstico"', ...],
 };
 const TIPS = TIPS_BY_BRAND[manual.brand] || TIPS_BY_BRAND.generic;
@@ -145,28 +161,46 @@ regex que captura o código + seção de texto até o próximo código.
 
 ## Manuais atuais indexados
 
-| Key                      | Fonte                              | Chunks |
-|--------------------------|------------------------------------|--------|
-| `e52645_guia`            | `assets/manuals/guia_e52645.pdf`   | 166    |
-| `cpmd`                   | `assets/manuals/cpmd_2023.pdf`     | 300    |
-| `service`                | `assets/manuals/service_part1-4`   | 615    |
-| `ricoh_imc3000_guia`     | `/tmp/ricoh_guia.pdf` (Google Drive)| 218   |
-| `ricoh_imc3000_service`  | `/tmp/ricoh_service.pdf` (84 MB)   | 1763   |
-| `ricoh_imc3000_parts`    | `/tmp/ricoh_parts.pdf`             | 10     |
-| `e62655_guia`            | `/tmp/e62655_guia.pdf` (Google Drive)| 160  |
-| `e62655_cpmd`            | `/tmp/e62655_cpmd.pdf` (Google Drive)| 316  |
-| `e62655_service`         | `/tmp/e62655_service.pdf` (71 MB)  | 1094   |
+| Key                      | Fonte                                        | Chunks |
+|--------------------------|----------------------------------------------|--------|
+| `e52645_guia`            | `assets/manuals/guia_e52645.pdf` (bundled)   | 166    |
+| `cpmd`                   | `assets/manuals/cpmd_2023.pdf` (bundled)     | 300    |
+| `service`                | `assets/manuals/service_part1-4` (bundled)   | 615    |
+| `ricoh_imc3000_guia`     | `/tmp/ricoh_guia.pdf` (Google Drive)         | 218    |
+| `ricoh_imc3000_service`  | `/tmp/ricoh_service.pdf` (84 MB, Drive)      | 1763   |
+| `ricoh_imc3000_parts`    | `/tmp/ricoh_parts.pdf` (Google Drive)        | 10     |
+| `e62655_guia`            | `/tmp/e62655_guia.pdf` (Google Drive)        | 160    |
+| `e62655_cpmd`            | `/tmp/e62655_cpmd.pdf` (Google Drive)        | 316    |
+| `e62655_service`         | `/tmp/e62655_service.pdf` (71 MB, Drive)     | 1094   |
+| `ricoh_mpc3004_guia`     | `/tmp/ricoh_mpc3004_guia.pdf` (7 MB, Drive)  | 161    |
+| `ricoh_mpc3004_service`  | `/tmp/ricoh_mpc3004_service.pdf` (61 MB, Drive) | 1213 |
 
-> **Nota:** Os PDFs Ricoh estão no Google Drive (ver URLs em `src/data.js`).
+> Os PDFs Ricoh e E62655 estão no Google Drive (IDs em `src/data.js` → `BRAND_GROUPS`).
 > Para reindexar, baixar para `/tmp/` com os nomes acima antes de rodar o script.
 
 ## Reindexar do zero
 
 ```bash
-# Baixar PDFs Ricoh do Google Drive para /tmp/
-# (URLs em src/data.js → ricoh_imc3000_service/guia/parts)
+# 1. Baixar PDFs que não estão bundled (Ricoh e HP E62655) para /tmp/
+#    IDs do Google Drive estão em src/data.js → BRAND_GROUPS
+#    Exemplo com gdown:
+#      gdown "https://drive.google.com/uc?id=<FILE_ID>" -O /tmp/<nome>.pdf
 
+# HP E62655
+# gdown "https://drive.google.com/uc?id=1nReLfTlkWvTXU8JEdUNnkqrYZ_kNEdG8" -O /tmp/e62655_guia.pdf
+# gdown "https://drive.google.com/uc?id=1PKE-eD_-Ixk5vfC9ANb45nyDlHiJbcDf" -O /tmp/e62655_cpmd.pdf
+# gdown "https://drive.google.com/uc?id=1hg-Ji4DNHCQXu2y1w5pO9cOj3oD-NsaJ" -O /tmp/e62655_service.pdf
+
+# Ricoh IM C3000 (ver IDs em src/data.js → ricoh_imc3000_group)
+
+# Ricoh MP C3004/3504 (Parts Catalog = somente consulta, NAO indexar)
+# gdown "https://drive.google.com/uc?id=1NbV4S5IIX5e8wX4spY2TciXzfhdYy-rC" -O /tmp/ricoh_mpc3004_guia.pdf
+# gdown "https://drive.google.com/uc?id=1ylExuQ9rQJsi25u4VEhnSb1BG05l05QA" -O /tmp/ricoh_mpc3004_service.pdf
+
+# 2. Rodar o indexador
 python3 scripts/build_index.py
+
+# 3. Commitar os índices gerados
 git add assets/search_index.json assets/error_codes_index.json
 git commit -m "chore: reindexar manuais"
 git push
