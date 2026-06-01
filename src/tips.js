@@ -76,6 +76,13 @@ export const ASSISTANT_TIPS = [
   { brand: 'hp', model: 'mfpe62655', text: 'Impressão clara no E62655? Ajuste a densidade em Menu > Configurações > Qualidade de impressão e confirme nível do toner.' },
   { brand: 'hp', model: 'mfpe62655', text: 'Manchas ou borrões no E62655 podem indicar fusor no fim da vida — avalie o kit J8J87A (110V) / J8J88A (220V).' },
 
+  // ─── RICOH MP C3004/C3504 ────────────────────────────────────────────────
+  { brand: 'ricoh', model: 'ricoh_mpc3004', text: 'SC202 no MP C3004/3504 indica falha no laser/poligono (LD: PD Activation Error). Verifique a unidade de escrita optica.' },
+  { brand: 'ricoh', model: 'ricoh_mpc3004', text: 'SC541-SC558 no MP C3004/3504 sao do grupo de fusao — verifique termistores e a unidade do fusor.' },
+  { brand: 'ricoh', model: 'ricoh_mpc3004', text: 'SC816/SC818/SC820 no MP C3004/3504 referem-se ao controlador/energy save — confira a sequencia de desligamento.' },
+  { brand: 'ricoh', model: 'ricoh_mpc3004', text: 'SC400 no MP C3004/3504 indica problema na area do tambor (PCDU) — verifique a unidade de imagem correspondente.' },
+  { brand: 'ricoh', model: 'ricoh_mpc3004', text: 'Toner MP C3004/3504: cartuchos por cor CMYK. Anote a sigla exibida no painel ao substituir para nao trocar a cor errada.' },
+
   // ─── RICOH IM C3000/C3500 — Atolamentos ──────────────────────────────────
   { brand: 'ricoh', text: 'Código SC no painel da IM C3000? Anote o número completo (ex.: SC543) antes de reiniciar — ele identifica a falha exata.' },
   { brand: 'ricoh', text: 'Atolamento na IM C3000/3500? Abra a tampa frontal e a unidade de transferência ITB com cuidado para liberar o papel.' },

@@ -23,6 +23,11 @@ src/
 ## Como adicionar um novo modelo
 
 ### 1. Registrar o manual em `src/data.js`
+> **Onde registrar:** modelos **HP** entram em `MANUALS`; modelos de **outras marcas**
+> (Ricoh, Canon, etc.) entram em `MANUALS_RICOH`. `ALL_MANUALS` junta os dois e a
+> WelcomeScreen deriva o picker por marca automaticamente — não há lista de marcas
+> hardcoded para editar.
+
 Cada manual precisa de:
 - `id` único (ex: `'canon_ir2630'`)
 - `brand` (ex: `'canon'`)
@@ -43,6 +48,12 @@ No dicionário `PDF_SOURCES`, adicionar:
 Se a marca usa formato de código de erro diferente (ex: Canon `Exxx`, Kyocera `C-xxxx`),
 adicionar um parser dedicado similar a `extract_ricoh_sc_sections()` ou
 `extract_hp_errors_from_cpmd()`.
+
+**Codes de erro do service:** adicionar também um bloco em `build_error_codes_index()`
+para o service do modelo (espelhe o bloco "Ricoh MP C3004/3504 Service Manual").
+Os parsers Ricoh SC são parametrizados por `service_key` — passe a chave do modelo
+(ex.: `extract_ricoh_sc_sections(text, 'ricoh_mpc3004_service')`) para que os códigos
+SC fiquem atribuídos ao índice correto e não ao IM C3000.
 
 ### 3. Mapear índices em `src/search.js`
 Adicionar as chaves do modelo em `MANUAL_INDEX_MAP` (id do manual → índice primário,
@@ -161,6 +172,8 @@ regex que captura o código + seção de texto até o próximo código.
 | `e62655_guia`            | `/tmp/e62655_guia.pdf` (Google Drive)        | 160    |
 | `e62655_cpmd`            | `/tmp/e62655_cpmd.pdf` (Google Drive)        | 316    |
 | `e62655_service`         | `/tmp/e62655_service.pdf` (71 MB, Drive)     | 1094   |
+| `ricoh_mpc3004_guia`     | `/tmp/ricoh_mpc3004_guia.pdf` (7 MB, Drive)  | 161    |
+| `ricoh_mpc3004_service`  | `/tmp/ricoh_mpc3004_service.pdf` (61 MB, Drive) | 1213 |
 
 > Os PDFs Ricoh e E62655 estão no Google Drive (IDs em `src/data.js` → `BRAND_GROUPS`).
 > Para reindexar, baixar para `/tmp/` com os nomes acima antes de rodar o script.
@@ -179,6 +192,10 @@ regex que captura o código + seção de texto até o próximo código.
 # gdown "https://drive.google.com/uc?id=1hg-Ji4DNHCQXu2y1w5pO9cOj3oD-NsaJ" -O /tmp/e62655_service.pdf
 
 # Ricoh IM C3000 (ver IDs em src/data.js → ricoh_imc3000_group)
+
+# Ricoh MP C3004/3504 (Parts Catalog = somente consulta, NAO indexar)
+# gdown "https://drive.google.com/uc?id=1NbV4S5IIX5e8wX4spY2TciXzfhdYy-rC" -O /tmp/ricoh_mpc3004_guia.pdf
+# gdown "https://drive.google.com/uc?id=1ylExuQ9rQJsi25u4VEhnSb1BG05l05QA" -O /tmp/ricoh_mpc3004_service.pdf
 
 # 2. Rodar o indexador
 python3 scripts/build_index.py

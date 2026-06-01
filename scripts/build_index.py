@@ -32,6 +32,8 @@ PDF_SOURCES = {
     'ricoh_imc3000_guia':    [Path('/tmp/ricoh_guia.pdf')],
     'ricoh_imc3000_service': [Path('/tmp/ricoh_service.pdf')],
     'ricoh_imc3000_parts':   [Path('/tmp/ricoh_parts.pdf')],
+    'ricoh_mpc3004_guia':    [Path('/tmp/ricoh_mpc3004_guia.pdf')],
+    'ricoh_mpc3004_service': [Path('/tmp/ricoh_mpc3004_service.pdf')],
     'e62655_guia':           [Path('/tmp/e62655_guia.pdf')],
     'e62655_cpmd':           [Path('/tmp/e62655_cpmd.pdf')],
     'e62655_service':        [Path('/tmp/e62655_service.pdf')],
@@ -425,10 +427,11 @@ RICOH_SC_RE = re.compile(
     re.MULTILINE
 )
 
-def extract_ricoh_sc_sections(text: str) -> dict:
+def extract_ricoh_sc_sections(text: str, service_key: str = 'ricoh_imc3000_service') -> dict:
     """
     Extrai seções SC do service manual Ricoh.
     Indexa por: SC20200 (código completo), SC202 (grupo), SC202-00 (formato com hífen).
+    `service_key` define o índice de origem para os entries gerados.
     """
     results = defaultdict(list)
 
@@ -451,7 +454,7 @@ def extract_ricoh_sc_sections(text: str) -> dict:
         # Limpar artefatos de coluna (múltiplos espaços)
         section = re.sub(r'[ \t]{3,}', '  ', section)
 
-        entry = {'key': 'ricoh_imc3000_service', 'text': section}
+        entry = {'key': service_key, 'text': section}
 
         results[full].append(entry)      # SC20200
         results[hyphen].append(entry)   # SC202-00
@@ -461,10 +464,11 @@ def extract_ricoh_sc_sections(text: str) -> dict:
 
     return results
 
-def extract_ricoh_sc_groups(text: str) -> dict:
+def extract_ricoh_sc_groups(text: str, service_key: str = 'ricoh_imc3000_service') -> dict:
     """
     Extrai descrições de grupos SC do Ricoh (SC100, SC200, SC300, etc.)
     que representam categorias de erro (não têm código de 5 dígitos).
+    `service_key` define o índice de origem para os entries gerados.
     """
     results = defaultdict(list)
 
@@ -496,7 +500,7 @@ def extract_ricoh_sc_groups(text: str) -> dict:
                 break   # usar a primeira ocorrência fora do ToC
 
         if best_section:
-            results[group].append({'key': 'ricoh_imc3000_service', 'text': best_section})
+            results[group].append({'key': service_key, 'text': best_section})
         else:
             # Fallback: criar entrada descritiva com grupo + exemplos de códigos
             prefix_num = group[2:]  # '400' de 'SC400'
@@ -510,7 +514,7 @@ def extract_ricoh_sc_groups(text: str) -> dict:
                 f'Consulte o código completo (ex.: {sub_codes[0] if sub_codes else group + "xx"}) '
                 f'para diagnóstico e solução detalhados.'
             )
-            results[group].append({'key': 'ricoh_imc3000_service', 'text': desc})
+            results[group].append({'key': service_key, 'text': desc})
 
     return results
 
@@ -607,6 +611,20 @@ def build_error_codes_index() -> dict:
                     index[code].append(e)
     unique_sc = len([k for k in ricoh_errors if k.startswith('SC') and '-' not in k and len(k) == 8])
     print(f'  → {unique_sc} SC codes completos + {len(sc_groups)} grupos do service Ricoh')
+
+    # ── Ricoh MP C3004/3504 Service Manual ────────────────────────────────────
+    print('[errors] Ricoh MP C3004/3504 Service Manual')
+    mpc_svc_path = PDF_SOURCES['ricoh_mpc3004_service'][0]
+    mpc_svc_text = clean_text(pdf_to_text(mpc_svc_path))
+    mpc_errors = extract_ricoh_sc_sections(mpc_svc_text, 'ricoh_mpc3004_service')
+    mpc_groups = extract_ricoh_sc_groups(mpc_svc_text, 'ricoh_mpc3004_service')
+    for src in [mpc_errors, mpc_groups]:
+        for code, entries in src.items():
+            for e in entries:
+                if not any(x['key'] == 'ricoh_mpc3004_service' and x['text'] == e['text'] for x in index[code]):
+                    index[code].append(e)
+    mpc_unique = len([k for k in mpc_errors if k.startswith('SC') and '-' not in k and len(k) == 8])
+    print(f'  → {mpc_unique} SC codes completos + {len(mpc_groups)} grupos do service MP C3004/3504')
 
     # ── Ricoh Parts (Product Support Guide) ───────────────────────────────────
     print('[errors] Ricoh Parts')
