@@ -59,7 +59,10 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
 
     // Error code entries first, then manual chunks; all capped at 700 chars, max 8 total
     const cap = c => c.length > 700 ? c.substring(0, 700) + '…' : c;
-    const errorChunks = searchErrorCode(q).map(cap);
+    // Filtra erros pelo índice de service do modelo ativo; evita misturar SC codes de modelos distintos.
+    // Se não houver entrada para este modelo, searchErrorCode faz fallback para todos (ex: HP CPMD compartilhado).
+    const serviceKey = searchKeys.find(k => k.includes('service')) || primaryKey;
+    const errorChunks = searchErrorCode(q, serviceKey).map(cap);
     const manualChunks = searchKeys.flatMap(k => searchManual(q, k, 3)).slice(0, 5).map(cap);
     const seen = new Set();
     const chunks = [...errorChunks, ...manualChunks].filter(c => {
@@ -71,7 +74,7 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
     const foundInManual = chunks.length > 0 && searchKeys.some(k => hasRelevantContent(q, k));
 
     const noChunksMsg = manual.brand === 'ricoh'
-      ? '\n\nNenhum trecho localizado nos manuais indexados. Use seu conhecimento tecnico especializado em Ricoh IM C3000/3500 para responder — codigos SC, procedimentos, pecas e especificacoes.'
+      ? `\n\nNenhum trecho localizado nos manuais indexados. Use seu conhecimento tecnico especializado em Ricoh ${manual.label} para responder — codigos SC, procedimentos, pecas e especificacoes.`
       : '\n\nNenhum trecho encontrado nos manuais. Responda com conhecimento tecnico geral sobre a impressora.';
 
     const contextBlock = chunks.length > 0
