@@ -5,6 +5,11 @@
         "hooks": [
           {
             "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/session-start.sh",
+            "statusMessage": "Instalando dependências npm..."
+          },
+          {
+            "type": "command",
             "command": "printf '\\n📚 Skills disponíveis neste projeto:\\n\\n  /audit        — checklist pré-merge (tips, data.js, search.js)\\n  /add-model    — adicionar novo modelo (guiado)\\n  /reindex      — reindexar PDFs via build_index.py\\n  /ctx          — bootstrap da sessão (regras de token)\\n  /lookup       — buscar código de erro (HP/Ricoh) via jq\\n  /index-stats  — saúde dos índices JSON sem ler o arquivo\\n  /model-check  — validar um modelo específico\\n  /diff         — revisar só o git diff atual\\n  /tips-gen     — gerar rascunho de dicas de um modelo\\n  /debug-query  — simular pipeline de busca do ChatScreen\\n  /update-docs  — sincronizar CLAUDE.md com contagens reais\\n  /pr           — gerar título e corpo de Pull Request\\n'",
             "statusMessage": "Carregando skills do projeto..."
           }
