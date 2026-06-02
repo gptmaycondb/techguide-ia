@@ -25,6 +25,7 @@ const SYNONYMS = {
 
 export const MANUAL_INDEX_MAP = {
   // HP
+  'mfpe52645':      'e52645_guia',
   'e52645_guia':    'e52645_guia',
   'cpmd':           'cpmd',
   'm501_catalog':   'service',

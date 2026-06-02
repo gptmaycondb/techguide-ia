@@ -177,7 +177,7 @@ export default function AssistantBubble({ visible, onDismiss, brand = 'hp', mode
             </TouchableOpacity>
           </View>
           <View style={styles.cardDivider} />
-          <Text style={styles.cardText}>{tipText}</Text>
+          <Text selectable style={styles.cardText}>{tipText}</Text>
           <View style={styles.cardDivider} />
           <View style={styles.cardNav}>
             <TouchableOpacity onPress={prevTip} style={styles.navBtn}>
