@@ -1,4 +1,4 @@
-# /diff — Revisão do Diff Atual
+# /ver-diff — Revisar Git Diff Atual
 
 Revisa apenas o que mudou desde o último commit ou upstream.
 Não lê arquivos completos — economiza tokens proporcional ao tamanho dos arquivos tocados.

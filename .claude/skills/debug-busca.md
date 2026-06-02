@@ -1,4 +1,4 @@
-# /debug-query [model-id] "[query]" — Simular Pipeline de Busca
+# /debug-busca — Simular Pipeline de Busca
 
 Reproduz exatamente o que o ChatScreen faria para uma query num modelo,
 sem abrir o app. Útil para diagnosticar respostas ruins ou contaminação entre modelos.

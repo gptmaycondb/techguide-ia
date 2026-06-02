@@ -1,4 +1,4 @@
-# /pr — Criar Pull Request
+# /criar-pr — Criar Pull Request
 
 Gera título e corpo do PR a partir do histórico de commits e diff atual.
 Segue o padrão do projeto: Summary em bullets + Test plan como checklist.

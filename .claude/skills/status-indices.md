@@ -1,4 +1,4 @@
-# /index-stats — Saúde dos Índices
+# /status-indices — Saúde dos Índices JSON
 
 Verifica o estado dos JSONs de índice sem ler o conteúdo.
 Economiza 82k tokens vs. ler os dois arquivos completos.

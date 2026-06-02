@@ -1,4 +1,4 @@
-# /audit — Auditoria Completa Pré-Merge
+# /auditoria — Checklist Pré-Merge
 
 Execute esta auditoria **antes de qualquer merge para main**. Verifica consistência
 entre os arquivos do projeto, integridade das dicas e cobertura dos índices.

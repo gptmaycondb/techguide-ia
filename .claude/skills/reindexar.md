@@ -1,4 +1,4 @@
-# /reindex — Reindexar Manuais
+# /reindexar — Reindexar PDFs
 
 Orquestra o processo completo de reindexação. Use quando:
 - Adicionar novo modelo (após configurar PDF_SOURCES)

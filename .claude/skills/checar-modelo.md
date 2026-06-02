@@ -1,4 +1,4 @@
-# /model-check [model-id] — Validação de Modelo Específico
+# /checar-modelo — Validar Modelo Específico
 
 Valida um único modelo sem executar a auditoria completa.
 Use quando só alterou um modelo — economiza ~60% dos tokens do /audit.

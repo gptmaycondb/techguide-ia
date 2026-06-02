@@ -1,4 +1,4 @@
-# /add-model — Adicionar Novo Modelo de Impressora
+# /novo-modelo — Adicionar Novo Modelo
 
 Guia interativo para adicionar um novo equipamento ao TechGuide IA.
 Executa o procedimento de 6 passos do CLAUDE.md de forma assistida.

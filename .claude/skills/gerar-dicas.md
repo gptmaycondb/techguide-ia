@@ -1,4 +1,4 @@
-# /tips-gen [model-id] — Gerar Rascunho de Dicas
+# /gerar-dicas — Gerar Rascunho de Dicas
 
 Gera dicas para um modelo consultando os chunks reais do search_index.
 Use ao adicionar novo modelo ou para enriquecer dicas existentes.

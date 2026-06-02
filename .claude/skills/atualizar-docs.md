@@ -1,4 +1,4 @@
-# /update-docs — Atualizar CLAUDE.md
+# /atualizar-docs — Atualizar CLAUDE.md
 
 Sincroniza o CLAUDE.md com o estado atual do projeto.
 Use após reindexar, adicionar modelo ou fazer mudanças arquiteturais.

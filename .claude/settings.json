@@ -10,8 +10,31 @@
           },
           {
             "type": "command",
-            "command": "printf '\\n📚 Skills disponíveis neste projeto:\\n\\n  /audit        — checklist pré-merge (tips, data.js, search.js)\\n  /add-model    — adicionar novo modelo (guiado)\\n  /reindex      — reindexar PDFs via build_index.py\\n  /ctx          — bootstrap da sessão (regras de token)\\n  /lookup       — buscar código de erro (HP/Ricoh) via jq\\n  /index-stats  — saúde dos índices JSON sem ler o arquivo\\n  /model-check  — validar um modelo específico\\n  /diff         — revisar só o git diff atual\\n  /tips-gen     — gerar rascunho de dicas de um modelo\\n  /debug-query  — simular pipeline de busca do ChatScreen\\n  /update-docs  — sincronizar CLAUDE.md com contagens reais\\n  /pr           — gerar título e corpo de Pull Request\\n'",
+            "command": "printf '\\n📚 Skills disponíveis neste projeto:\\n\\n  /auditoria       — checklist pré-merge (tips, data.js, search.js)\\n  /novo-modelo     — adicionar novo modelo (guiado)\\n  /reindexar       — reindexar PDFs via build_index.py\\n  /contexto        — bootstrap da sessão (regras de token)\\n  /buscar-erro     — buscar código de erro (HP/Ricoh) via jq\\n  /status-indices  — saúde dos índices JSON sem ler o arquivo\\n  /checar-modelo   — validar um modelo específico\\n  /ver-diff        — revisar só o git diff atual\\n  /gerar-dicas     — gerar rascunho de dicas de um modelo\\n  /debug-busca     — simular pipeline de busca do ChatScreen\\n  /atualizar-docs  — sincronizar CLAUDE.md com contagens reais\\n  /criar-pr        — gerar título e corpo de Pull Request\\n'",
             "statusMessage": "Carregando skills do projeto..."
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "$CLAUDE_PROJECT_DIR/.claude/hooks/check-tips.sh",
+            "statusMessage": "Verificando tips.js..."
+          }
+        ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(python3 scripts/build_index.py*)",
+            "command": "printf '\\n📊 Índices atualizados:\\n' && jq -r 'to_entries | sort_by(.value | length) | reverse | .[] | \"  \\(.value | length) chunks — \\(.key)\"' \"$CLAUDE_PROJECT_DIR/assets/search_index.json\" 2>/dev/null || true",
+            "statusMessage": "Contando chunks..."
           }
         ]
       }

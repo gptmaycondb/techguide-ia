@@ -1,4 +1,4 @@
-# /ctx — Bootstrap de Sessão (Contexto Mínimo)
+# /contexto — Bootstrap da Sessão
 
 Use no início de toda sessão antes de qualquer tarefa.
 Carrega apenas o essencial — nunca lê arquivos grandes desnecessariamente.

@@ -1,4 +1,4 @@
-# /lookup [código] — Consulta de Código de Erro
+# /buscar-erro — Buscar Código de Erro
 
 Busca um código de erro (HP ou SC Ricoh) no índice sem ler o arquivo inteiro.
 Economiza ~12k tokens por consulta vs. Read do error_codes_index.json.
