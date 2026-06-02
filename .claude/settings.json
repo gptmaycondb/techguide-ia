@@ -1,12 +1,25 @@
 {
   "hooks": {
-    "PreToolUse": [
+    "SessionStart": [
       {
-        "matcher": "Bash(git push*)",
         "hooks": [
           {
             "type": "command",
-            "command": "echo ''\necho '🔍 Lembrete: rode /audit antes de mergear para main'\necho ''"
+            "command": "printf '\\n📚 Skills disponíveis neste projeto:\\n\\n  /audit        — checklist pré-merge (tips, data.js, search.js)\\n  /add-model    — adicionar novo modelo (guiado)\\n  /reindex      — reindexar PDFs via build_index.py\\n  /ctx          — bootstrap da sessão (regras de token)\\n  /lookup       — buscar código de erro (HP/Ricoh) via jq\\n  /index-stats  — saúde dos índices JSON sem ler o arquivo\\n  /model-check  — validar um modelo específico\\n  /diff         — revisar só o git diff atual\\n  /tips-gen     — gerar rascunho de dicas de um modelo\\n  /debug-query  — simular pipeline de busca do ChatScreen\\n  /update-docs  — sincronizar CLAUDE.md com contagens reais\\n  /pr           — gerar título e corpo de Pull Request\\n'",
+            "statusMessage": "Carregando skills do projeto..."
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(git push*)",
+            "command": "printf '\\n🔍 Lembrete: rode /audit antes de mergear para main\\n'",
+            "statusMessage": "Verificando antes do push..."
           }
         ]
       }
