@@ -150,16 +150,12 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
             item.isError && { backgroundColor: '#1a0a10', borderColor: '#4a1020' },
             item.offline && { backgroundColor: '#1a0d2a', borderColor: '#6b21a8' },
           ]}>
-            <TextInput
-              editable={true}
-              multiline
-              scrollEnabled={false}
-              showSoftInputOnFocus={false}
-              onChangeText={() => {}}
-              value={item.text}
+            <Text
+              selectable
               style={[styles.bubbleText, item.isError && { color: C.error }]}
-              caretHidden
-            />
+            >
+              {item.text}
+            </Text>
             {!isUser && extractLinks(item.text).map((lnk, i) => (
               <TouchableOpacity key={i} style={styles.linkBtn} onPress={() => Linking.openURL(lnk.url)}>
                 <Text style={styles.linkBtnText} numberOfLines={1}>🔗 {lnk.label}</Text>
