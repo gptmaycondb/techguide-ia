@@ -150,16 +150,12 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
             item.isError && { backgroundColor: '#1a0a10', borderColor: '#4a1020' },
             item.offline && { backgroundColor: '#1a0d2a', borderColor: '#6b21a8' },
           ]}>
-            <TextInput
-              editable={true}
-              multiline
-              scrollEnabled={false}
-              showSoftInputOnFocus={false}
-              onChangeText={() => {}}
-              value={item.text}
+            <Text
+              selectable
               style={[styles.bubbleText, item.isError && { color: C.error }]}
-              caretHidden
-            />
+            >
+              {item.text}
+            </Text>
             {!isUser && extractLinks(item.text).map((lnk, i) => (
               <TouchableOpacity key={i} style={styles.linkBtn} onPress={() => Linking.openURL(lnk.url)}>
                 <Text style={styles.linkBtnText} numberOfLines={1}>🔗 {lnk.label}</Text>
@@ -207,7 +203,8 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
           ? <FlatList data={[{ key: 'w' }]} renderItem={renderWelcome} style={styles.list} keyExtractor={i => i.key} />
           : <FlatList ref={listRef} data={messages} keyExtractor={m => m.id.toString()}
               renderItem={renderMessage} style={styles.list}
-              contentContainerStyle={{ padding: 14, gap: 12, paddingBottom: 12 }} />
+              contentContainerStyle={{ padding: 14, gap: 12, paddingBottom: 12 }}
+              keyboardShouldPersistTaps="handled" />
         }
 
         {loading && (
