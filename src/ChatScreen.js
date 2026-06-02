@@ -4,6 +4,7 @@ import {
   StyleSheet, ActivityIndicator, SafeAreaView, Keyboard,
   Linking, KeyboardAvoidingView, Platform,
 } from 'react-native';
+import * as Clipboard from 'expo-clipboard';
 import { searchManual, searchErrorCode, hasRelevantContent, MANUAL_INDEX_MAP } from './search';
 import { API_URL } from './data';
 
@@ -17,6 +18,7 @@ const C = {
 export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, onQuestionSent, messages, setMessages }) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [copiedId, setCopiedId] = useState(null);
   const listRef = useRef(null);
   const inputRef = useRef(null);
   useEffect(() => {
@@ -137,8 +139,15 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
     return links;
   }
 
+  async function copyMessage(item) {
+    await Clipboard.setStringAsync(item.text);
+    setCopiedId(item.id);
+    setTimeout(() => setCopiedId(null), 2000);
+  }
+
   function renderMessage({ item }) {
     const isUser = item.role === 'user';
+    const copied = copiedId === item.id;
     return (
       <View style={[styles.msgRow, isUser ? styles.msgRowUser : styles.msgRowAi]}>
         <View style={[styles.avatar, isUser ? styles.avatarUser : styles.avatarAi]}>
@@ -156,6 +165,15 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
             >
               {item.text}
             </Text>
+            {!isUser && (
+              <View style={styles.msgActions}>
+                <TouchableOpacity onPress={() => copyMessage(item)} style={styles.copyBtn}>
+                  <Text style={[styles.copyBtnText, copied && { color: C.accent2 }]}>
+                    {copied ? '✓ copiado' : '⎘ copiar'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+            )}
             {!isUser && extractLinks(item.text).map((lnk, i) => (
               <TouchableOpacity key={i} style={styles.linkBtn} onPress={() => Linking.openURL(lnk.url)}>
                 <Text style={styles.linkBtnText} numberOfLines={1}>🔗 {lnk.label}</Text>
@@ -267,6 +285,9 @@ const styles = StyleSheet.create({
     color: '#ffffff', fontSize: 13, lineHeight: 20,
     padding: 0, borderWidth: 0, backgroundColor: 'transparent',
   },
+  msgActions: { flexDirection: 'row', justifyContent: 'flex-end', marginTop: 6 },
+  copyBtn: { paddingHorizontal: 8, paddingVertical: 3 },
+  copyBtnText: { color: C.muted, fontSize: 11 },
   linkBtn: { marginTop: 6, backgroundColor: '#0d1f3a', borderRadius: 8, borderWidth: 1, borderColor: C.accent + '50', paddingHorizontal: 10, paddingVertical: 6 },
   linkBtnText: { color: C.accent, fontSize: 11, fontWeight: '600' },
   source: { color: C.muted, fontSize: 10, marginTop: 4, marginLeft: 2 },
