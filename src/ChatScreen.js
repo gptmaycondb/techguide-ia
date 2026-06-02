@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, FlatList,
+  View, Text, TextInput, TouchableOpacity, ScrollView,
   StyleSheet, ActivityIndicator, SafeAreaView, Keyboard,
   Linking, KeyboardAvoidingView, Platform,
 } from 'react-native';
@@ -200,11 +200,19 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
       >
       <View style={{ flex: 1, backgroundColor: C.bg }}>
         {messages.length === 0
-          ? <FlatList data={[{ key: 'w' }]} renderItem={renderWelcome} style={styles.list} keyExtractor={i => i.key} />
-          : <FlatList ref={listRef} data={messages} keyExtractor={m => m.id.toString()}
-              renderItem={renderMessage} style={styles.list}
+          ? <ScrollView style={styles.list} contentContainerStyle={{ flexGrow: 1 }}>
+              {renderWelcome()}
+            </ScrollView>
+          : <ScrollView ref={listRef} style={styles.list}
               contentContainerStyle={{ padding: 14, gap: 12, paddingBottom: 12 }}
-              keyboardShouldPersistTaps="handled" />
+              keyboardShouldPersistTaps="handled"
+              onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}>
+              {messages.map((item, index) => (
+                <View key={item.id}>
+                  {renderMessage({ item, index })}
+                </View>
+              ))}
+            </ScrollView>
         }
 
         {loading && (
