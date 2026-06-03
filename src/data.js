@@ -1,10 +1,5 @@
 export const API_URL = 'https://manuais-hp.onrender.com/chat';
 
-export const BACKEND_PRESETS = [
-  { label: 'Produção (padrão)', url: API_URL },
-  // { label: 'Staging OpenAI', url: 'https://staging.manuais-hp.onrender.com/chat' },
-];
-
 export const USER_MODES = {
   user: {
     id: 'user',

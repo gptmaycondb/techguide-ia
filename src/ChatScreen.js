@@ -5,7 +5,7 @@ import {
   Linking, KeyboardAvoidingView, Platform,
 } from 'react-native';
 import { searchManual, searchErrorCode, hasRelevantContent, MANUAL_INDEX_MAP } from './search';
-import { API_URL as DEFAULT_API_URL } from './data';
+import { API_URL } from './data';
 
 const C = {
   bg: '#0d0f14', surface: '#161920', surface2: '#1e2230',
@@ -14,7 +14,7 @@ const C = {
   userBubble: '#1a2744', aiBubble: '#131a28', error: '#ff4d6d',
 };
 
-export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, onQuestionSent, messages, setMessages, apiUrl = DEFAULT_API_URL }) {
+export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, onQuestionSent, messages, setMessages }) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const listRef = useRef(null);
@@ -97,7 +97,7 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
     try {
       const controller = new AbortController();
       const timeout = setTimeout(() => controller.abort(), 60000);
-      const res = await fetch(apiUrl, {
+      const res = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ system: systemPrompt, messages: history, manualId: manual.id, max_tokens: 1024 }),

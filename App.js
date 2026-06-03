@@ -11,7 +11,7 @@ import WelcomeScreen from './src/WelcomeScreen';
 import TutorialScreen from './src/TutorialScreen';
 
 SplashScreen.preventAutoHideAsync();
-import { ALL_MANUALS, API_URL, BACKEND_PRESETS } from './src/data';
+import { ALL_MANUALS } from './src/data';
 import ChatScreen from './src/ChatScreen';
 import DrawerContent from './src/DrawerContent';
 import ManualsScreen from './src/ManualsScreen';
@@ -65,7 +65,6 @@ export default function App() {
   const [showWelcome, setShowWelcome] = useState(false);
   const [tutorialSeen, setTutorialSeen] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
-  const [apiUrl, setApiUrl] = useState(API_URL);
 
   const drawerAnim = useRef(new Animated.Value(-DRAWER_W)).current;
 
@@ -84,13 +83,11 @@ export default function App() {
   useEffect(() => {
     async function init() {
       try {
-        const [session, seen, savedUrl] = await Promise.all([
+        const [session, seen] = await Promise.all([
           restoreSession(),
           AsyncStorage.getItem('tg_tutorial_seen'),
-          AsyncStorage.getItem('tg_backend_url'),
         ]);
         if (seen) setTutorialSeen(true);
-        if (savedUrl) setApiUrl(savedUrl);
         if (session) { setAuthEmail(session.email); setAuthStatus('authed'); setShowWelcome(true); }
         else { setAuthStatus('guest'); }
       } catch { setAuthStatus('guest'); }
@@ -134,13 +131,6 @@ export default function App() {
     setActiveTab('chat');
     setShowAssistant(true);
     setShowWelcome(false);
-  }
-
-  async function handleChangeBackend(url) {
-    const normalized = url.trim().replace(/\/+$/, '');
-    const next = normalized || API_URL;
-    setApiUrl(next);
-    await AsyncStorage.setItem('tg_backend_url', next);
   }
 
   function handleQuestion(q) {
@@ -247,7 +237,6 @@ export default function App() {
             onQuestionSent={() => setPendingQuestion(null)}
             messages={messages}
             setMessages={setMessages}
-            apiUrl={apiUrl}
           />
         </View>
         <View style={{ flex: 1, display: activeTab === 'manuals' ? 'flex' : 'none' }}>
@@ -358,8 +347,6 @@ export default function App() {
               onLogout={handleLogout}
               showAssistant={showAssistant}
               onOpenAssistant={() => { closeDrawer(); setShowAssistant(true); }}
-              apiUrl={apiUrl}
-              onChangeBackend={handleChangeBackend}
             />
           </SafeAreaView>
         </Animated.View>
