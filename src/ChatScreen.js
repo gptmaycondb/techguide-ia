@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import {
-  View, Text, TextInput, TouchableOpacity, FlatList,
+  View, Text, TextInput, TouchableOpacity, ScrollView,
   StyleSheet, ActivityIndicator, SafeAreaView, Keyboard,
   Linking, KeyboardAvoidingView, Platform,
 } from 'react-native';
@@ -59,7 +59,10 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
 
     // Error code entries first, then manual chunks; all capped at 700 chars, max 8 total
     const cap = c => c.length > 700 ? c.substring(0, 700) + '…' : c;
-    const errorChunks = searchErrorCode(q).map(cap);
+    // Filtra erros pelo índice de service do modelo ativo; evita misturar SC codes de modelos distintos.
+    // Se não houver entrada para este modelo, searchErrorCode faz fallback para todos (ex: HP CPMD compartilhado).
+    const serviceKey = searchKeys.find(k => k.includes('service')) || primaryKey;
+    const errorChunks = searchErrorCode(q, serviceKey).map(cap);
     const manualChunks = searchKeys.flatMap(k => searchManual(q, k, 3)).slice(0, 5).map(cap);
     const seen = new Set();
     const chunks = [...errorChunks, ...manualChunks].filter(c => {
@@ -71,7 +74,7 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
     const foundInManual = chunks.length > 0 && searchKeys.some(k => hasRelevantContent(q, k));
 
     const noChunksMsg = manual.brand === 'ricoh'
-      ? '\n\nNenhum trecho localizado nos manuais indexados. Use seu conhecimento tecnico especializado em Ricoh IM C3000/3500 para responder — codigos SC, procedimentos, pecas e especificacoes.'
+      ? `\n\nNenhum trecho localizado nos manuais indexados. Use seu conhecimento tecnico especializado em Ricoh ${manual.label} para responder — codigos SC, procedimentos, pecas e especificacoes.`
       : '\n\nNenhum trecho encontrado nos manuais. Responda com conhecimento tecnico geral sobre a impressora.';
 
     const contextBlock = chunks.length > 0
@@ -147,16 +150,12 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
             item.isError && { backgroundColor: '#1a0a10', borderColor: '#4a1020' },
             item.offline && { backgroundColor: '#1a0d2a', borderColor: '#6b21a8' },
           ]}>
-            <TextInput
-              editable={true}
-              multiline
-              scrollEnabled={false}
-              showSoftInputOnFocus={false}
-              onChangeText={() => {}}
-              value={item.text}
+            <Text
+              selectable
               style={[styles.bubbleText, item.isError && { color: C.error }]}
-              caretHidden
-            />
+            >
+              {item.text}
+            </Text>
             {!isUser && extractLinks(item.text).map((lnk, i) => (
               <TouchableOpacity key={i} style={styles.linkBtn} onPress={() => Linking.openURL(lnk.url)}>
                 <Text style={styles.linkBtnText} numberOfLines={1}>🔗 {lnk.label}</Text>
@@ -201,10 +200,19 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
       >
       <View style={{ flex: 1, backgroundColor: C.bg }}>
         {messages.length === 0
-          ? <FlatList data={[{ key: 'w' }]} renderItem={renderWelcome} style={styles.list} keyExtractor={i => i.key} />
-          : <FlatList ref={listRef} data={messages} keyExtractor={m => m.id.toString()}
-              renderItem={renderMessage} style={styles.list}
-              contentContainerStyle={{ padding: 14, gap: 12, paddingBottom: 12 }} />
+          ? <ScrollView style={styles.list} contentContainerStyle={{ flexGrow: 1 }}>
+              {renderWelcome()}
+            </ScrollView>
+          : <ScrollView ref={listRef} style={styles.list}
+              contentContainerStyle={{ padding: 14, gap: 12, paddingBottom: 12 }}
+              keyboardShouldPersistTaps="handled"
+              onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}>
+              {messages.map((item, index) => (
+                <View key={item.id}>
+                  {renderMessage({ item, index })}
+                </View>
+              ))}
+            </ScrollView>
         }
 
         {loading && (

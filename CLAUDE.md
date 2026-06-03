@@ -9,15 +9,23 @@ Usa RAG local (índices JSON) + Claude API via backend em `https://manuais-hp.on
 assets/
   manuals/          ← PDFs HP E52645 (guia_e52645, cpmd_2023, service_part1-4) — bundled no app
   search_index.json ← chunks de texto para busca semântica (~14.7 MB)
-  error_codes_index.json ← código → descrição do erro (~2.7 MB, 1682 entradas)
+  error_codes_index.json ← código → descrição do erro (~3.5 MB, ~1848 entradas)
 scripts/
   build_index.py    ← indexador v2; reprocessa todos os PDFs
 src/
   data.js           ← registro de todos os manuais (id, brand, indexKey, searchKeys, prompts)
-  search.js         ← searchManual(), searchErrorCode(), hasRelevantContent()
-  ChatScreen.js     ← fluxo de chat; monta contexto e chama API
+  search.js         ← searchManual(), searchErrorCode(), hasRelevantContent(), MANUAL_INDEX_MAP
+  ChatScreen.js     ← fluxo de chat; monta contexto e chama API (usa ScrollView, não FlatList)
   tips.js           ← ASSISTANT_TIPS[] com dicas por model/brand
   AssistantBubble.js← bolha flutuante; filtra dicas por modelId
+.claude/
+  settings.json     ← hooks (SessionStart, PreToolUse, PostToolUse)
+  hooks/
+    session-start.sh← instala npm deps em sessões remotas (Claude Code on the web)
+    check-tips.sh   ← alerta contaminação cruzada ao editar tips.js
+  skills/           ← 12 skills /auditoria /novo-modelo /reindexar /contexto
+                       /buscar-erro /status-indices /checar-modelo /ver-diff
+                       /gerar-dicas /debug-busca /atualizar-docs /criar-pr
 ```
 
 ## Como adicionar um novo modelo
@@ -55,9 +63,17 @@ Os parsers Ricoh SC são parametrizados por `service_key` — passe a chave do m
 (ex.: `extract_ricoh_sc_sections(text, 'ricoh_mpc3004_service')`) para que os códigos
 SC fiquem atribuídos ao índice correto e não ao IM C3000.
 
+> **Atenção — formato dos códigos SC Ricoh:** diferentes service manuals usam formatos
+> distintos. O IM C3000/3500 usa `SC20200` (sem separador), o MP C3004/3504 usa `SC285-00`
+> (com hífen). O regex `RICOH_SC_RE` em `build_index.py` já cobre ambos (`-?` opcional).
+> Ao adicionar um novo modelo Ricoh, **verifique o formato** antes de assumir que a extração
+> funcionou — rode o script e confira se o log exibe contagem de SC codes maior que zero.
+
 ### 3. Mapear índices em `src/search.js`
 Adicionar as chaves do modelo em `MANUAL_INDEX_MAP` (id do manual → índice primário,
-e cada índice apontando para si mesmo). Ex:
+e cada índice apontando para si mesmo). **O `id` do modelo também deve ter entrada**
+(ex: `'mfpe52645': 'e52645_guia'`) — sem isso o ChatScreen cai no fallback `indexKey`.
+Ex:
 ```javascript
 'canon_ir2630':         'canon_ir2630_guia',
 'canon_ir2630_guia':    'canon_ir2630_guia',
@@ -79,6 +95,17 @@ const searchKeys = (manual.searchKeys && manual.searchKeys.length
   ? manual.searchKeys
   : [primaryKey]).filter((v, i, a) => a.indexOf(v) === i);
 ```
+
+O `serviceKey` para `searchErrorCode` é derivado automaticamente do `searchKeys`:
+```javascript
+// Usa o índice de service do modelo ativo p/ filtrar erros — evita misturar SC codes entre modelos.
+const serviceKey = searchKeys.find(k => k.includes('service')) || primaryKey;
+const errorChunks = searchErrorCode(q, serviceKey);
+```
+Isso garante que consultas de código de erro em um modelo Ricoh não retornem resultados
+do service manual de outro modelo. **Não é necessário editar o ChatScreen** para novos
+modelos — o `serviceKey` é resolvido automaticamente desde que `searchKeys` contenha
+a chave `*_service` do modelo.
 
 ### 6. Dicas do assistente flutuante em `src/tips.js`
 Adicionar um bloco de dicas **específicas do modelo** com o campo `model` igual ao `id`
@@ -107,6 +134,33 @@ Sem `url`, o card aparece como "⏳ Em breve".
 
 > **Convenção:** todo manual Ricoh nomeado **"Parts Catalog"** é **somente consulta** —
 > entra apenas em `BRAND_GROUPS` (grupo Ricoh), nunca em `searchKeys`/índice.
+
+---
+
+## Decisões arquiteturais
+
+### ChatScreen usa ScrollView (não FlatList)
+O `FlatList` foi substituído por `ScrollView` + `map()` para habilitar seleção de texto
+nativa (`<Text selectable>`). O `FlatList` tem um responder interno que intercepta o
+long-press antes de ele chegar ao `Text`, impedindo a seleção. A `ScrollView` não tem
+esse conflito. Auto-scroll funciona via `onContentSizeChange → scrollToEnd()`.
+
+### AssistantBubble — texto da dica é `selectable`
+`AssistantBubble.js` usa `<Text selectable>` no card de dicas (linha ~180).
+Funciona porque o texto está num `Animated.View` absoluto, sem scroll container.
+
+### MANUAL_INDEX_MAP — todo id de modelo deve ter entrada
+`src/search.js` → `MANUAL_INDEX_MAP`: além das chaves de índice (`e52645_guia` etc.),
+o `id` de cada modelo também precisa de entrada (`'mfpe52645': 'e52645_guia'`).
+Sem isso, `ChatScreen` usa `manual.indexKey` como fallback — funciona, mas é frágil.
+
+### Skills e Hooks
+`.claude/skills/` — 12 skills invocadas manualmente com `/nome` na sessão do Claude Code.
+`.claude/settings.json` — 4 hooks automáticos:
+- `SessionStart`: instala npm deps + exibe lista de skills
+- `PreToolUse(Bash, git push*)`: lembra de rodar `/auditoria`
+- `PostToolUse(Edit|Write em tips.js)`: `check-tips.sh` detecta contaminação cruzada Ricoh
+- `PostToolUse(Bash, build_index.py)`: exibe contagem de chunks após reindexar
 
 ---
 
@@ -146,13 +200,19 @@ const TIPS = TIPS_BY_BRAND[manual.brand] || TIPS_BY_BRAND.generic;
 
 ## Parsers de erro por marca (referência)
 
-| Marca   | Formato de código | Parser atual       |
-|---------|-------------------|--------------------|
-| HP      | `49.XX.YZ`        | `extract_hp_errors_from_cpmd()` |
-| Ricoh   | `SC20200`         | `extract_ricoh_sc_sections()` |
-| Canon   | `Exxx`, `Fxxx`    | ⚠ não implementado |
-| Kyocera | `C-xxxx`          | ⚠ não implementado |
-| Xerox   | `xxx-xxx`         | ⚠ não implementado |
+| Marca   | Formato de código                  | Parser atual       |
+|---------|------------------------------------|--------------------|
+| HP      | `49.XX.YZ`                         | `extract_hp_errors_from_cpmd()` |
+| Ricoh   | `SC20200` ou `SC285-00` (hífen)    | `extract_ricoh_sc_sections(text, service_key)` |
+| Canon   | `Exxx`, `Fxxx`                     | ⚠ não implementado |
+| Kyocera | `C-xxxx`                           | ⚠ não implementado |
+| Xerox   | `xxx-xxx`                          | ⚠ não implementado |
+
+> **Ricoh — dois formatos SC:** o IM C3000/3500 usa `SC20200` (sem separador); o MP C3004/3504
+> usa `SC285-00` (com hífen). O `RICOH_SC_RE` atual cobre ambos com hífen opcional (`-?`).
+> Ambos os parsers (`extract_ricoh_sc_sections` e `extract_ricoh_sc_groups`) são
+> parametrizados por `service_key` — sempre passe a chave do modelo para que os códigos
+> fiquem atribuídos ao índice correto no `error_codes_index.json`.
 
 Para adicionar um parser novo, seguir o padrão de `extract_ricoh_sc_sections()`:
 regex que captura o código + seção de texto até o próximo código.

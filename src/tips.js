@@ -46,12 +46,12 @@ export const ASSISTANT_TIPS = [
   // ─── HP MFP E62655 — Atolamentos ─────────────────────────────────────────
   { brand: 'hp', model: 'mfpe62655', text: 'Erro 13.xx no E62655 indica atolamento. Anote o código completo (ex.: 13.B9.DD), abra a porta direita e siga o percurso do papel.' },
   { brand: 'hp', model: 'mfpe62655', text: 'Atolamento na bandeja do E62655? Puxe a bandeja completamente, remova o papel e inspecione os rolos de puxada e separação.' },
-  { brand: 'hp', model: 'mfpe62655', text: 'Atolamentos frequentes no E62655 costumam ser desgaste dos rolos. Kit de rolos da bandeja: L0H25A. Kit de rolos do ADF: 5851-6707.' },
+  { brand: 'hp', model: 'mfpe62655', text: 'Atolamentos frequentes no E62655 costumam ser desgaste dos rolos. Kit de manutenção completo (inclui rolos): L0H24A (110V) / L0H25A (220V). Kit de rolos do ADF: 5851-6707.' },
   { brand: 'hp', model: 'mfpe62655', text: 'Papel preso no duplexer do E62655 (13.B9.xx)? Verifique o caminho de frente-e-verso atrás da porta direita antes de forçar.' },
   { brand: 'hp', model: 'mfpe62655', text: 'Papel rasgado dentro do E62655? Nunca force — puxe sempre na direção do percurso de impressão para não deixar resíduos no fusor.' },
 
   // ─── HP MFP E62655 — Toner e suprimentos ─────────────────────────────────
-  { brand: 'hp', model: 'mfpe62655', text: 'O E62655 usa o toner preto W9004MC (~50.000 páginas). Para maior autonomia, há o W9005MC de alto rendimento (~67.000 páginas).' },
+  { brand: 'hp', model: 'mfpe62655', text: 'O E62655 usa o toner preto W9004MC (~50.000 páginas). Mantenha estoque para evitar paradas — não há variante de alto rendimento documentada nos manuais.' },
   { brand: 'hp', model: 'mfpe62655', text: 'Mensagem "Toner muito baixo" no E62655? É possível continuar imprimindo até a qualidade cair — tenha o W9004MC de reposição à mão.' },
   { brand: 'hp', model: 'mfpe62655', text: 'No cartucho W9004MC do E62655 o tambor é integrado. Nunca toque na superfície do tambor (OPC) ao substituir.' },
   { brand: 'hp', model: 'mfpe62655', text: 'Manutenção preventiva do E62655: kit de fusor J8J87A (110V) ou J8J88A (220V) — inclui fusor, rolo de transferência e rolos.' },
@@ -80,14 +80,14 @@ export const ASSISTANT_TIPS = [
   { brand: 'ricoh', model: 'ricoh_mpc3004', text: 'SC202 no MP C3004/3504 indica falha no laser/poligono (LD: PD Activation Error). Verifique a unidade de escrita optica.' },
   { brand: 'ricoh', model: 'ricoh_mpc3004', text: 'SC541-SC558 no MP C3004/3504 sao do grupo de fusao — verifique termistores e a unidade do fusor.' },
   { brand: 'ricoh', model: 'ricoh_mpc3004', text: 'SC816/SC818/SC820 no MP C3004/3504 referem-se ao controlador/energy save — confira a sequencia de desligamento.' },
-  { brand: 'ricoh', model: 'ricoh_mpc3004', text: 'SC400 no MP C3004/3504 indica problema na area do tambor (PCDU) — verifique a unidade de imagem correspondente.' },
+  { brand: 'ricoh', model: 'ricoh_mpc3004', text: 'Codigos SC4xx no MP C3004/3504 indicam problema na area do tambor/PCDU — ex.: SC441-00 (K), SC442-00 (C/M/Y). Verifique a unidade de imagem correspondente.' },
   { brand: 'ricoh', model: 'ricoh_mpc3004', text: 'Toner MP C3004/3504: cartuchos por cor CMYK. Anote a sigla exibida no painel ao substituir para nao trocar a cor errada.' },
 
   // ─── RICOH IM C3000/C3500 — Atolamentos ──────────────────────────────────
-  { brand: 'ricoh', text: 'Código SC no painel da IM C3000? Anote o número completo (ex.: SC543) antes de reiniciar — ele identifica a falha exata.' },
-  { brand: 'ricoh', text: 'Atolamento na IM C3000/3500? Abra a tampa frontal e a unidade de transferência ITB com cuidado para liberar o papel.' },
+  { brand: 'ricoh', model: 'ricoh_imc3000', text: 'Código SC no painel da IM C3000? Anote o número completo (ex.: SC543) antes de reiniciar — ele identifica a falha exata.' },
+  { brand: 'ricoh', model: 'ricoh_imc3000', text: 'Atolamento na IM C3000/3500? Abra a tampa frontal e a unidade de transferência ITB com cuidado para liberar o papel.' },
   { brand: 'ricoh', text: 'SC543/SC542 na Ricoh indica problema no fusor (termistor/aquecedor). Desligue, aguarde e religue; se persistir, fusor precisa de serviço.' },
-  { brand: 'ricoh', text: 'Toner Ricoh IM C3000/3500 por cor: anote a sigla (K/C/M/Y) exibida no painel ao trocar.' },
+  { brand: 'ricoh', model: 'ricoh_imc3000', text: 'Toner Ricoh IM C3000/3500 por cor: anote a sigla (K/C/M/Y) exibida no painel ao trocar.' },
   { brand: 'ricoh', text: 'SC codes da série 400 na Ricoh referem-se à área do tambor (PCDU). Verifique a unidade de imagem correspondente.' },
 
   // ─── GENERAL ─────────────────────────────────────────────────────────────
