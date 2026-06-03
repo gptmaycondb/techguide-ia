@@ -13,3 +13,4 @@ android/
 ios/
 __pycache__/
 *.pyc
+embeddings_index.json

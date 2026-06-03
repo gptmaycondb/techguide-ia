@@ -4,9 +4,11 @@ TechGuide IA — Indexer v2
 Gera search_index.json e error_codes_index.json de alta qualidade a partir dos PDFs.
 
 Uso:
-  python3 scripts/build_index.py
+  python3 scripts/build_index.py               # indexa PDFs (padrão)
+  python3 scripts/build_index.py --embeddings  # gera embeddings_index.json (requer sentence-transformers)
 
 Requer: poppler-utils (pdftotext)
+Para --embeddings: pip install sentence-transformers
 """
 
 import json
@@ -727,6 +729,52 @@ def validate(search_idx: dict, error_idx: dict):
 
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
+def build_embeddings_index():
+    """Gera embeddings_index.json com vetores para busca semântica.
+    Requer: pip install sentence-transformers
+    Executar uma vez localmente e commitar no repo do backend (manuais-hp).
+    """
+    try:
+        from sentence_transformers import SentenceTransformer
+    except ImportError:
+        print('ERRO: sentence-transformers não instalado.')
+        print('  pip install sentence-transformers')
+        sys.exit(1)
+
+    print('TechGuide IA — Embeddings Generator')
+    print('=' * 50)
+    print('Modelo: paraphrase-multilingual-MiniLM-L12-v2')
+
+    if not OUT_SEARCH.exists():
+        print(f'ERRO: {OUT_SEARCH} não encontrado. Rode sem --embeddings primeiro.')
+        sys.exit(1)
+
+    print(f'\nCarregando {OUT_SEARCH}…')
+    with open(OUT_SEARCH, encoding='utf-8') as f:
+        search_index = json.load(f)
+
+    total_chunks = sum(len(v) for v in search_index.values())
+    print(f'  {len(search_index)} chaves, {total_chunks} chunks no total')
+
+    print('\nCarregando modelo (download automático na primeira execução)…')
+    model = SentenceTransformer('paraphrase-multilingual-MiniLM-L12-v2')
+
+    result = {}
+    for i, (key, chunks) in enumerate(search_index.items(), 1):
+        print(f'  [{i}/{len(search_index)}] {key}: {len(chunks)} chunks…', flush=True)
+        texts = [c['t'] for c in chunks]
+        vecs = model.encode(texts, batch_size=64, show_progress_bar=False, normalize_embeddings=True)
+        result[key] = [{'t': t, 'e': v.tolist()} for t, v in zip(texts, vecs)]
+
+    out_path = Path('embeddings_index.json')
+    print(f'\nSalvando {out_path}…')
+    with open(out_path, 'w', encoding='utf-8') as f:
+        json.dump(result, f, ensure_ascii=False, separators=(',', ':'))
+    size_mb = out_path.stat().st_size / 1024 / 1024
+    print(f'  → {size_mb:.1f} MB')
+    print('\n✓ Embeddings gerados! Commitar embeddings_index.json no repo gptmaycondb/manuais-hp.')
+
+
 def main():
     print('TechGuide IA — Indexer v2')
     print('=' * 50)
@@ -759,4 +807,7 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+    if '--embeddings' in sys.argv:
+        build_embeddings_index()
+    else:
+        main()
