@@ -1,7 +1,9 @@
 # TechGuide IA — Projeto
 
 App React Native (Expo) de suporte técnico para impressoras HP e Ricoh.
-Usa RAG local (índices JSON) + Claude API via backend em `https://manuais-hp.onrender.com`.
+Usa RAG local (índices JSON) + IA via backend em `https://manuais-hp.onrender.com`.
+O provedor de IA (Claude Sonnet, Claude Opus, OpenAI GPT-4o, Gemini) é selecionável
+dentro do app; o backend (`gptmaycondb/manuais-hp`) roteia com base no campo `provider`.
 
 ## Arquitetura
 
@@ -13,11 +15,12 @@ assets/
 scripts/
   build_index.py    ← indexador v2; reprocessa todos os PDFs
 src/
-  data.js           ← registro de todos os manuais (id, brand, indexKey, searchKeys, prompts)
+  data.js           ← manuais, AI_PROVIDERS (lista de provedores), API_URL, DEFAULT_PROVIDER
   search.js         ← searchManual(), searchErrorCode(), hasRelevantContent(), MANUAL_INDEX_MAP
   ChatScreen.js     ← fluxo de chat; monta contexto e chama API (usa ScrollView, não FlatList)
   tips.js           ← ASSISTANT_TIPS[] com dicas por model/brand
   AssistantBubble.js← bolha flutuante; filtra dicas por modelId
+  DrawerContent.js  ← drawer lateral; inclui seletor de modelo de IA (modal)
 .claude/
   settings.json     ← hooks (SessionStart, PreToolUse, PostToolUse)
   hooks/
@@ -153,6 +156,27 @@ Funciona porque o texto está num `Animated.View` absoluto, sem scroll container
 `src/search.js` → `MANUAL_INDEX_MAP`: além das chaves de índice (`e52645_guia` etc.),
 o `id` de cada modelo também precisa de entrada (`'mfpe52645': 'e52645_guia'`).
 Sem isso, `ChatScreen` usa `manual.indexKey` como fallback — funciona, mas é frágil.
+
+### Seletor de provedor de IA
+`src/data.js` exporta `AI_PROVIDERS` (lista fixa) e `DEFAULT_PROVIDER = 'claude'`.
+O `App.js` mantém o estado `provider`, carregado do AsyncStorage (`tg_provider`) no mount.
+O `DrawerContent` exibe um botão "Modelo de IA" no rodapé que abre um modal com a lista.
+Ao escolher, a seleção é salva no AsyncStorage e passa como campo `provider` no corpo do
+`POST /chat`. O backend roteia para o SDK correspondente e normaliza a resposta para
+`{ content: [{ text }] }` — o único formato que o app aceita.
+
+Provedores disponíveis:
+
+| id | Modelo | Chave no Render |
+|----|--------|----------------|
+| `claude` (padrão) | claude-sonnet-4-6 | `ANTHROPIC_API_KEY` |
+| `claude-opus` | claude-opus-4-8 | `ANTHROPIC_API_KEY` |
+| `openai` | gpt-4o | `OPENAI_API_KEY` |
+| `gemini` | gemini-1.5-pro | `GEMINI_API_KEY` |
+
+Para adicionar um novo provedor: adicionar entrada em `AI_PROVIDERS` (`src/data.js`) e
+adicionar o handler `callXxx()` + caso no `if/else` do `app.post('/chat')` no `server.js`
+do backend (`gptmaycondb/manuais-hp`).
 
 ### Skills e Hooks
 `.claude/skills/` — 12 skills invocadas manualmente com `/nome` na sessão do Claude Code.
