@@ -11,7 +11,7 @@ import WelcomeScreen from './src/WelcomeScreen';
 import TutorialScreen from './src/TutorialScreen';
 
 SplashScreen.preventAutoHideAsync();
-import { ALL_MANUALS } from './src/data';
+import { ALL_MANUALS, API_URL, AI_PROVIDERS, DEFAULT_PROVIDER } from './src/data';
 import ChatScreen from './src/ChatScreen';
 import DrawerContent from './src/DrawerContent';
 import ManualsScreen from './src/ManualsScreen';
@@ -65,6 +65,7 @@ export default function App() {
   const [showWelcome, setShowWelcome] = useState(false);
   const [tutorialSeen, setTutorialSeen] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
+  const [provider, setProvider] = useState(DEFAULT_PROVIDER);
 
   const drawerAnim = useRef(new Animated.Value(-DRAWER_W)).current;
 
@@ -83,11 +84,13 @@ export default function App() {
   useEffect(() => {
     async function init() {
       try {
-        const [session, seen] = await Promise.all([
+        const [session, seen, savedProvider] = await Promise.all([
           restoreSession(),
           AsyncStorage.getItem('tg_tutorial_seen'),
+          AsyncStorage.getItem('tg_provider'),
         ]);
         if (seen) setTutorialSeen(true);
+        if (savedProvider && AI_PROVIDERS.some(p => p.id === savedProvider)) setProvider(savedProvider);
         if (session) { setAuthEmail(session.email); setAuthStatus('authed'); setShowWelcome(true); }
         else { setAuthStatus('guest'); }
       } catch { setAuthStatus('guest'); }
@@ -131,6 +134,11 @@ export default function App() {
     setActiveTab('chat');
     setShowAssistant(true);
     setShowWelcome(false);
+  }
+
+  async function handleChangeProvider(id) {
+    setProvider(id);
+    await AsyncStorage.setItem('tg_provider', id);
   }
 
   function handleQuestion(q) {
@@ -237,6 +245,7 @@ export default function App() {
             onQuestionSent={() => setPendingQuestion(null)}
             messages={messages}
             setMessages={setMessages}
+            provider={provider}
           />
         </View>
         <View style={{ flex: 1, display: activeTab === 'manuals' ? 'flex' : 'none' }}>
@@ -347,6 +356,8 @@ export default function App() {
               onLogout={handleLogout}
               showAssistant={showAssistant}
               onOpenAssistant={() => { closeDrawer(); setShowAssistant(true); }}
+              provider={provider}
+              onChangeProvider={handleChangeProvider}
             />
           </SafeAreaView>
         </Animated.View>
