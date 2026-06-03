@@ -86,7 +86,7 @@ export const ASSISTANT_TIPS = [
   // ─── RICOH IM C3000/C3500 — Atolamentos ──────────────────────────────────
   { brand: 'ricoh', model: 'ricoh_imc3000', text: 'Código SC no painel da IM C3000? Anote o número completo (ex.: SC543) antes de reiniciar — ele identifica a falha exata.' },
   { brand: 'ricoh', model: 'ricoh_imc3000', text: 'Atolamento na IM C3000/3500? Abra a tampa frontal e a unidade de transferência ITB com cuidado para liberar o papel.' },
-  { brand: 'ricoh', text: 'SC543/SC542 na Ricoh indica problema no fusor (termistor/aquecedor). Desligue, aguarde e religue; se persistir, fusor precisa de serviço.' },
+  { brand: 'ricoh', model: 'ricoh_imc3000', text: 'SC543/SC542 na IM C3000/3500 indica problema no fusor (termistor/aquecedor). Desligue, aguarde e religue; se persistir, fusor precisa de serviço.' },
   { brand: 'ricoh', model: 'ricoh_imc3000', text: 'Toner Ricoh IM C3000/3500 por cor: anote a sigla (K/C/M/Y) exibida no painel ao trocar.' },
   { brand: 'ricoh', text: 'SC codes da série 400 na Ricoh referem-se à área do tambor (PCDU). Verifique a unidade de imagem correspondente.' },
 
