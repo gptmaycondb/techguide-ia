@@ -28,10 +28,7 @@ export const MANUAL_INDEX_MAP = {
   'mfpe52645':      'e52645_guia',
   'e52645_guia':    'e52645_guia',
   'cpmd':           'cpmd',
-  'm501_catalog':   'service',
-  'm527_catalog':   'service',
-  'e50045_catalog': 'service',
-  'e52545_catalog': 'service',
+  'service':        'service',
   // HP E62655
   'mfpe62655':      'e62655_guia',
   'e62655_guia':    'e62655_guia',
