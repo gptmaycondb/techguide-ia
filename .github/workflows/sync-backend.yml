@@ -1,0 +1,42 @@
+name: Sync backend to manuais-hp
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'backend/server.js'
+      - 'backend/package.json'
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sync server.js
+        env:
+          GH_TOKEN: ${{ secrets.MANUAIS_HP_TOKEN }}
+        run: |
+          SHA=$(gh api repos/gptmaycondb/manuais-hp/contents/server.js --jq '.sha' 2>/dev/null || echo "")
+          CONTENT=$(base64 -w 0 backend/server.js)
+          PAYLOAD="{\"message\":\"sync: server.js from techguide-ia@${GITHUB_SHA:0:7}\",\"content\":\"$CONTENT\""
+          [ -n "$SHA" ] && PAYLOAD="$PAYLOAD,\"sha\":\"$SHA\""
+          PAYLOAD="$PAYLOAD}"
+          gh api repos/gptmaycondb/manuais-hp/contents/server.js \
+            --method PUT \
+            --input - <<< "$PAYLOAD"
+          echo "server.js synced"
+
+      - name: Sync package.json
+        env:
+          GH_TOKEN: ${{ secrets.MANUAIS_HP_TOKEN }}
+        run: |
+          SHA=$(gh api repos/gptmaycondb/manuais-hp/contents/package.json --jq '.sha' 2>/dev/null || echo "")
+          CONTENT=$(base64 -w 0 backend/package.json)
+          PAYLOAD="{\"message\":\"sync: package.json from techguide-ia@${GITHUB_SHA:0:7}\",\"content\":\"$CONTENT\""
+          [ -n "$SHA" ] && PAYLOAD="$PAYLOAD,\"sha\":\"$SHA\""
+          PAYLOAD="$PAYLOAD}"
+          gh api repos/gptmaycondb/manuais-hp/contents/package.json \
+            --method PUT \
+            --input - <<< "$PAYLOAD"
+          echo "package.json synced"
