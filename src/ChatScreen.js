@@ -107,40 +107,110 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
       return;
     }
 
-    try {
-      const controller = new AbortController();
-      const timeout = setTimeout(() => controller.abort(), 60000);
-      const res = await fetch(API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          systemBase: manual.prompts?.[mode] || manual.prompts?.user || '',
-          query: q,
-          history,
-          manualId: manual.id,
-          max_tokens: 1024,
-          provider,
-        }),
-        signal: controller.signal,
-      });
-      clearTimeout(timeout);
-      const text = await res.text();
-      let data;
-      try { data = JSON.parse(text); } catch { throw new Error('Resposta invalida'); }
-      if (data.error) throw new Error(typeof data.error === 'string' ? data.error : data.error.message);
-      if (!data.content?.length) throw new Error('Resposta vazia');
-      const answer = data.content.map(b => b.text || '').join('');
-      setMessages(m => [...m, {
-        id: Date.now()+1, role: 'ai', text: answer,
-        source: data.foundInManual === false ? 'Resposta geral' : `Manual: ${manual.subtitle}`,
-        fromManual: data.foundInManual !== false,
-      }]);
-    } catch (err) {
-      setMessages(m => [...m, { id: Date.now()+1, role: 'ai', text: friendlyError(err), isError: true }]);
-    }
-
-    setLoading(false);
+    const aiMsgId = Date.now() + 1;
+    setMessages(m => [...m, { id: aiMsgId, role: 'ai', text: '', streaming: true }]);
     scrollToBottom();
+
+    let timeoutId;
+    let firstChunk = true;
+    let doneReceived = false;
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', API_URL);
+    xhr.setRequestHeader('Content-Type', 'application/json');
+    xhr.setRequestHeader('Accept', 'text/event-stream');
+
+    let lastIndex = 0;
+    xhr.onprogress = () => {
+      const raw = xhr.responseText.slice(lastIndex);
+      lastIndex = xhr.responseText.length;
+      for (const line of raw.split('\n')) {
+        if (!line.startsWith('data: ')) continue;
+        const payload = line.slice(6).trim();
+        if (!payload) continue;
+        try {
+          const ev = JSON.parse(payload);
+          if (ev.type === 'delta' && ev.text) {
+            if (firstChunk) { firstChunk = false; setLoading(false); }
+            setMessages(m => m.map(msg =>
+              msg.id === aiMsgId ? { ...msg, text: msg.text + ev.text } : msg
+            ));
+            scrollToBottom();
+          } else if (ev.type === 'done') {
+            doneReceived = true;
+            setMessages(m => m.map(msg =>
+              msg.id === aiMsgId ? {
+                ...msg, streaming: false,
+                source: ev.foundInManual === false ? 'Resposta geral' : `Manual: ${manual.subtitle}`,
+                fromManual: ev.foundInManual !== false,
+              } : msg
+            ));
+          } else if (ev.type === 'error') {
+            setMessages(m => m.map(msg =>
+              msg.id === aiMsgId
+                ? { ...msg, text: friendlyError(new Error(ev.message)), isError: true, streaming: false }
+                : msg
+            ));
+          }
+        } catch {}
+      }
+    };
+
+    xhr.onload = () => {
+      clearTimeout(timeoutId);
+      if (!doneReceived) {
+        // Fallback: servidor devolveu JSON puro (sem SSE)
+        try {
+          const data = JSON.parse(xhr.responseText);
+          if (data.error) throw new Error(typeof data.error === 'string' ? data.error : data.error.message);
+          if (!data.content?.length) throw new Error('Resposta vazia');
+          const answer = data.content.map(b => b.text || '').join('');
+          setMessages(m => m.map(msg =>
+            msg.id === aiMsgId ? {
+              ...msg, text: answer, streaming: false,
+              source: data.foundInManual === false ? 'Resposta geral' : `Manual: ${manual.subtitle}`,
+              fromManual: data.foundInManual !== false,
+            } : msg
+          ));
+        } catch (err) {
+          setMessages(m => m.map(msg =>
+            msg.id === aiMsgId ? { ...msg, text: friendlyError(err), isError: true, streaming: false } : msg
+          ));
+        }
+      }
+      setLoading(false);
+      scrollToBottom();
+    };
+
+    xhr.onerror = () => {
+      clearTimeout(timeoutId);
+      setMessages(m => m.map(msg =>
+        msg.id === aiMsgId
+          ? { ...msg, text: friendlyError(new Error('Network request failed')), isError: true, streaming: false }
+          : msg
+      ));
+      setLoading(false);
+      scrollToBottom();
+    };
+
+    timeoutId = setTimeout(() => {
+      xhr.abort();
+      setMessages(m => m.map(msg =>
+        msg.id === aiMsgId
+          ? { ...msg, text: friendlyError({ name: 'AbortError' }), isError: true, streaming: false }
+          : msg
+      ));
+      setLoading(false);
+      scrollToBottom();
+    }, 60000);
+
+    xhr.send(JSON.stringify({
+      systemBase: manual.prompts?.[mode] || manual.prompts?.user || '',
+      query: q,
+      history,
+      manualId: manual.id,
+      max_tokens: 1024,
+      provider,
+    }));
   }
 
   function extractLinks(text) {
@@ -171,7 +241,7 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
               selectable
               style={[styles.bubbleText, item.isError && { color: C.error }]}
             >
-              {item.text}
+              {item.streaming ? item.text + '▌' : item.text}
             </Text>
             {!isUser && extractLinks(item.text).map((lnk, i) => (
               <TouchableOpacity key={i} style={styles.linkBtn} onPress={() => Linking.openURL(lnk.url)}>
