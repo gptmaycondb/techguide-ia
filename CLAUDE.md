@@ -1,17 +1,23 @@
 # TechGuide IA — Projeto
 
 App React Native (Expo) de suporte técnico para impressoras HP e Ricoh.
-Usa RAG local (índices JSON) + IA via backend em `https://manuais-hp.onrender.com`.
+Backend em `https://manuais-hp.onrender.com` (`gptmaycondb/manuais-hp`).
 O provedor de IA (Claude Sonnet, Claude Opus, OpenAI GPT-4o, Gemini) é selecionável
-dentro do app; o backend (`gptmaycondb/manuais-hp`) roteia com base no campo `provider`.
+dentro do app; o backend roteia com base no campo `provider`.
+
+**Modo online:** app envia query crua → backend faz RAG semântico (embeddings) → IA responde.
+**Modo offline:** app faz RAG keyword local (índices JSON bundled) → exibe trechos sem IA.
 
 ## Arquitetura
 
 ```
 assets/
   manuals/          ← PDFs HP E52645 (guia_e52645, cpmd_2023, service_part1-4) — bundled no app
-  search_index.json ← chunks de texto para busca semântica (~14.7 MB)
+  search_index.json ← chunks de texto para busca keyword offline (~20 MB, bundled)
   error_codes_index.json ← código → descrição do erro (~3.5 MB, ~1848 entradas)
+  embeddings/       ← vetores por índice para busca semântica no backend — 11 arquivos *.json
+                       (ex: e52645_guia.json, ricoh_imc3000_service.json)
+                       Gerados por build_index.py --embeddings; backend baixa do GitHub no start.
 scripts/
   build_index.py    ← indexador v2; reprocessa todos os PDFs
 src/
@@ -178,6 +184,30 @@ Para adicionar um novo provedor: adicionar entrada em `AI_PROVIDERS` (`src/data.
 adicionar o handler `callXxx()` + caso no `if/else` do `app.post('/chat')` no `server.js`
 do backend (`gptmaycondb/manuais-hp`).
 
+### Histórico de conversa persistente
+`App.js` salva `allMessages` no AsyncStorage com chave `tg_messages_${authEmail}`:
+- Carregado no init (após `restoreSession`)
+- Salvo com debounce de 800 ms a cada mudança de `allMessages`
+- Cap de 30 mensagens por manual (prune automático antes de salvar)
+- Limpo no logout (`AsyncStorage.removeItem`)
+- Isolado por usuário (chave inclui o e-mail)
+
+### Mensagens de erro amigáveis
+`src/ChatScreen.js` → função `friendlyError(err)` (antes do componente):
+- `AbortError` → "Tempo limite excedido. Servidor iniciando — tente novamente em 30s."
+- `*_API_KEY` no message → instrução específica por provedor
+- `Failed to fetch` / `Network request failed` → "Sem conexão com o servidor."
+- `Resposta vazia` / `Resposta invalida` → mensagens descritivas
+- Erros entram como bolha com `isError: true` (fundo vermelho escuro)
+
+### Keepalive e detecção de online
+`App.js` — `wakeUpServer()` e `checkOnline()` usam `GET https://manuais-hp.onrender.com/ping`:
+- `checkOnline` considera online qualquer `status < 500` (404 de server antigo sem `/ping`
+  não derruba o app — só timeout ou erro de rede setam offline)
+- Timer de 10 s com `AbortController`; timer é cancelado (`clearTimeout`) se fetch responder
+- Keepalive externo: cron-job.org → `GET /ping` a cada 10 min (previne hibernação Render free)
+- Botão "OFF/ON" no header chama `wakeUpServer()` + `checkOnline()` manualmente
+
 ### Skills e Hooks
 `.claude/skills/` — 12 skills invocadas manualmente com `/nome` na sessão do Claude Code.
 `.claude/settings.json` — 4 hooks automáticos:
@@ -188,7 +218,86 @@ do backend (`gptmaycondb/manuais-hp`).
 
 ---
 
+## Modo online vs offline (RAG)
+
+O `ChatScreen.js` bifurca o fluxo com base em `isOnline` (prop do `App.js`):
+
+### Modo online (padrão quando servidor disponível)
+App envia para `POST /chat`:
+```json
+{ "systemBase": "...", "query": "pergunta do usuário", "history": [...],
+  "manualId": "mfpe52645", "max_tokens": 1024, "provider": "claude" }
+```
+O backend faz o RAG semântico, monta o `system` completo e chama a IA.
+A resposta inclui `{ content: [{text}], foundInManual: bool }`.
+O campo `foundInManual` controla o selo "● Manual" vs "⚠ Resposta geral" na bolha.
+
+### Modo offline (`!isOnline`)
+O app roda keyword RAG localmente:
+- `searchErrorCode(q, serviceKey)` — busca no `error_codes_index.json` bundled
+- `searchManual(q, indexKey, 3)` para cada chave em `manual.searchKeys`
+- Exibe os trechos diretamente, sem chamar a IA
+- Mensagem: "Modo offline — Trechos encontrados: ..." ou "Nenhum resultado encontrado"
+
+### Contrato legado (backward compat no backend)
+Se o body tiver `system` + `messages` (app antigo), o backend usa direto sem RAG.
+O campo `query` ausente é o discriminador (`isNew = !!query`).
+
+---
+
+## Busca semântica (embeddings)
+
+**Modelo:** `paraphrase-multilingual-MiniLM-L12-v2` — 384 dimensões, suporta português,
+sem API key. Usado tanto para gerar (Python) quanto para embedar queries (Node.js).
+
+### Geração dos embeddings (uma vez, localmente)
+```bash
+pip install sentence-transformers
+python3 scripts/build_index.py --embeddings
+# Gera embeddings_index.json (~62 MB, em .gitignore)
+```
+Depois fatiar por índice e commitar em `assets/embeddings/`:
+```bash
+# (feito automaticamente via script Python no setup)
+# Arquivos: assets/embeddings/{key}.json — um por índice, ~1-18 MB cada
+git add assets/embeddings/
+git commit -m "feat: embeddings semanticos"
+```
+
+### Como o backend carrega
+1. Ao iniciar, baixa cada `assets/embeddings/{key}.json` do raw.githubusercontent
+   (sequencial para evitar pico de memória)
+2. Vetores armazenados como `Float32Array` (fora do heap V8)
+3. Na query: embeda com `@xenova/transformers` (modelo int8 quantized, ~30 MB)
+4. Ranqueia chunks por similaridade de cosseno e retorna os top-5
+
+### Limites de memória no Render free (512 MB)
+- `package.json` do backend usa `--max-old-space-size=460 --expose-gc`
+- Carga sequencial dos índices para evitar pico paralelo
+- Se ainda houver OOM: setar `SEMANTIC_SEARCH=0` nas env vars do Render →
+  servidor usa keyword search nos mesmos embeddings (só campo `t`, sem vetores)
+  e sobe sem carregar o modelo pesado
+
+### Variável de ambiente do backend
+| Var | Padrão | Efeito |
+|-----|--------|--------|
+| `SEMANTIC_SEARCH` | `1` | `0` = desliga modelo, usa keyword search |
+| `ANTHROPIC_API_KEY` | — | Obrigatória para Claude funcionar |
+| `OPENAI_API_KEY` | — | Opcional (provedor OpenAI) |
+| `GEMINI_API_KEY` | — | Opcional (provedor Gemini) |
+
+**Todos os providers são instanciados lazy** (dentro de `callXxx()`), não no topo do
+arquivo — evita crash no start quando `OPENAI_API_KEY`/`GEMINI_API_KEY` não estão
+configuradas. Apenas `ANTHROPIC_API_KEY` é necessária para o app funcionar normalmente.
+
+---
+
 ## Melhorias planejadas (não implementadas)
+
+> **Já implementadas nesta sessão** (não repetir aqui): histórico persistente,
+> erros amigáveis, RAG semântico no backend, keepalive `/ping`, telemetria JSON,
+> embeddings `paraphrase-multilingual-MiniLM-L12-v2`, `SEMANTIC_SEARCH` flag.
+> `search_index.json` off-bundle continua **deferido** — necessário para modo offline.
 
 ### A) `scripts/sources.json` — configuração de PDFs externalizada
 Em vez de hardcodar `PDF_SOURCES` em `build_index.py`, ler de um JSON:
@@ -284,8 +393,22 @@ regex que captura o código + seção de texto até o próximo código.
 # 2. Rodar o indexador
 python3 scripts/build_index.py
 
-# 3. Commitar os índices gerados
-git add assets/search_index.json assets/error_codes_index.json
+# 3. (Opcional) Gerar embeddings semânticos — requer sentence-transformers
+pip install sentence-transformers
+python3 scripts/build_index.py --embeddings
+# Gera embeddings_index.json (~62 MB, em .gitignore)
+# Depois fatiar por índice:
+python3 -c "
+import json, os
+os.makedirs('assets/embeddings', exist_ok=True)
+idx = json.load(open('embeddings_index.json'))
+for k, v in idx.items():
+    json.dump({k: v}, open(f'assets/embeddings/{k}.json','w'), ensure_ascii=False, separators=(',',':'))
+    print(k)
+"
+
+# 4. Commitar os índices gerados
+git add assets/search_index.json assets/error_codes_index.json assets/embeddings/
 git commit -m "chore: reindexar manuais"
 git push
 ```
