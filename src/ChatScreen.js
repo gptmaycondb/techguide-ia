@@ -245,7 +245,7 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
             >
               {item.streaming ? item.text + '▌' : item.text}
             </Text>
-            {!isUser && extractLinks(item.text).map((lnk, i) => (
+            {!isUser && !item.isError && extractLinks(item.text).map((lnk, i) => (
               <TouchableOpacity key={i} style={styles.linkBtn} onPress={() => Linking.openURL(lnk.url)}>
                 <Text style={styles.linkBtnText} numberOfLines={1}>🔗 {lnk.label}</Text>
               </TouchableOpacity>

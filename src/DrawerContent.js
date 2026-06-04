@@ -86,7 +86,7 @@ export default function DrawerContent({ manual, mode, onQuestion, onLogout, show
             <TouchableOpacity
               key={p.id}
               style={[styles.iaOption, p.id === provider && styles.iaOptionActive]}
-              onPress={() => { onChangeProvider(p.id); setProviderModalOpen(false); }}
+              onPress={() => { onChangeProvider?.(p.id); setProviderModalOpen(false); }}
               activeOpacity={0.75}
             >
               <View style={{ flex: 1 }}>

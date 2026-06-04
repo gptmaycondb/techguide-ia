@@ -80,6 +80,7 @@ export default function App() {
       );
       try { await AsyncStorage.setItem(`tg_messages_${authEmail}`, JSON.stringify(pruned)); } catch {}
     }, 800);
+    return () => { if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current); };
   }, [allMessages, authEmail, authStatus]);
 
   const selectedBrand = BRANDS.find(b => b.id === selectedBrandId) || BRANDS[0];
@@ -156,6 +157,7 @@ export default function App() {
     setAuthStatus('guest');
     setAuthEmail(null);
     setAllMessages({});
+    setPendingQuestion(null);
     setActiveTab('chat');
     setShowAssistant(true);
     setShowWelcome(false);
@@ -263,6 +265,7 @@ export default function App() {
       <View style={{ flex: 1, backgroundColor: C.bg }}>
         <View style={{ flex: 1, display: activeTab === 'chat' ? 'flex' : 'none' }}>
           <ChatScreen
+            key={chatKey}
             manual={manual}
             mode={mode}
             isOnline={isOnline}

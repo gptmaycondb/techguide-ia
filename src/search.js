@@ -134,12 +134,12 @@ export function searchErrorCode(query, indexKey) {
     if (errorCodesData[code]) {
       const entries = errorCodesData[code];
       const filtered = indexKey ? entries.filter(e => e.key === indexKey) : entries;
-      results.push(...(filtered.length ? filtered : entries).map(e => e.text));
+      if (filtered.length) results.push(...filtered.map(e => e.text));
     } else {
       for (const [k, entries] of Object.entries(errorCodesData)) {
         if (k.startsWith(code) || (code.length >= 4 && k.includes(code))) {
           const filtered = indexKey ? entries.filter(e => e.key === indexKey) : entries;
-          results.push(...(filtered.length ? filtered : entries).map(e => e.text));
+          if (filtered.length) results.push(...filtered.map(e => e.text));
           if (results.length >= 5) break;
         }
       }
