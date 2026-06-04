@@ -130,9 +130,11 @@ export default function App() {
   async function checkOnline() {
     try {
       const controller = new AbortController();
-      setTimeout(() => controller.abort(), 10000);
+      const timer = setTimeout(() => controller.abort(), 10000);
       const res = await fetch('https://manuais-hp.onrender.com/ping', { signal: controller.signal });
-      setIsOnline(res.ok);
+      clearTimeout(timer);
+      // Qualquer resposta HTTP = servidor no ar (404 incluído — ex: server.js antigo sem /ping)
+      setIsOnline(res.status < 500);
     } catch { setIsOnline(false); }
   }
 
