@@ -137,11 +137,12 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
             scrollToBottom();
           } else if (ev.type === 'done') {
             doneReceived = true;
+            // Usa o foundInManual LOCAL — o backend (contrato legado) não sabe se houve trecho.
             setMessages(m => m.map(msg =>
               msg.id === aiMsgId ? {
                 ...msg, streaming: false,
-                source: ev.foundInManual === false ? 'Resposta geral' : `Manual: ${manual.subtitle}`,
-                fromManual: ev.foundInManual !== false,
+                source: foundInManual ? `Manual: ${manual.subtitle}` : 'Resposta geral',
+                fromManual: foundInManual,
               } : msg
             ));
           } else if (ev.type === 'error') {
@@ -167,8 +168,8 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
           setMessages(m => m.map(msg =>
             msg.id === aiMsgId ? {
               ...msg, text: answer, streaming: false,
-              source: data.foundInManual === false ? 'Resposta geral' : `Manual: ${manual.subtitle}`,
-              fromManual: data.foundInManual !== false,
+              source: foundInManual ? `Manual: ${manual.subtitle}` : 'Resposta geral',
+              fromManual: foundInManual,
             } : msg
           ));
         } catch (err) {
@@ -203,11 +204,12 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
       scrollToBottom();
     }, 60000);
 
+    // Contrato legado: envia o systemPrompt já montado com os trechos corretos
+    // (errorChunks de error_codes_index.json + manualChunks). O backend não refaz
+    // a busca — evita alucinação em códigos de erro, que o backend não consegue resolver.
     xhr.send(JSON.stringify({
-      systemBase: manual.prompts?.[mode] || manual.prompts?.user || '',
-      query: q,
-      history,
-      manualId: manual.id,
+      system: systemPrompt,
+      messages: history,
       max_tokens: 1024,
       provider,
     }));
