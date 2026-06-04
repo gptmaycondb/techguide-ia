@@ -68,6 +68,19 @@ export default function App() {
   const [provider, setProvider] = useState(DEFAULT_PROVIDER);
 
   const drawerAnim = useRef(new Animated.Value(-DRAWER_W)).current;
+  const saveTimeoutRef = useRef(null);
+
+  // Persist conversation history with debounce
+  useEffect(() => {
+    if (!authEmail || authStatus !== 'authed') return;
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    saveTimeoutRef.current = setTimeout(async () => {
+      const pruned = Object.fromEntries(
+        Object.entries(allMessages).map(([k, msgs]) => [k, msgs.slice(-30)])
+      );
+      try { await AsyncStorage.setItem(`tg_messages_${authEmail}`, JSON.stringify(pruned)); } catch {}
+    }, 800);
+  }, [allMessages, authEmail, authStatus]);
 
   const selectedBrand = BRANDS.find(b => b.id === selectedBrandId) || BRANDS[0];
   const manual = ALL_MANUALS.find(m => m.id === selectedManualId) || ALL_MANUALS[0];
@@ -91,8 +104,15 @@ export default function App() {
         ]);
         if (seen) setTutorialSeen(true);
         if (savedProvider && AI_PROVIDERS.some(p => p.id === savedProvider)) setProvider(savedProvider);
-        if (session) { setAuthEmail(session.email); setAuthStatus('authed'); setShowWelcome(true); }
-        else { setAuthStatus('guest'); }
+        if (session) {
+          setAuthEmail(session.email);
+          setAuthStatus('authed');
+          setShowWelcome(true);
+          try {
+            const saved = await AsyncStorage.getItem(`tg_messages_${session.email}`);
+            if (saved) setAllMessages(JSON.parse(saved));
+          } catch {}
+        } else { setAuthStatus('guest'); }
       } catch { setAuthStatus('guest'); }
       finally { SplashScreen.hideAsync(); }
       wakeUpServer();
@@ -104,14 +124,14 @@ export default function App() {
   }, []);
 
   async function wakeUpServer() {
-    try { await fetch('https://manuais-hp.onrender.com/', { method: 'HEAD' }); } catch {}
+    try { await fetch('https://manuais-hp.onrender.com/ping'); } catch {}
   }
 
   async function checkOnline() {
     try {
       const controller = new AbortController();
       setTimeout(() => controller.abort(), 10000);
-      const res = await fetch('https://manuais-hp.onrender.com/', { method: 'HEAD', signal: controller.signal });
+      const res = await fetch('https://manuais-hp.onrender.com/ping', { signal: controller.signal });
       setIsOnline(res.ok);
     } catch { setIsOnline(false); }
   }
@@ -127,6 +147,9 @@ export default function App() {
 
   async function handleLogout() {
     closeDrawer();
+    if (authEmail) {
+      try { await AsyncStorage.removeItem(`tg_messages_${authEmail}`); } catch {}
+    }
     await logout();
     setAuthStatus('guest');
     setAuthEmail(null);

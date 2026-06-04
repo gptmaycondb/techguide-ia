@@ -14,6 +14,19 @@ const C = {
   userBubble: '#1a2744', aiBubble: '#131a28', error: '#ff4d6d',
 };
 
+function friendlyError(err) {
+  if (err.name === 'AbortError') return 'Tempo limite excedido. Servidor iniciando — tente novamente em 30s.';
+  const msg = err.message || '';
+  if (msg.includes('ANTHROPIC_API_KEY')) return 'Provedor Claude sem chave configurada no servidor.';
+  if (msg.includes('OPENAI_API_KEY'))    return 'Provedor OpenAI não configurado. Troque o modelo de IA no Drawer.';
+  if (msg.includes('GEMINI_API_KEY'))    return 'Provedor Gemini não configurado. Troque o modelo de IA no Drawer.';
+  if (msg.includes('Resposta invalida')) return 'Resposta inesperada do servidor. Tente novamente.';
+  if (msg.includes('Resposta vazia'))    return 'A IA não retornou resposta. Reformule a pergunta.';
+  if (msg.includes('Failed to fetch') || msg.includes('Network request failed'))
+    return 'Sem conexão com o servidor. Verifique sua internet.';
+  return 'Erro: ' + msg;
+}
+
 export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, onQuestionSent, messages, setMessages, provider = DEFAULT_PROVIDER }) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -100,7 +113,14 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
       const res = await fetch(API_URL, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ system: systemPrompt, messages: history, manualId: manual.id, max_tokens: 1024, provider }),
+        body: JSON.stringify({
+          systemBase: manual.prompts?.[mode] || manual.prompts?.user || '',
+          query: q,
+          history,
+          manualId: manual.id,
+          max_tokens: 1024,
+          provider,
+        }),
         signal: controller.signal,
       });
       clearTimeout(timeout);
@@ -112,14 +132,11 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
       const answer = data.content.map(b => b.text || '').join('');
       setMessages(m => [...m, {
         id: Date.now()+1, role: 'ai', text: answer,
-        source: foundInManual ? `Manual: ${manual.subtitle}` : 'Resposta geral',
-        fromManual: foundInManual,
+        source: data.foundInManual === false ? 'Resposta geral' : `Manual: ${manual.subtitle}`,
+        fromManual: data.foundInManual !== false,
       }]);
     } catch (err) {
-      const msg = err.name === 'AbortError'
-        ? 'Tempo limite excedido. Servidor iniciando — tente novamente em 30s.'
-        : 'Erro: ' + err.message;
-      setMessages(m => [...m, { id: Date.now()+1, role: 'ai', text: msg, isError: true }]);
+      setMessages(m => [...m, { id: Date.now()+1, role: 'ai', text: friendlyError(err), isError: true }]);
     }
 
     setLoading(false);
