@@ -117,12 +117,25 @@ export function searchManual(query, indexKey, topK = 6) {
   return scored.slice(0, topK).map(c => c.text);
 }
 
+// Verifica se uma chave do índice (ex: "50.2X.YZ") é um padrão wildcard HP
+// que corresponde a um código real (ex: "50.2F.00") com dígitos hex.
+function wildcardMatchHP(pattern, code) {
+  if (!/[XYZ]/.test(pattern)) return false;
+  const regex = new RegExp(
+    '^' + pattern.replace(/\./g, '\\.').replace(/[XYZ]/g, '[0-9A-Fa-f]') + '$',
+    'i'
+  );
+  return regex.test(code);
+}
+
 export function searchErrorCode(query, indexKey) {
   // Normaliza "SC 400" → "SC400", "SC 543-00" → "SC543-00"
   const q = query.trim().replace(/\b(SC)\s+(\d)/gi, '$1$2');
   const codes = [
     ...(q.toUpperCase().match(/SC\d{3,6}/g) || []),
     ...(q.match(/\b\d{2}\.\d{2}(?:\.\d{2}(?:\.\d{2})?)?\b/g) || []),
+    // HP codes com dígitos hex (ex: 50.2F.00, 49.38.07 com letra)
+    ...(q.toUpperCase().match(/\b\d{2}\.[0-9A-F]{2,3}(?:\.[0-9A-F]{2})?\b/g) || []),
     ...(q.toUpperCase().match(/\bJ\d{3,6}\b/g) || []),
   ];
 
@@ -137,7 +150,7 @@ export function searchErrorCode(query, indexKey) {
       if (filtered.length) results.push(...filtered.map(e => e.text));
     } else {
       for (const [k, entries] of Object.entries(errorCodesData)) {
-        if (k.startsWith(code) || (code.length >= 4 && k.includes(code))) {
+        if (k.startsWith(code) || (code.length >= 4 && k.includes(code)) || wildcardMatchHP(k, code)) {
           const filtered = indexKey ? entries.filter(e => e.key === indexKey) : entries;
           if (filtered.length) results.push(...filtered.map(e => e.text));
           if (results.length >= 5) break;
