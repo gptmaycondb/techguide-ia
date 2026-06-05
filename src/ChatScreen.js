@@ -119,8 +119,26 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
     xhr.setRequestHeader('Content-Type', 'application/json');
     xhr.setRequestHeader('Accept', 'text/event-stream');
 
+    // Timeout de INATIVIDADE: 60s sem nenhum chunk → aborta. Reinicia a cada dado
+    // recebido, permitindo respostas longas (procedimentos completos) desde que
+    // os tokens continuem fluindo.
+    const armTimeout = () => {
+      clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        xhr.abort();
+        setMessages(m => m.map(msg =>
+          msg.id === aiMsgId
+            ? { ...msg, text: friendlyError({ name: 'AbortError' }), isError: true, streaming: false }
+            : msg
+        ));
+        setLoading(false);
+        scrollToBottom();
+      }, 60000);
+    };
+
     let lastIndex = 0;
     xhr.onprogress = () => {
+      armTimeout();
       const raw = xhr.responseText.slice(lastIndex);
       lastIndex = xhr.responseText.length;
       for (const line of raw.split('\n')) {
@@ -193,16 +211,7 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
       scrollToBottom();
     };
 
-    timeoutId = setTimeout(() => {
-      xhr.abort();
-      setMessages(m => m.map(msg =>
-        msg.id === aiMsgId
-          ? { ...msg, text: friendlyError({ name: 'AbortError' }), isError: true, streaming: false }
-          : msg
-      ));
-      setLoading(false);
-      scrollToBottom();
-    }, 60000);
+    armTimeout();
 
     // Contrato legado: envia o systemPrompt já montado com os trechos corretos
     // (errorChunks de error_codes_index.json + manualChunks). O backend não refaz
@@ -210,7 +219,7 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
     xhr.send(JSON.stringify({
       system: systemPrompt,
       messages: history,
-      max_tokens: 1024,
+      max_tokens: 3072,
       provider,
     }));
   }
