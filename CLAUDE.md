@@ -225,7 +225,22 @@ adicionar o handler `callXxx()` + caso no `if/else` do `app.post('/chat')` em `b
 - Primeiro `delta` recebido → `setLoading(false)` (spinner some, texto começa a aparecer)
 - `streaming: true` na mensagem → cursor `▌` visível até o evento `done`
 - `xhr.onload` com `!doneReceived` → fallback JSON puro (backward compat)
-- Timeout de 60 s via `setTimeout` + `xhr.abort()` → erro amigável
+- `max_tokens: 3072` — cabe procedimentos completos (passo a passo longo). Era 1024,
+  que truncava respostas detalhadas no meio.
+
+### Timeout de inatividade (não timeout total)
+`src/ChatScreen.js` → `armTimeout()`: o limite de 60 s é de **inatividade**, não de
+duração total. `armTimeout()` faz `clearTimeout` + novo `setTimeout(60s)` e é chamado:
+- uma vez antes do `xhr.send` (cold-start: 60 s para o 1º token)
+- no início de cada `xhr.onprogress` (reinicia a contagem a cada chunk recebido)
+
+Assim respostas longas completam por mais que demorem, desde que os tokens continuem
+fluindo (gap < 60 s). Se o servidor travar de verdade (60 s sem chunk), `xhr.abort()`
+dispara e vira bolha de erro "Tempo limite excedido…". `onload`/`onerror`/`done`
+cancelam o timer com `clearTimeout`.
+
+> **Por que não timeout total fixo?** Com `max_tokens` alto, uma resposta legítima pode
+> levar mais de 60 s de geração. Um timeout total a abortaria no meio; o de inatividade não.
 
 ### key={chatKey} no ChatScreen
 `App.js` passa `key={chatKey}` para `<ChatScreen>`. Isso força o React a remontar
@@ -261,7 +276,7 @@ O app sempre faz o RAG **localmente** antes de chamar o backend:
 Depois envia para `POST /chat` usando **contrato legado**:
 ```json
 { "system": "<systemPrompt completo com trechos>", "messages": [...histórico + query],
-  "max_tokens": 1024, "provider": "claude" }
+  "max_tokens": 3072, "provider": "claude" }
 ```
 O backend apenas chama a IA com o prompt recebido — **não refaz RAG**.
 O `foundInManual` é calculado localmente e usado no selo "● Manual" vs "⚠ Resposta geral".
