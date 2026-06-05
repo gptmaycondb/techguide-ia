@@ -1,12 +1,14 @@
 # TechGuide IA — Projeto
 
 App React Native (Expo) de suporte técnico para impressoras HP e Ricoh.
-Backend em `https://manuais-hp.onrender.com` (`gptmaycondb/manuais-hp`).
+Backend em `https://manuais-hp.onrender.com` — código em `backend/server.js` **neste repo**,
+sincronizado automaticamente para `gptmaycondb/manuais-hp` via GitHub Action no push ao `main`.
 O provedor de IA (Claude Sonnet, Claude Opus, OpenAI GPT-4o, Gemini) é selecionável
 dentro do app; o backend roteia com base no campo `provider`.
 
-**Modo online:** app envia query crua → backend faz RAG semântico (embeddings) → IA responde.
-**Modo offline:** app faz RAG keyword local (índices JSON bundled) → exibe trechos sem IA.
+**Modo online:** app faz RAG local (error_codes_index + search_index) → envia systemPrompt
+montado ao backend → backend chama a IA com streaming SSE → texto aparece ao vivo no app.
+**Modo offline:** app faz RAG keyword local → exibe trechos diretamente, sem IA.
 
 ## Arquitetura
 
@@ -18,6 +20,14 @@ assets/
   embeddings/       ← vetores por índice para busca semântica no backend — 11 arquivos *.json
                        (ex: e52645_guia.json, ricoh_imc3000_service.json)
                        Gerados por build_index.py --embeddings; backend baixa do GitHub no start.
+backend/
+  server.js         ← servidor Express completo (SSE streaming, RAG semântico/keyword,
+                       providers lazy Claude/OpenAI/Gemini, /ping, telemetria)
+  package.json      ← dependências + start script --max-old-space-size=460
+.github/
+  workflows/
+    sync-backend.yml← push ao main com mudança em backend/ → atualiza manuais-hp via GitHub API
+                       Requer secret MANUAIS_HP_TOKEN (fine-grained PAT, write em manuais-hp)
 scripts/
   build_index.py    ← indexador v2; reprocessa todos os PDFs
 src/
@@ -181,8 +191,8 @@ Provedores disponíveis:
 | `gemini` | gemini-1.5-pro | `GEMINI_API_KEY` |
 
 Para adicionar um novo provedor: adicionar entrada em `AI_PROVIDERS` (`src/data.js`) e
-adicionar o handler `callXxx()` + caso no `if/else` do `app.post('/chat')` no `server.js`
-do backend (`gptmaycondb/manuais-hp`).
+adicionar o handler `callXxx()` + caso no `if/else` do `app.post('/chat')` em `backend/server.js`
+(o sync automático cuida de enviar para `manuais-hp`).
 
 ### Histórico de conversa persistente
 `App.js` salva `allMessages` no AsyncStorage com chave `tg_messages_${authEmail}`:
@@ -208,6 +218,26 @@ do backend (`gptmaycondb/manuais-hp`).
 - Keepalive externo: cron-job.org → `GET /ping` a cada 10 min (previne hibernação Render free)
 - Botão "OFF/ON" no header chama `wakeUpServer()` + `checkOnline()` manualmente
 
+### Streaming SSE no modo online
+`src/ChatScreen.js` usa `XMLHttpRequest` (não `fetch`) para suportar streaming em React Native:
+- Header `Accept: text/event-stream` sinaliza ao backend que o app aceita SSE
+- `xhr.onprogress` parseia linhas `data: {...}` incrementalmente via `responseText.slice(lastIndex)`
+- Primeiro `delta` recebido → `setLoading(false)` (spinner some, texto começa a aparecer)
+- `streaming: true` na mensagem → cursor `▌` visível até o evento `done`
+- `xhr.onload` com `!doneReceived` → fallback JSON puro (backward compat)
+- Timeout de 60 s via `setTimeout` + `xhr.abort()` → erro amigável
+
+### key={chatKey} no ChatScreen
+`App.js` passa `key={chatKey}` para `<ChatScreen>`. Isso força o React a remontar
+o componente quando o manual muda, resetando todo o estado local (`loading`, scroll, etc.).
+Sem o `key`, trocar de manual com uma requisição em andamento deixava o input bloqueado.
+
+### searchErrorCode sem fallback cross-manual
+`src/search.js` → `searchErrorCode()`: quando o código existe no índice mas não para
+o `indexKey` do modelo ativo, o resultado é vazio (não há fallback para outros manuais).
+Sem isso, um usuário Ricoh poderia receber descrições de erros HP e vice-versa ao buscar
+códigos que existem em múltiplos manuais.
+
 ### Skills e Hooks
 `.claude/skills/` — 12 skills invocadas manualmente com `/nome` na sessão do Claude Code.
 `.claude/settings.json` — 4 hooks automáticos:
@@ -223,25 +253,43 @@ do backend (`gptmaycondb/manuais-hp`).
 O `ChatScreen.js` bifurca o fluxo com base em `isOnline` (prop do `App.js`):
 
 ### Modo online (padrão quando servidor disponível)
-App envia para `POST /chat`:
+O app sempre faz o RAG **localmente** antes de chamar o backend:
+1. `searchErrorCode(q, serviceKey)` → `error_codes_index.json` (bundled, 1848 entradas)
+2. `searchManual(q, k, 3)` para cada `k` em `manual.searchKeys` → `search_index.json`
+3. Monta `systemPrompt = manual.prompts[mode] + contextBlock` com os trechos
+
+Depois envia para `POST /chat` usando **contrato legado**:
 ```json
-{ "systemBase": "...", "query": "pergunta do usuário", "history": [...],
-  "manualId": "mfpe52645", "max_tokens": 1024, "provider": "claude" }
+{ "system": "<systemPrompt completo com trechos>", "messages": [...histórico + query],
+  "max_tokens": 1024, "provider": "claude" }
 ```
-O backend faz o RAG semântico, monta o `system` completo e chama a IA.
-A resposta inclui `{ content: [{text}], foundInManual: bool }`.
-O campo `foundInManual` controla o selo "● Manual" vs "⚠ Resposta geral" na bolha.
+O backend apenas chama a IA com o prompt recebido — **não refaz RAG**.
+O `foundInManual` é calculado localmente e usado no selo "● Manual" vs "⚠ Resposta geral".
+
+> **Por que contrato legado (não `{systemBase, query, manualId}`)?**
+> O backend não tem `error_codes_index.json` — só os embeddings do `search_index.json`.
+> Se o app delegasse a busca ao backend, consultas de código SC/49.xx retornariam
+> alucinações (o backend achava chunks irrelevantes e a IA inventava a resposta).
+> Enviar o `systemPrompt` já montado garante que o `error_codes_index.json` bundled
+> seja sempre consultado, independente do que o backend tenha disponível.
+
+A resposta chega em **SSE streaming** (`text/event-stream`):
+- Cada chunk: `data: {"type":"delta","text":"..."}` → texto aparece ao vivo no app
+- Fim: `data: {"type":"done","foundInManual":true}`
+- Fallback automático: se o backend não suportar SSE, o app aceita JSON puro
 
 ### Modo offline (`!isOnline`)
-O app roda keyword RAG localmente:
-- `searchErrorCode(q, serviceKey)` — busca no `error_codes_index.json` bundled
-- `searchManual(q, indexKey, 3)` para cada chave em `manual.searchKeys`
-- Exibe os trechos diretamente, sem chamar a IA
+O app exibe os trechos do RAG local diretamente, sem chamar a IA:
+- `searchErrorCode(q, serviceKey)` → `error_codes_index.json` bundled
+- `searchManual(q, k, 3)` para cada chave em `manual.searchKeys`
 - Mensagem: "Modo offline — Trechos encontrados: ..." ou "Nenhum resultado encontrado"
 
-### Contrato legado (backward compat no backend)
-Se o body tiver `system` + `messages` (app antigo), o backend usa direto sem RAG.
-O campo `query` ausente é o discriminador (`isNew = !!query`).
+### Contrato legado vs novo no backend
+O backend aceita dois formatos:
+- **Legado** (`system + messages`) — usado pelo app atual; backend usa o prompt como recebido
+- **Novo** (`query + systemBase + manualId + history`) — backend faz RAG semântico próprio
+  (útil quando `SEMANTIC_SEARCH=1` e `error_codes_index.json` não é necessário)
+O discriminador é `isNew = !!req.body.query`.
 
 ---
 
