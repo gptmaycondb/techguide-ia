@@ -72,10 +72,12 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
 
     // Error code entries first, then manual chunks; all capped at 700 chars, max 8 total
     const cap = c => c.length > 700 ? c.substring(0, 700) + '…' : c;
-    // Filtra erros pelo índice de service do modelo ativo; evita misturar SC codes de modelos distintos.
-    // Se não houver entrada para este modelo, searchErrorCode faz fallback para todos (ex: HP CPMD compartilhado).
-    const serviceKey = searchKeys.find(k => k.includes('service')) || primaryKey;
-    const errorChunks = searchErrorCode(q, serviceKey).map(cap);
+    // Busca erros em todos os índices do modelo (evita cruzamento entre modelos Ricoh
+    // porque cada modelo só tem seus próprios índices em searchKeys).
+    const errorChunks = searchKeys
+      .flatMap(k => searchErrorCode(q, k))
+      .filter((t, i, a) => a.indexOf(t) === i)
+      .slice(0, 5).map(cap);
     const manualChunks = searchKeys.flatMap(k => searchManual(q, k, 3)).slice(0, 5).map(cap);
     const seen = new Set();
     const chunks = [...errorChunks, ...manualChunks].filter(c => {
