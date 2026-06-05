@@ -74,7 +74,7 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
     // (defeito + causas + solução), até 2400 chars. Trechos de manual (busca textual)
     // ficam em 1200 chars — contexto de apoio, não a resposta principal.
     const capErr = c => c.length > 2400 ? c.substring(0, 2400) + '…' : c;
-    const capMan = c => c.length > 1200 ? c.substring(0, 1200) + '…' : c;
+    const capMan = c => c.length > 2400 ? c.substring(0, 2400) + '…' : c;
     // Busca erros em todos os índices do modelo (evita cruzamento entre modelos Ricoh
     // porque cada modelo só tem seus próprios índices em searchKeys).
     const errorChunks = searchKeys
