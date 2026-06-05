@@ -111,117 +111,132 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
     setMessages(m => [...m, { id: aiMsgId, role: 'ai', text: '', streaming: true }]);
     scrollToBottom();
 
-    let timeoutId;
-    let firstChunk = true;
-    let doneReceived = false;
-    const xhr = new XMLHttpRequest();
-    xhr.open('POST', API_URL);
-    xhr.setRequestHeader('Content-Type', 'application/json');
-    xhr.setRequestHeader('Accept', 'text/event-stream');
-
-    // Timeout de INATIVIDADE: 60s sem nenhum chunk → aborta. Reinicia a cada dado
-    // recebido, permitindo respostas longas (procedimentos completos) desde que
-    // os tokens continuem fluindo.
-    const armTimeout = () => {
-      clearTimeout(timeoutId);
-      timeoutId = setTimeout(() => {
-        xhr.abort();
-        setMessages(m => m.map(msg =>
-          msg.id === aiMsgId
-            ? { ...msg, text: friendlyError({ name: 'AbortError' }), isError: true, streaming: false }
-            : msg
-        ));
-        setLoading(false);
-        scrollToBottom();
-      }, 60000);
-    };
-
-    let lastIndex = 0;
-    xhr.onprogress = () => {
-      armTimeout();
-      const raw = xhr.responseText.slice(lastIndex);
-      lastIndex = xhr.responseText.length;
-      for (const line of raw.split('\n')) {
-        if (!line.startsWith('data: ')) continue;
-        const payload = line.slice(6).trim();
-        if (!payload) continue;
-        try {
-          const ev = JSON.parse(payload);
-          if (ev.type === 'delta' && ev.text) {
-            if (firstChunk) { firstChunk = false; setLoading(false); }
-            setMessages(m => m.map(msg =>
-              msg.id === aiMsgId ? { ...msg, text: msg.text + ev.text } : msg
-            ));
-            scrollToBottom();
-          } else if (ev.type === 'done') {
-            doneReceived = true;
-            // Usa o foundInManual LOCAL — o backend (contrato legado) não sabe se houve trecho.
-            setMessages(m => m.map(msg =>
-              msg.id === aiMsgId ? {
-                ...msg, streaming: false,
-                source: foundInManual ? `Manual: ${manual.subtitle}` : 'Resposta geral',
-                fromManual: foundInManual,
-              } : msg
-            ));
-          } else if (ev.type === 'error') {
-            setMessages(m => m.map(msg =>
-              msg.id === aiMsgId
-                ? { ...msg, text: friendlyError(new Error(ev.message)), isError: true, streaming: false }
-                : msg
-            ));
-          }
-        } catch {}
-      }
-    };
-
-    xhr.onload = () => {
-      clearTimeout(timeoutId);
-      if (!doneReceived) {
-        // Fallback: servidor devolveu JSON puro (sem SSE)
-        try {
-          const data = JSON.parse(xhr.responseText);
-          if (data.error) throw new Error(typeof data.error === 'string' ? data.error : data.error.message);
-          if (!data.content?.length) throw new Error('Resposta vazia');
-          const answer = data.content.map(b => b.text || '').join('');
-          setMessages(m => m.map(msg =>
-            msg.id === aiMsgId ? {
-              ...msg, text: answer, streaming: false,
-              source: foundInManual ? `Manual: ${manual.subtitle}` : 'Resposta geral',
-              fromManual: foundInManual,
-            } : msg
-          ));
-        } catch (err) {
-          setMessages(m => m.map(msg =>
-            msg.id === aiMsgId ? { ...msg, text: friendlyError(err), isError: true, streaming: false } : msg
-          ));
-        }
-      }
-      setLoading(false);
-      scrollToBottom();
-    };
-
-    xhr.onerror = () => {
-      clearTimeout(timeoutId);
-      setMessages(m => m.map(msg =>
-        msg.id === aiMsgId
-          ? { ...msg, text: friendlyError(new Error('Network request failed')), isError: true, streaming: false }
-          : msg
-      ));
-      setLoading(false);
-      scrollToBottom();
-    };
-
-    armTimeout();
-
     // Contrato legado: envia o systemPrompt já montado com os trechos corretos
     // (errorChunks de error_codes_index.json + manualChunks). O backend não refaz
     // a busca — evita alucinação em códigos de erro, que o backend não consegue resolver.
-    xhr.send(JSON.stringify({
+    const payload = JSON.stringify({
       system: systemPrompt,
       messages: history,
       max_tokens: 3072,
       provider,
-    }));
+    });
+
+    // Em erro de REDE (não do servidor), tenta de novo 1x: ao voltar do segundo
+    // plano no Android a 1ª conexão costuma estar "stale" e falha; a 2ª funciona.
+    function startRequest(attempt) {
+      let timeoutId;
+      let firstChunk = true;
+      let doneReceived = false;
+      let lastIndex = 0;
+      const xhr = new XMLHttpRequest();
+      xhr.open('POST', API_URL);
+      xhr.setRequestHeader('Content-Type', 'application/json');
+      xhr.setRequestHeader('Accept', 'text/event-stream');
+
+      // Timeout de INATIVIDADE: 60s sem nenhum chunk → aborta. Reinicia a cada dado
+      // recebido, permitindo respostas longas (procedimentos completos) desde que
+      // os tokens continuem fluindo.
+      const armTimeout = () => {
+        clearTimeout(timeoutId);
+        timeoutId = setTimeout(() => {
+          xhr.abort();
+          setMessages(m => m.map(msg =>
+            msg.id === aiMsgId
+              ? { ...msg, text: friendlyError({ name: 'AbortError' }), isError: true, streaming: false }
+              : msg
+          ));
+          setLoading(false);
+          scrollToBottom();
+        }, 60000);
+      };
+
+      xhr.onprogress = () => {
+        armTimeout();
+        const raw = xhr.responseText.slice(lastIndex);
+        lastIndex = xhr.responseText.length;
+        for (const line of raw.split('\n')) {
+          if (!line.startsWith('data: ')) continue;
+          const data = line.slice(6).trim();
+          if (!data) continue;
+          try {
+            const ev = JSON.parse(data);
+            if (ev.type === 'delta' && ev.text) {
+              if (firstChunk) { firstChunk = false; setLoading(false); }
+              setMessages(m => m.map(msg =>
+                msg.id === aiMsgId ? { ...msg, text: msg.text + ev.text } : msg
+              ));
+              scrollToBottom();
+            } else if (ev.type === 'done') {
+              doneReceived = true;
+              // foundInManual LOCAL — o backend (contrato legado) não sabe se houve trecho.
+              setMessages(m => m.map(msg =>
+                msg.id === aiMsgId ? {
+                  ...msg, streaming: false,
+                  source: foundInManual ? `Manual: ${manual.subtitle}` : 'Resposta geral',
+                  fromManual: foundInManual,
+                } : msg
+              ));
+            } else if (ev.type === 'error') {
+              setMessages(m => m.map(msg =>
+                msg.id === aiMsgId
+                  ? { ...msg, text: friendlyError(new Error(ev.message)), isError: true, streaming: false }
+                  : msg
+              ));
+            }
+          } catch {}
+        }
+      };
+
+      xhr.onload = () => {
+        clearTimeout(timeoutId);
+        if (!doneReceived) {
+          // Fallback: servidor devolveu JSON puro (sem SSE)
+          try {
+            const json = JSON.parse(xhr.responseText);
+            if (json.error) throw new Error(typeof json.error === 'string' ? json.error : json.error.message);
+            if (!json.content?.length) throw new Error('Resposta vazia');
+            const answer = json.content.map(b => b.text || '').join('');
+            setMessages(m => m.map(msg =>
+              msg.id === aiMsgId ? {
+                ...msg, text: answer, streaming: false,
+                source: foundInManual ? `Manual: ${manual.subtitle}` : 'Resposta geral',
+                fromManual: foundInManual,
+              } : msg
+            ));
+          } catch (err) {
+            setMessages(m => m.map(msg =>
+              msg.id === aiMsgId ? { ...msg, text: friendlyError(err), isError: true, streaming: false } : msg
+            ));
+          }
+        }
+        setLoading(false);
+        scrollToBottom();
+      };
+
+      xhr.onerror = () => {
+        clearTimeout(timeoutId);
+        // Erro de rede: o request não chegou ao servidor → retry seguro (sem duplicar).
+        if (attempt < 2) {
+          setMessages(m => m.map(msg =>
+            msg.id === aiMsgId ? { ...msg, text: '', streaming: true } : msg
+          ));
+          setTimeout(() => startRequest(attempt + 1), 1200);
+          return;
+        }
+        setMessages(m => m.map(msg =>
+          msg.id === aiMsgId
+            ? { ...msg, text: friendlyError(new Error('Network request failed')), isError: true, streaming: false }
+            : msg
+        ));
+        setLoading(false);
+        scrollToBottom();
+      };
+
+      armTimeout();
+      xhr.send(payload);
+    }
+
+    startRequest(1);
   }
 
   function extractLinks(text) {

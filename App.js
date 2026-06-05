@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  SafeAreaView, StatusBar, Animated, Dimensions, ScrollView,
+  SafeAreaView, StatusBar, Animated, Dimensions, ScrollView, AppState,
 } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { logout, restoreSession } from './src/auth';
@@ -122,6 +122,16 @@ export default function App() {
     init();
     const interval = setInterval(checkOnline, 30000);
     return () => clearInterval(interval);
+  }, []);
+
+  // Ao voltar do segundo plano: acorda o servidor e revalida a conexão.
+  // Sem isso, a 1ª busca após o resume pegava o indicador "ON" velho e/ou
+  // o servidor hibernado, retornando "Sem conexão".
+  useEffect(() => {
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') { wakeUpServer(); checkOnline(); }
+    });
+    return () => sub.remove();
   }, []);
 
   async function wakeUpServer() {
