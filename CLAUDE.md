@@ -154,6 +154,13 @@ Sem `url`, o card aparece como "⏳ Em breve".
 > **Convenção:** todo manual Ricoh nomeado **"Parts Catalog"** é **somente consulta** —
 > entra apenas em `BRAND_GROUPS` (grupo Ricoh), nunca em `searchKeys`/índice.
 
+> **Verificação de URL:** ao trocar ou corrigir um Drive ID em `BRAND_GROUPS`, confirme
+> que o ID correto abre o arquivo esperado antes de commitar. Exemplo rápido:
+> `curl -sI "https://drive.usercontent.google.com/download?id=<FILE_ID>&export=download&confirm=t" | grep -i content-disposition`
+> O `filename=` retornado deve bater com o título do card.
+> Ao corrigir um ID errado, **bumpar o `localName`** (ex: `_v2`) para invalidar o cache
+> de usuários que já baixaram o arquivo incorreto.
+
 ---
 
 ## Decisões arquiteturais
@@ -227,6 +234,20 @@ adicionar o handler `callXxx()` + caso no `if/else` do `app.post('/chat')` em `b
 - `xhr.onload` com `!doneReceived` → fallback JSON puro (backward compat)
 - `max_tokens: 3072` — cabe procedimentos completos (passo a passo longo). Era 1024,
   que truncava respostas detalhadas no meio.
+
+### Retry automático no ChatScreen (`startRequest`)
+Toda a lógica XHR está encapsulada em `startRequest(attempt)` (chamada com `startRequest(1)`):
+- `xhr.onerror` com `attempt < 2` → aguarda 1200 ms e chama `startRequest(attempt + 1)`
+- Retry é seguro porque `onerror` significa que o request **nunca chegou ao servidor**
+  (sem risco de processar a mesma query duas vezes)
+- Na segunda tentativa, se `onerror` novamente → exibe "Sem conexão com o servidor."
+- Resolve o erro de conexão falsa ao retornar de background (Android stale network)
+
+### Reconexão ao voltar do background (AppState)
+`App.js` registra `AppState.addEventListener('change', handler)` no mount:
+- Quando estado muda para `'active'` (app volta ao foreground) → chama `wakeUpServer()` + `checkOnline()`
+- Combinado com o retry de `startRequest`, elimina o "Sem conexão" falso após minimizar o app
+- `sub.remove()` no cleanup do `useEffect` evita listener duplicado
 
 ### Timeout de inatividade (não timeout total)
 `src/ChatScreen.js` → `armTimeout()`: o limite de 60 s é de **inatividade**, não de
@@ -359,7 +380,10 @@ configuradas. Apenas `ANTHROPIC_API_KEY` é necessária para o app funcionar nor
 
 > **Já implementadas nesta sessão** (não repetir aqui): histórico persistente,
 > erros amigáveis, RAG semântico no backend, keepalive `/ping`, telemetria JSON,
-> embeddings `paraphrase-multilingual-MiniLM-L12-v2`, `SEMANTIC_SEARCH` flag.
+> embeddings `paraphrase-multilingual-MiniLM-L12-v2`, `SEMANTIC_SEARCH` flag,
+> SSE streaming, `max_tokens: 3072`, `searchErrorCode` sem fallback cross-manual,
+> `key={chatKey}` no ChatScreen, contrato legado (RAG local no app), AppState listener,
+> retry automático (`startRequest`), fix URLs E52645 invertidos + `localName` `_v2`.
 > `search_index.json` off-bundle continua **deferido** — necessário para modo offline.
 
 ### A) `scripts/sources.json` — configuração de PDFs externalizada
