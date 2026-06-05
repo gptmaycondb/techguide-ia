@@ -343,8 +343,8 @@ export const BRAND_GROUPS = [
             color: '#00d4aa',
             icon: '📗',
             tags: ['E52645', 'PT-BR', '6.5 MB'],
-            url: 'https://drive.usercontent.google.com/download?id=1IwaqI0k8IycRTge9jy_1FX02JjjVbuuf&export=download&confirm=t',
-            localName: 'tg_guia_e52645.pdf',
+            url: 'https://drive.usercontent.google.com/download?id=1AmQ0fExFjUBhVcK6yrEAjKNQJrYtRZLH&export=download&confirm=t',
+            localName: 'tg_guia_e52645_v2.pdf',
             size: '6.5 MB',
           },
           {
@@ -355,8 +355,8 @@ export const BRAND_GROUPS = [
             color: '#a855f7',
             icon: '⚠️',
             tags: ['CPMD', '2023', '6.0 MB'],
-            url: 'https://drive.usercontent.google.com/download?id=1AmQ0fExFjUBhVcK6yrEAjKNQJrYtRZLH&export=download&confirm=t',
-            localName: 'tg_cpmd_2023.pdf',
+            url: 'https://drive.usercontent.google.com/download?id=1IwaqI0k8IycRTge9jy_1FX02JjjVbuuf&export=download&confirm=t',
+            localName: 'tg_cpmd_2023_v2.pdf',
             size: '6.0 MB',
           },
           {
