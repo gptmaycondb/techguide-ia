@@ -86,9 +86,7 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
     }).slice(0, 8);
     const foundInManual = chunks.length > 0 && searchKeys.some(k => hasRelevantContent(q, k));
 
-    const noChunksMsg = manual.brand === 'ricoh'
-      ? `\n\nNenhum trecho localizado nos manuais indexados. Use seu conhecimento tecnico especializado em Ricoh ${manual.label} para responder — codigos SC, procedimentos, pecas e especificacoes.`
-      : '\n\nNenhum trecho encontrado nos manuais. Responda com conhecimento tecnico geral sobre a impressora.';
+    const noChunksMsg = '\n\nNenhum trecho encontrado nos manuais indexados. Informe ao usuario que a informacao nao foi localizada no indice e sugira consultar o manual fisico ou reformular a busca.';
 
     const contextBlock = chunks.length > 0
       ? '\n\nTRECHOS DO MANUAL:\n\n' + chunks.map((c, i) => `[${i+1}]\n${c}`).join('\n\n---\n\n')
@@ -117,7 +115,7 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
     const payload = JSON.stringify({
       system: systemPrompt,
       messages: history,
-      max_tokens: 3072,
+      max_tokens: 1500,
       provider,
     });
 
