@@ -734,6 +734,11 @@ def build_error_codes_index() -> dict:
             for pseudo_code in ['PCU-YIELD', 'PM-PARTS', 'VIDA-UTIL']:
                 index[pseudo_code].append(entry)
 
+    # Propagar descrição entre irmãos curtos (HP XX.YY e Ricoh SCxxx)
+    sib_count = propagate_sibling_descriptions(index)
+    if sib_count:
+        print(f'  → {sib_count} entradas propagadas de irmãos (HP XX.YY + Ricoh SCxxx)')
+
     return dict(index)
 
 # ─── Dedup e limpeza final ────────────────────────────────────────────────────
@@ -743,23 +748,155 @@ def dedup_entries(entries: list) -> list:
     seen = set()
     result = []
     for e in entries:
-        sig = (e['key'], e['text'][:100])
+        # Inclui len para distinguir sintéticos (desc+ação) do original (só desc)
+        sig = (e['key'], len(e['text']), e['text'][:100])
         if sig not in seen:
             seen.add(sig)
             result.append(e)
     return result
 
 
+# Regex para placeholders wildcard HP (ex: 13.WX.YZ, 40.WX) — não são códigos reais
+WILDCARD_CODE_RE = re.compile(r'\.[WXYZ]([WXYZ.]|$)', re.IGNORECASE)
+
+
+def propagate_sibling_descriptions(index: dict) -> int:
+    """
+    Propaga descrição do irmão mais rico para irmãos curtos no mesmo grupo.
+
+    Resolve o truncamento quando Recommended action / descrição compartilhada vem
+    APÓS o último irmão na tabela do manual (só o último captura o bloco).
+
+    HP:    agrupa por XX.YY → sintetiza "desc própria + ação do rico"
+    Ricoh: agrupa por SCxxx → sintetiza "linha própria + texto completo do rico"
+    """
+    count = 0
+
+    # ── HP: grupos XX.YY ─────────────────────────────────────────────────────
+    HP_FULL_RE = re.compile(r'^(\d{2}\.[0-9A-F]{1,2})\.([0-9A-F]{2})$', re.IGNORECASE)
+    hp_groups: dict[str, list[str]] = defaultdict(list)
+    for key in list(index.keys()):
+        if HP_FULL_RE.match(key):
+            hp_groups[key.rsplit('.', 1)[0]].append(key)
+
+    HP_ACTION_RE = re.compile(
+        r'(?:Recommended action|Clear the|Follow these troubleshoot|'
+        r'Check the output|Clear paper|Turn the printer)',
+        re.IGNORECASE
+    )
+    HP_COMPLETE_RE = re.compile(
+        r'no action necessary|informational|event code only|log only',
+        re.IGNORECASE
+    )
+
+    for prefix, keys in hp_groups.items():
+        # Preferir irmão com trigger de ação explícito (pode não ser o mais longo)
+        candidates = sorted(
+            keys,
+            key=lambda k: max((len(e['text']) for e in index.get(k, [])), default=0),
+            reverse=True
+        )
+        rich_entry = None
+        action_m = None
+        for cand_key in candidates:
+            for e in sorted(index.get(cand_key, []), key=lambda e: -len(e['text'])):
+                if len(e['text']) < 400:
+                    break
+                m = HP_ACTION_RE.search(e['text'])
+                if m:
+                    rich_entry = e
+                    action_m = m
+                    break
+            if rich_entry:
+                break
+        if not rich_entry:
+            continue
+        action_block = rich_entry['text'][action_m.start():][:4000]
+
+        for key in keys:
+            own_entries = index.get(key, [])
+            if not own_entries:
+                continue
+            own_best = max(own_entries, key=lambda e: len(e['text']))
+            # Entradas "no action necessary" são completas apesar de curtas
+            if HP_COMPLETE_RE.search(own_best['text']) and len(own_best['text']) > 100:
+                continue
+            if len(own_best['text']) >= 300:
+                continue  # já suficiente
+
+            own_desc = own_best['text'].rstrip(' ●\n')
+            synthetic = own_desc + '\n\n' + action_block
+            new_entry = {'key': own_best['key'], 'text': synthetic}
+
+            if not any(e['text'] == synthetic for e in index[key]):
+                index[key].append(new_entry)
+                count += 1
+
+            # Propagar também para prefixos XX.YY e XX
+            parts = key.split('.')
+            for pfx in ['.'.join(parts[:2]), parts[0]]:
+                if pfx in index and not any(e['text'] == synthetic for e in index[pfx]):
+                    index[pfx].append(new_entry)
+                    count += 1
+
+    # ── Ricoh: grupos SCxxx ───────────────────────────────────────────────────
+    RICOH_FULL_RE = re.compile(r'^SC(\d{3})-(\d{2})$')
+    ricoh_groups: dict[str, list[str]] = defaultdict(list)
+    for key in list(index.keys()):
+        m = RICOH_FULL_RE.match(key)
+        if m:
+            ricoh_groups['SC' + m.group(1)].append(key)
+
+    for group, keys in ricoh_groups.items():
+        rich_key = max(keys, key=lambda k: max((len(e['text']) for e in index.get(k, [])), default=0))
+        rich_entries = index.get(rich_key, [])
+        if not rich_entries:
+            continue
+        rich_entry = max(rich_entries, key=lambda e: len(e['text']))
+        if len(rich_entry['text']) < 300:
+            continue
+
+        for key in keys:
+            own_entries = index.get(key, [])
+            if not own_entries:
+                continue
+            own_best = max(own_entries, key=lambda e: len(e['text']))
+            if len(own_best['text']) >= 120:
+                continue  # já OK
+
+            own_line = own_best['text'].rstrip('\n')
+            synthetic = own_line + '\n\n' + rich_entry['text']
+            new_entry = {'key': own_best['key'], 'text': synthetic}
+
+            if not any(e['text'] == synthetic for e in index[key]):
+                index[key].append(new_entry)
+                count += 1
+
+            # Variante sem hífen (SC22001)
+            no_h = key.replace('-', '')
+            if no_h in index and no_h != key:
+                if not any(e['text'] == synthetic for e in index[no_h]):
+                    index[no_h].append(new_entry)
+                    count += 1
+
+    return count
+
+
 def finalize_error_index(raw: dict) -> dict:
     """
     Pós-processa o índice de erros:
+    - Descarta placeholders wildcard HP (ex: 13.WX.YZ, 40.WX)
     - Remove duplicatas e entradas contaminadas (índice remissivo / ToC)
     - Limita a 5 entradas por código
     - Ordena: entradas com texto mais longo (mais contexto) primeiro
     """
     final = {}
     filtered_out = 0
+    wildcards = 0
     for code, entries in raw.items():
+        if WILDCARD_CODE_RE.search(code):
+            wildcards += 1
+            continue
         entries = dedup_entries(entries)
         # Filtrar entradas de índice remissivo / ToC que escaparam
         clean = [e for e in entries
@@ -769,6 +906,8 @@ def finalize_error_index(raw: dict) -> dict:
             continue
         clean.sort(key=lambda x: -len(x['text']))
         final[code] = clean[:5]
+    if wildcards:
+        print(f'  [finalize] {wildcards} placeholders wildcard removidos')
     if filtered_out:
         print(f'  [finalize] {filtered_out} entradas contaminadas removidas')
     return final
