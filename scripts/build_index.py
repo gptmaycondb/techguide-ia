@@ -96,7 +96,7 @@ TOC_PATTERN = re.compile(r'\.{4,}')   # linhas de sumário com muitos pontos
 def is_toc_line(line: str) -> bool:
     """Detecta linha de sumário (ex: 'Fuser ............... 37')."""
     dots = line.count('.')
-    return dots > 5 and dots / max(len(line), 1) > 0.25
+    return dots > 5 and dots / max(len(line), 1) > 0.50
 
 # Padrão de capa/cabeçalho de manual que polui o índice com keywords gerais
 COVER_PAGE_RE = re.compile(
@@ -261,7 +261,7 @@ def extract_hp_error_sections(text: str, source_key: str) -> dict:
     for i, m in enumerate(matches):
         code = m.group(1).strip()
         start = m.start()
-        # Pega até o próximo código ou 5000 chars
+        # Pega até o próximo código ou 5000 chars (cobre procedimento completo)
         end = matches[i + 1].start() if i + 1 < len(matches) else start + 5000
         end = min(end, start + 5000)
         section = text[start:end].strip()
@@ -433,13 +433,11 @@ RICOH_SC_RE = re.compile(
     re.MULTILINE
 )
 
-# Captura cabeçalhos de seções detalhadas "When SC370 (...) is Displayed"
-# Suporta: leading whitespace, section numbers (6.12.1), ALL CAPS (mpc3004),
-# nested parens em descrições, e "IS\nDISPLAYED" em duas linhas.
+# Seções "When SC… is Displayed" — contêm Causa + Solução completas.
+# Cobre imc3000 (mixed case) e mpc3004 (UPPERCASE + numeração "6.12.2 WHEN SC370...").
+# Parênteses: [^\n]* greedy (acha o último ")" da linha sem backtracking exponencial).
 WHEN_SC_RE = re.compile(
-    r'^\s*(?:\d+\.\d+(?:\.\d+)?\s+)?when\s+sc(\d{3,5}(?:-\d{2})?)\s*'
-    r'\((?:[^()]*(?:\([^()]*\))*[^()]*)\)'
-    r'[\s\S]{0,60}?displayed',
+    r'(?:^|\n)(?:\d+(?:\.\d+)+\s+)?When\s+SC(\d{3,5}(?:-\d{2})?)\s*(?:\([^\n]*\)\s*)?(?:is\s+)?Displayed',
     re.MULTILINE | re.IGNORECASE
 )
 
@@ -542,15 +540,14 @@ def extract_ricoh_sc_groups(text: str, service_key: str = 'ricoh_imc3000_service
 
 def extract_ricoh_sc_detailed_sections(text: str, service_key: str = 'ricoh_imc3000_service') -> dict:
     """
-    Extrai seções 'When SC\\d{3} (...) is Displayed' dos service manuals Ricoh.
-    Essas seções contêm Causa e Solução completas para cada código SC.
-    Indexa sob as mesmas chaves que extract_ricoh_sc_sections.
+    Extrai seções 'When SC… is Displayed' com Causa e Solução completas.
+    Indexa por: SC37003 (sem hífen), SC370-03 (com hífen), SC370 (grupo).
     """
     results = defaultdict(list)
     matches = list(WHEN_SC_RE.finditer(text))
 
     for i, m in enumerate(matches):
-        raw = m.group(1)   # ex: '370', '37003' ou '370-03'
+        raw = m.group(1)
         if '-' in raw:
             group_num, suffix = raw.split('-', 1)
         elif len(raw) >= 5:
@@ -559,8 +556,8 @@ def extract_ricoh_sc_detailed_sections(text: str, service_key: str = 'ricoh_imc3
             group_num, suffix = raw, None
 
         group   = 'SC' + group_num
-        full_nh = group + (suffix or '')
-        full_h  = group + '-' + suffix if suffix else group
+        full_nh = group + (suffix or '')          # SC37003
+        full_h  = group + '-' + suffix if suffix else group  # SC370-03
 
         start = m.start()
         end   = matches[i + 1].start() if i + 1 < len(matches) else start + 5000
@@ -570,15 +567,11 @@ def extract_ricoh_sc_detailed_sections(text: str, service_key: str = 'ricoh_imc3
 
         if len(section) < 100:
             continue
-        # Pular entradas do sumário (primeira linha cheia de pontos)
-        if is_toc_line(section.split('\n')[0]):
-            continue
 
         entry = {'key': service_key, 'text': section}
         results[full_nh].append(entry)
-        if full_h != full_nh:
-            results[full_h].append(entry)
-        if group != full_nh and not results[group]:
+        results[full_h].append(entry)
+        if not results[group]:
             results[group].append(entry)
 
     return results
@@ -669,15 +662,21 @@ def build_error_codes_index() -> dict:
     ricoh_svc_text = clean_text(ricoh_svc_text)
     ricoh_errors = extract_ricoh_sc_sections(ricoh_svc_text)
     sc_groups = extract_ricoh_sc_groups(ricoh_svc_text)
-    ricoh_detailed = extract_ricoh_sc_detailed_sections(ricoh_svc_text)
-    for src in [ricoh_errors, sc_groups, ricoh_detailed]:
+    for src in [ricoh_errors, sc_groups]:
         for code, entries in src.items():
             for e in entries:
                 if not any(x['key'] == 'ricoh_imc3000_service' and x['text'] == e['text'] for x in index[code]):
                     index[code].append(e)
     unique_sc = len([k for k in ricoh_errors if re.fullmatch(r'SC\d{3}-\d{2}', k)])
-    detailed_sc = len(set(k for k in ricoh_detailed if re.match(r'SC\d{3,5}', k)))
-    print(f'  → {unique_sc} SC codes completos + {len(sc_groups)} grupos + {detailed_sc} entradas "When SC" (imc3000)')
+    print(f'  → {unique_sc} SC codes completos + {len(sc_groups)} grupos do service Ricoh')
+    ricoh_detailed = extract_ricoh_sc_detailed_sections(ricoh_svc_text)
+    detailed_count = 0
+    for code, entries in ricoh_detailed.items():
+        for e in entries:
+            if not any(x['key'] == 'ricoh_imc3000_service' and x['text'] == e['text'] for x in index[code]):
+                index[code].append(e)
+                detailed_count += 1
+    print(f'  → {detailed_count} entradas detalhadas "When SC" adicionadas (imc3000)')
 
     # ── Ricoh MP C3004/3504 Service Manual ────────────────────────────────────
     print('[errors] Ricoh MP C3004/3504 Service Manual')
@@ -685,15 +684,39 @@ def build_error_codes_index() -> dict:
     mpc_svc_text = clean_text(pdf_to_text(mpc_svc_path))
     mpc_errors = extract_ricoh_sc_sections(mpc_svc_text, 'ricoh_mpc3004_service')
     mpc_groups = extract_ricoh_sc_groups(mpc_svc_text, 'ricoh_mpc3004_service')
-    mpc_detailed = extract_ricoh_sc_detailed_sections(mpc_svc_text, 'ricoh_mpc3004_service')
-    for src in [mpc_errors, mpc_groups, mpc_detailed]:
+    for src in [mpc_errors, mpc_groups]:
         for code, entries in src.items():
             for e in entries:
                 if not any(x['key'] == 'ricoh_mpc3004_service' and x['text'] == e['text'] for x in index[code]):
                     index[code].append(e)
     mpc_unique = len([k for k in mpc_errors if re.fullmatch(r'SC\d{3}-\d{2}', k)])
-    mpc_detailed_sc = len(set(k for k in mpc_detailed if re.match(r'SC\d{3,5}', k)))
-    print(f'  → {mpc_unique} SC codes completos + {len(mpc_groups)} grupos + {mpc_detailed_sc} entradas "When SC" (mpc3004)')
+    print(f'  → {mpc_unique} SC codes completos + {len(mpc_groups)} grupos do service MP C3004/3504')
+    mpc_detailed = extract_ricoh_sc_detailed_sections(mpc_svc_text, 'ricoh_mpc3004_service')
+    mpc_detailed_count = 0
+    for code, entries in mpc_detailed.items():
+        for e in entries:
+            if not any(x['key'] == 'ricoh_mpc3004_service' and x['text'] == e['text'] for x in index[code]):
+                index[code].append(e)
+                mpc_detailed_count += 1
+    print(f'  → {mpc_detailed_count} entradas detalhadas "When SC" adicionadas (mpc3004)')
+
+    # Propagação reversa: copia entradas de grupo (SC370) para subcódigos (SC370-03, SC37003)
+    xref_count = 0
+    for src_detailed, svc_key in [(ricoh_detailed, 'ricoh_imc3000_service'),
+                                   (mpc_detailed, 'ricoh_mpc3004_service')]:
+        for code, entries in src_detailed.items():
+            gm = re.match(r'^SC(\d{3})$', code)
+            if not gm:
+                continue
+            gn = gm.group(1)
+            for existing_key in list(index.keys()):
+                if re.match(rf'^SC{gn}[-\d]', existing_key) and existing_key != code:
+                    for e in entries:
+                        if not any(x['key'] == svc_key and x['text'] == e['text'] for x in index[existing_key]):
+                            index[existing_key].append(e)
+                            xref_count += 1
+    if xref_count:
+        print(f'  → {xref_count} entradas propagadas de grupos SC para subcódigos')
 
     # ── Ricoh Parts (Product Support Guide) ───────────────────────────────────
     print('[errors] Ricoh Parts')
