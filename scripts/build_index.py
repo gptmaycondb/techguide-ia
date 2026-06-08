@@ -309,7 +309,17 @@ def is_book_index_chunk(text: str) -> bool:
 
     NÃO deve filtrar:
     - Seções SC do Ricoh que têm "Type" codes (D, D, D) como coluna da tabela
+    - Seções HP com tabelas de part numbers (RM2-xxxx) e instruções reais de troubleshooting
     """
+    # Seções com instruções reais de troubleshooting nunca são índice.
+    # Part number tables (RM2-xxxx-000CN) inflam a contagem de números mas o conteúdo é válido.
+    if re.search(
+        r'recommended action|follow these troubleshoot|turn the printer off|'
+        r'turn off.*then.*on|plug.*wall|replace the fuser',
+        text, re.IGNORECASE
+    ):
+        return False
+
     # Múltiplas ocorrências de "remove/removing and replace/replacing NNN"
     # → índice remissivo do HP service manual
     if len(re.findall(r'remov(?:e|ing) and replac(?:e|ing)\s+\d{3,4}', text, re.IGNORECASE)) >= 2:
@@ -379,15 +389,17 @@ def extract_hp_errors_from_cpmd(text: str) -> dict:
     - Códigos no início de linha: "49.38.07\nDescription..."
     - Códigos no meio de frase: "...text. 50.1X.YZ Fuser Error Low..."
     - Múltiplos códigos: "82.73.46, 82.73.47\nDescription..."
+    - Bullet inline (E52645 CPMD): "● 13.B2.A4\nDescription..."
     """
     results = defaultdict(list)
 
     # Padrão que captura a PRIMEIRA linha com um ou mais códigos HP
     # Suporta "XX.YY.ZZ", "XX.YY.ZZ, XX.YY.ZZ", "XX.YY.ZZ or XX.YY.ZZ"
+    # Lookbehinds: início de linha, após newline, após ". " ou após "● " (bullet inline)
     CODE = r'\d{2}(?:\.[0-9A-Z*]{2,3})+'
     MULTI_CODE = rf'({CODE}(?:(?:,\s*|\s+or\s+){CODE})*)'
     SECTION_START = re.compile(
-        rf'(?:^|(?<=\n)|(?<=\. ))({CODE}(?:(?:,\s*|\s+or\s+){CODE})*)'
+        rf'(?:^|(?<=\n)|(?<=\. )|(?<=● ))({CODE}(?:(?:,\s*|\s+or\s+){CODE})*)'
         rf'(?:\s+(?!error messages|errors|\*))',
         re.MULTILINE
     )
