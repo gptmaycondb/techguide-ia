@@ -16,7 +16,7 @@ montado ao backend → backend chama a IA com streaming SSE → texto aparece ao
 assets/
   manuals/          ← PDFs HP E52645 (guia_e52645, cpmd_2023, service_part1-4) — bundled no app
   search_index.json ← chunks de texto para busca keyword offline (~20 MB, bundled)
-  error_codes_index.json ← código → descrição do erro (~3.5 MB, ~1848 entradas)
+  error_codes_index.json ← código → descrição do erro (~4.8 MB, ~1770 entradas, 363 HP + 521 Ricoh)
   embeddings/       ← vetores por índice para busca semântica no backend — 11 arquivos *.json
                        (ex: e52645_guia.json, ricoh_imc3000_service.json)
                        Gerados por build_index.py --embeddings; backend baixa do GitHub no start.
@@ -30,6 +30,7 @@ backend/
                        Requer secret MANUAIS_HP_TOKEN (fine-grained PAT, write em manuais-hp)
 scripts/
   build_index.py    ← indexador v2; reprocessa todos os PDFs
+  audit_index.py    ← auditor de qualidade do error_codes_index.json (HP + Ricoh)
 src/
   data.js           ← manuais, AI_PROVIDERS (lista de provedores), API_URL, DEFAULT_PROVIDER
   search.js         ← searchManual(), searchErrorCode(), hasRelevantContent(), MANUAL_INDEX_MAP
@@ -274,6 +275,53 @@ o `indexKey` do modelo ativo, o resultado é vazio (não há fallback para outro
 Sem isso, um usuário Ricoh poderia receber descrições de erros HP e vice-versa ao buscar
 códigos que existem em múltiplos manuais.
 
+### Indexador HP — entradas específicas por código
+
+`extract_hp_errors_from_cpmd()` usa `SECTION_START` regex com três âncoras:
+- `^` / `(?<=\n)` — código no início de linha (padrão E62655 CPMD)
+- `(?<=\. )` — código inline após ponto (ex.: `50.2F.00` em `...replacement. 50.2F.00 Fuser Error`)
+- `(?<=● )` — código após bullet inline (padrão E52645 CPMD: `● 13.B2.A4 description`)
+
+Cada código HP específico (`XX.YY.ZZ`) recebe sua própria chave no índice. O indexador
+também cria chaves de prefixo (`XX.YY` e `XX`) com o mesmo conteúdo para fallback.
+
+**`is_book_index_chunk()` — guard de troubleshooting:** o filtro de índice remissivo
+retorna `False` imediatamente se o texto contiver linguagem de troubleshooting
+(`recommended action`, `turn the printer off`, etc.). Sem isso, seções HP com tabelas de
+part numbers (`RM2-xxxx-000CN`) inflavam a contagem de números e eram descartadas.
+
+### Propagação de irmãos (`propagate_sibling_descriptions`)
+
+Resolve o truncamento onde o bloco de "Recommended action" aparece APÓS o último irmão
+na tabela do PDF, deixando os primeiros irmãos com apenas a descrição:
+
+- **HP:** agrupa por `XX.YY`. Para cada código curto (< 300 chars), sintetiza
+  `"desc própria + action_block do irmão mais rico"`.
+  - Variante **cross-group:** se a descrição menciona outro código explicitamente
+    (ex.: `55.01.06, 55.02.06`), propaga do código referenciado mesmo sendo outro `XX.YY`.
+- **Ricoh (mesmo grupo):** agrupa por `SCxxx`. Para curtos (< 120 chars) com irmão rico
+  (≥ 300 chars), sintetiza `"linha própria + texto do irmão rico"`.
+- **Ricoh (grupo adjacente):** quando TODO o grupo `SCxxx` tem max < 300 chars, busca
+  em `SCxxx±1` por um entry com ação explícita (ex.: `SC913-00` → solução em `SC914-00`).
+
+### `audit_index.py` — auditoria reproduzível
+
+```bash
+python3 scripts/audit_index.py              # relatório completo
+python3 scripts/audit_index.py --fail-short # exit 1 se houver fixable pendente
+```
+
+Classifica cada código HP (`XX.YY.ZZ`) e Ricoh (`SC-com-hífen`) como:
+- `OK` — texto ≥ limiar mínimo com palavra-chave de ação (HP: 200 chars, Ricoh: 120 chars)
+  OU entrada com `HAS_ACTION_RE` match e len > 150 (completa mas compacta, ex.: `56.00.01`)
+  OU entrada com `no action necessary` e len > 80
+- `fixable` — curto mas irmão rico existe (≥ 400 chars) → regressão do build
+- `short` — curto sem irmão rico → manual genuinamente terso (aceitável)
+- `noAction` — tamanho OK mas sem palavra-chave de ação (informacional)
+
+Estado atual: HP 362/363 OK (100%), Ricoh 474/521 OK (91%), 0 fixable, 0 short.
+`80.00.00` (167 chars) é o único `short` restante — licensing error sem ação no CPMD.
+
 ### Skills e Hooks
 `.claude/skills/` — 12 skills invocadas manualmente com `/nome` na sessão do Claude Code.
 `.claude/settings.json` — 4 hooks automáticos:
@@ -290,7 +338,7 @@ O `ChatScreen.js` bifurca o fluxo com base em `isOnline` (prop do `App.js`):
 
 ### Modo online (padrão quando servidor disponível)
 O app sempre faz o RAG **localmente** antes de chamar o backend:
-1. `searchErrorCode(q, serviceKey)` → `error_codes_index.json` (bundled, 1848 entradas)
+1. `searchErrorCode(q, serviceKey)` → `error_codes_index.json` (bundled, ~1770 entradas)
 2. `searchManual(q, k, 3)` para cada `k` em `manual.searchKeys` → `search_index.json`
 3. Monta `systemPrompt = manual.prompts[mode] + contextBlock` com os trechos
 
@@ -378,12 +426,13 @@ configuradas. Apenas `ANTHROPIC_API_KEY` é necessária para o app funcionar nor
 
 ## Melhorias planejadas (não implementadas)
 
-> **Já implementadas nesta sessão** (não repetir aqui): histórico persistente,
-> erros amigáveis, RAG semântico no backend, keepalive `/ping`, telemetria JSON,
-> embeddings `paraphrase-multilingual-MiniLM-L12-v2`, `SEMANTIC_SEARCH` flag,
-> SSE streaming, `max_tokens: 3072`, `searchErrorCode` sem fallback cross-manual,
-> `key={chatKey}` no ChatScreen, contrato legado (RAG local no app), AppState listener,
-> retry automático (`startRequest`), fix URLs E52645 invertidos + `localName` `_v2`.
+> **Já implementadas** (não repetir aqui): histórico persistente, erros amigáveis,
+> RAG semântico no backend, keepalive `/ping`, telemetria JSON, embeddings
+> `paraphrase-multilingual-MiniLM-L12-v2`, `SEMANTIC_SEARCH` flag, SSE streaming,
+> `max_tokens: 3072`, `searchErrorCode` sem fallback cross-manual, `key={chatKey}`
+> no ChatScreen, contrato legado (RAG local no app), AppState listener, retry automático
+> (`startRequest`), fix URLs E52645 invertidos + `localName` `_v2`, indexação completa
+> HP/Ricoh (When SC, propagação de irmãos, `audit_index.py`, entradas específicas por código).
 > `search_index.json` off-bundle continua **deferido** — necessário para modo offline.
 
 ### A) `scripts/sources.json` — configuração de PDFs externalizada
@@ -446,14 +495,14 @@ regex que captura o código + seção de texto até o próximo código.
 | `e52645_guia`            | `assets/manuals/guia_e52645.pdf` (bundled)   | 166    |
 | `cpmd`                   | `assets/manuals/cpmd_2023.pdf` (bundled)     | 300    |
 | `service`                | `assets/manuals/service_part1-4` (bundled)   | 615    |
-| `ricoh_imc3000_guia`     | `/tmp/ricoh_guia.pdf` (Google Drive)         | 218    |
-| `ricoh_imc3000_service`  | `/tmp/ricoh_service.pdf` (84 MB, Drive)      | 1763   |
+| `ricoh_imc3000_guia`     | `/tmp/ricoh_guia.pdf` (Google Drive)         | 220    |
+| `ricoh_imc3000_service`  | `/tmp/ricoh_service.pdf` (84 MB, Drive)      | 1764   |
 | `ricoh_imc3000_parts`    | `/tmp/ricoh_parts.pdf` (Google Drive)        | 10     |
-| `e62655_guia`            | `/tmp/e62655_guia.pdf` (Google Drive)        | 160    |
+| `e62655_guia`            | `/tmp/e62655_guia.pdf` (Google Drive)        | 162    |
 | `e62655_cpmd`            | `/tmp/e62655_cpmd.pdf` (Google Drive)        | 316    |
-| `e62655_service`         | `/tmp/e62655_service.pdf` (71 MB, Drive)     | 1094   |
-| `ricoh_mpc3004_guia`     | `/tmp/ricoh_mpc3004_guia.pdf` (7 MB, Drive)  | 161    |
-| `ricoh_mpc3004_service`  | `/tmp/ricoh_mpc3004_service.pdf` (61 MB, Drive) | 1213 |
+| `e62655_service`         | `/tmp/e62655_service.pdf` (71 MB, Drive)     | 1095   |
+| `ricoh_mpc3004_guia`     | `/tmp/ricoh_mpc3004_guia.pdf` (7 MB, Drive)  | 163    |
+| `ricoh_mpc3004_service`  | `/tmp/ricoh_mpc3004_service.pdf` (61 MB, Drive) | 1223 |
 
 > Os PDFs Ricoh e E62655 estão no Google Drive (IDs em `src/data.js` → `BRAND_GROUPS`).
 > Para reindexar, baixar para `/tmp/` com os nomes acima antes de rodar o script.
