@@ -2,6 +2,11 @@ name: Fase 0 — Exportar modelo ONNX e validar alinhamento
 
 on:
   workflow_dispatch:
+  push:
+    branches:
+      - claude/last-project-search-X1Xt4
+    paths:
+      - '.github/workflows/export-onnx-model.yml'
 
 permissions:
   contents: write
