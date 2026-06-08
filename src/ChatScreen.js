@@ -70,13 +70,18 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
       : [primaryKey]
     ).filter((v, i, a) => a.indexOf(v) === i);
 
-    // Error code entries first, then manual chunks; all capped at 700 chars, max 8 total
-    const cap = c => c.length > 700 ? c.substring(0, 700) + '…' : c;
-    // Filtra erros pelo índice de service do modelo ativo; evita misturar SC codes de modelos distintos.
-    // Se não houver entrada para este modelo, searchErrorCode faz fallback para todos (ex: HP CPMD compartilhado).
-    const serviceKey = searchKeys.find(k => k.includes('service')) || primaryKey;
-    const errorChunks = searchErrorCode(q, serviceKey).map(cap);
-    const manualChunks = searchKeys.flatMap(k => searchManual(q, k, 3)).slice(0, 5).map(cap);
+    // Trechos de código de erro carregam o procedimento completo do manual
+    // (defeito + causas + solução), até 2400 chars. Trechos de manual (busca textual)
+    // ficam em 1200 chars — contexto de apoio, não a resposta principal.
+    const capErr = c => c.length > 2400 ? c.substring(0, 2400) + '…' : c;
+    const capMan = c => c.length > 2400 ? c.substring(0, 2400) + '…' : c;
+    // Busca erros em todos os índices do modelo (evita cruzamento entre modelos Ricoh
+    // porque cada modelo só tem seus próprios índices em searchKeys).
+    const errorChunks = searchKeys
+      .flatMap(k => searchErrorCode(q, k))
+      .filter((t, i, a) => a.indexOf(t) === i)
+      .slice(0, 4).map(capErr);
+    const manualChunks = searchKeys.flatMap(k => searchManual(q, k, 3)).slice(0, 4).map(capMan);
     const seen = new Set();
     const chunks = [...errorChunks, ...manualChunks].filter(c => {
       const key = c.slice(0, 80);
@@ -86,9 +91,7 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
     }).slice(0, 8);
     const foundInManual = chunks.length > 0 && searchKeys.some(k => hasRelevantContent(q, k));
 
-    const noChunksMsg = manual.brand === 'ricoh'
-      ? `\n\nNenhum trecho localizado nos manuais indexados. Use seu conhecimento tecnico especializado em Ricoh ${manual.label} para responder — codigos SC, procedimentos, pecas e especificacoes.`
-      : '\n\nNenhum trecho encontrado nos manuais. Responda com conhecimento tecnico geral sobre a impressora.';
+    const noChunksMsg = '\n\nNenhum trecho encontrado nos manuais indexados. Informe ao usuario que a informacao nao foi localizada no indice e sugira consultar o manual fisico ou reformular a busca.';
 
     const contextBlock = chunks.length > 0
       ? '\n\nTRECHOS DO MANUAL:\n\n' + chunks.map((c, i) => `[${i+1}]\n${c}`).join('\n\n---\n\n')
@@ -99,7 +102,7 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
 
     if (!isOnline) {
       const offlineText = foundInManual
-        ? 'Modo offline — Trechos encontrados:\n\n' + chunks.map((c,i) => `[${i+1}] ${c.substring(0,400)}${c.length>400?'...':''}`).join('\n\n')
+        ? 'Modo offline — Trechos encontrados:\n\n' + chunks.map((c,i) => `[${i+1}] ${c.substring(0,1000)}${c.length>1000?'...':''}`).join('\n\n')
         : 'Modo offline — Nenhum resultado encontrado. Conecte-se para usar a IA.';
       setMessages(m => [...m, { id: Date.now()+1, role: 'ai', text: offlineText, source: 'Manual (offline)', offline: true, fromManual: foundInManual }]);
       setLoading(false);
@@ -117,7 +120,7 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
     const payload = JSON.stringify({
       system: systemPrompt,
       messages: history,
-      max_tokens: 3072,
+      max_tokens: 4096,
       provider,
     });
 
