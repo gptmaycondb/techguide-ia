@@ -1,0 +1,311 @@
+name: Fase 0 — Exportar modelo ONNX e validar alinhamento
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  export-validate-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependências Python
+        run: |
+          pip install --quiet \
+            "sentence-transformers>=2.7" \
+            "onnxruntime>=1.17" \
+            "transformers>=4.40" \
+            numpy \
+            huggingface_hub
+
+      - name: Baixar Xenova/paraphrase-multilingual-MiniLM-L12-v2 (ONNX int8)
+        run: |
+          python3 - <<'PYEOF'
+          import os
+          from pathlib import Path
+          from huggingface_hub import hf_hub_download
+
+          MODEL_ID = "Xenova/paraphrase-multilingual-MiniLM-L12-v2"
+          OUT = Path("model_cache")
+          (OUT / "onnx").mkdir(parents=True, exist_ok=True)
+
+          def dl(filename, required=True):
+              try:
+                  path = hf_hub_download(repo_id=MODEL_ID, filename=filename, local_dir=str(OUT))
+                  size = Path(path).stat().st_size
+                  print(f"  ✓ {filename}  ({size / 1024:.0f} kB)")
+                  return str(path)
+              except Exception as e:
+                  if required:
+                      raise
+                  print(f"  - {filename}  (opcional — não encontrado)")
+                  return None
+
+          print("Baixando modelo ONNX e tokenizer...")
+          dl("onnx/model_quantized.onnx")
+          dl("tokenizer.json")
+          dl("tokenizer_config.json")
+          dl("config.json")
+          dl("special_tokens_map.json",  required=False)
+          dl("sentencepiece.bpe.model",  required=False)
+          dl("vocab.txt",                required=False)
+
+          model_path = OUT / "onnx" / "model_quantized.onnx"
+          size_mb = model_path.stat().st_size / 1_048_576
+          print(f"\nmodel_quantized.onnx: {size_mb:.1f} MB")
+          (OUT / "model_size.txt").write_text(f"{size_mb:.2f}")
+          PYEOF
+
+      - name: Teste de alinhamento — ST ↔ ONNX e ONNX ↔ embeddings armazenados
+        run: |
+          python3 - <<'PYEOF'
+          import json, sys
+          from pathlib import Path
+          import numpy as np
+          import onnxruntime as ort
+          from transformers import AutoTokenizer
+          from sentence_transformers import SentenceTransformer
+
+          CACHE   = Path("model_cache")
+          EMB_DIR = Path("assets/embeddings")
+
+          FRASES = [
+              "erro 49 no fusor",
+              "papel atolando na bandeja 2",
+              "codigo SC543 no Ricoh",
+              "como calibrar as cores da impressora",
+              "substituir cartucho de toner",
+              "impressora não liga após queda de energia",
+              "mensagem de erro no display SC20200",
+          ]
+
+          # ── 1. Referência sentence-transformers ──────────────────────────────
+          print("Carregando sentence-transformers (referência)...")
+          st = SentenceTransformer(
+              "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2",
+              device="cpu",
+          )
+          ref = st.encode(FRASES, normalize_embeddings=True, show_progress_bar=False)
+          print(f"  OK  shape={ref.shape}")
+
+          # ── 2. ONNX Runtime ──────────────────────────────────────────────────
+          print("\nCarregando modelo ONNX...")
+          sess = ort.InferenceSession(
+              str(CACHE / "onnx" / "model_quantized.onnx"),
+              providers=["CPUExecutionProvider"],
+          )
+          input_names  = [x.name for x in sess.get_inputs()]
+          output_names = [x.name for x in sess.get_outputs()]
+          print(f"  inputs:  {input_names}")
+          print(f"  outputs: {output_names}")
+
+          tok = AutoTokenizer.from_pretrained(str(CACHE))
+
+          def embed(texts):
+              enc = tok(texts, padding=True, truncation=True,
+                        max_length=128, return_tensors="np")
+              feed = {
+                  "input_ids":      enc["input_ids"].astype(np.int64),
+                  "attention_mask": enc["attention_mask"].astype(np.int64),
+              }
+              if "token_type_ids" in input_names:
+                  tt = enc.get("token_type_ids")
+                  if tt is None:
+                      tt = np.zeros_like(enc["input_ids"])
+                  feed["token_type_ids"] = tt.astype(np.int64)
+
+              out = sess.run(None, feed)[0]   # (batch, seq, 384) ou (batch, 384)
+
+              if out.ndim == 3:               # mean pooling manual
+                  mask = enc["attention_mask"][:, :, None].astype(np.float32)
+                  out  = (out * mask).sum(1) / mask.sum(1).clip(min=1e-9)
+
+              norms = np.linalg.norm(out, axis=1, keepdims=True)
+              return out / norms.clip(min=1e-9)
+
+          onnx_emb = embed(FRASES)
+          print(f"  OK  shape={onnx_emb.shape}")
+
+          # ── 3. Cossenos ST ↔ ONNX ────────────────────────────────────────────
+          print("\n─── Cosseno ST ↔ ONNX (frases de teste) ───")
+          cos_test = []
+          for i, frase in enumerate(FRASES):
+              c = float(np.dot(ref[i], onnx_emb[i]))  # ambos normalizados
+              cos_test.append(c)
+              print(f"  {'✅' if c >= 0.99 else '❌'} {c:.6f}  {frase!r}")
+
+          test_ok = all(c >= 0.99 for c in cos_test)
+
+          # ── 4. Cossenos ONNX ↔ embeddings armazenados ───────────────────────
+          print("\n─── Cosseno ONNX ↔ embeddings armazenados (assets/embeddings/) ───")
+          cos_stored, n_tested = [], 0
+          MAX = 10
+
+          for jf in sorted(EMB_DIR.glob("*.json"))[:3]:
+              data = json.loads(jf.read_text(encoding="utf-8"))
+              for key, chunks in data.items():
+                  for chunk in chunks[:4]:
+                      if n_tested >= MAX:
+                          break
+                      text   = chunk["t"]
+                      stored = np.array(chunk["e"], dtype=np.float32)
+                      onnx_v = embed([text])[0]
+                      c = float(np.dot(stored, onnx_v))   # ambos normalizados
+                      cos_stored.append(c)
+                      n_tested += 1
+                      print(f"  {'✅' if c >= 0.99 else '❌'} {c:.6f}  [{key}] {text[:55]!r}…")
+
+          # Armazenados são obrigatórios apenas se existirem
+          stored_ok = (not cos_stored) or all(c >= 0.99 for c in cos_stored)
+          all_ok    = test_ok and stored_ok
+
+          # ── 5. Resultado ─────────────────────────────────────────────────────
+          min_t = min(cos_test,   default=0.0)
+          min_s = min(cos_stored, default=None)
+          print(f"\n  min cosseno (frases teste):            {min_t:.6f}")
+          if min_s is not None:
+              print(f"  min cosseno (embeddings armazenados):  {min_s:.6f}")
+          else:
+              print(f"  min cosseno (embeddings armazenados):  N/A (nenhum arquivo encontrado)")
+
+          (CACHE / "alignment_result.json").write_text(json.dumps({
+              "ok":           all_ok,
+              "min_test":     min_t,
+              "min_stored":   min_s,
+              "n_test":       len(cos_test),
+              "n_stored":     n_tested,
+              "cos_test":     cos_test,
+              "cos_stored":   cos_stored,
+          }, indent=2, ensure_ascii=False))
+
+          if not all_ok:
+              print("\n❌ ALINHAMENTO INSUFICIENTE — cosseno < 0.99. Abortando.")
+              sys.exit(1)
+
+          if not cos_stored:
+              print("\n⚠ assets/embeddings/ vazio — somente frases de teste validadas.")
+
+          print("\n✅ Alinhamento confirmado — todos os cossenos ≥ 0.99.")
+          PYEOF
+
+      - name: Preparar assets para Release
+        if: success()
+        run: |
+          mkdir -p release_assets
+          cp model_cache/onnx/model_quantized.onnx release_assets/
+          cp model_cache/tokenizer.json             release_assets/
+          cp model_cache/tokenizer_config.json      release_assets/
+          for f in special_tokens_map.json sentencepiece.bpe.model config.json vocab.txt; do
+            [ -f "model_cache/$f" ] && cp "model_cache/$f" release_assets/ && echo "  copiado: $f" || true
+          done
+          echo ""
+          ls -lh release_assets/
+
+      - name: Criar GitHub Release
+        if: success()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="onnx-model-$(date +%Y%m%d-%H%M%S)"
+          SIZE=$(cat model_cache/model_size.txt 2>/dev/null || echo "?")
+          ALIGN=$(python3 -c "
+          import json
+          r = json.load(open('model_cache/alignment_result.json'))
+          ms = f\"{r['min_stored']:.6f}\" if r['min_stored'] is not None else 'N/A'
+          print(f\"min ST↔ONNX: {r['min_test']:.6f} | min ONNX↔stored: {ms}\")
+          " 2>/dev/null || echo "ver logs")
+
+          cat > release_notes.md <<NOTES
+          ## Modelo ONNX — paraphrase-multilingual-MiniLM-L12-v2 (int8)
+
+          Exportado automaticamente pela Action **Fase 0** e alinhamento verificado.
+
+          ### Métricas
+          - **Tamanho do modelo:** ${SIZE} MB
+          - **Alinhamento:** ${ALIGN}
+          - **Critério:** cosseno ≥ 0.99 vs sentence-transformers e vs embeddings armazenados ✅
+
+          ### Assets
+          | Arquivo | Descrição |
+          |---------|-----------|
+          | \`model_quantized.onnx\` | Modelo int8 — entrada: input_ids + attention_mask → last_hidden_state |
+          | \`tokenizer.json\` | Tokenizer BPE/SentencePiece |
+          | \`tokenizer_config.json\` | Configuração do tokenizer |
+          | \`special_tokens_map.json\` | Tokens especiais |
+          | \`sentencepiece.bpe.model\` | Vocabulário SentencePiece |
+          | \`config.json\` | Configuração do modelo |
+
+          ### Como usar no app (Fase 1)
+          \`\`\`js
+          // 1. Baixar model_quantized.onnx → FileSystem.documentDirectory (lazy, 1º uso)
+          // 2. Tokenizar com tokenizer.json via @xenova/transformers AutoTokenizer
+          // 3. Rodar InferenceSession (onnxruntime-react-native)
+          // 4. Mean pooling (× attention_mask) + L2 normalize → vetor 384-d
+          // 5. Cosseno com vetores de assets/embeddings/<key>.json
+          \`\`\`
+          NOTES
+
+          ASSET_FILES=""
+          for f in \
+            release_assets/model_quantized.onnx \
+            release_assets/tokenizer.json \
+            release_assets/tokenizer_config.json \
+            release_assets/special_tokens_map.json \
+            release_assets/sentencepiece.bpe.model \
+            release_assets/config.json \
+            release_assets/vocab.txt
+          do
+            [ -f "$f" ] && ASSET_FILES="$ASSET_FILES $f"
+          done
+
+          gh release create "$TAG" \
+            --repo gptmaycondb/techguide-ia \
+            --title "ONNX Model — paraphrase-multilingual-MiniLM-L12-v2 (int8) [Fase 0]" \
+            --notes-file release_notes.md \
+            $ASSET_FILES
+
+          echo ""
+          echo "✅ Release criado: $TAG"
+          echo "URL: https://github.com/gptmaycondb/techguide-ia/releases/tag/$TAG"
+
+      - name: Sumário do Job
+        if: always()
+        run: |
+          python3 - <<'PYEOF'
+          import json, os
+          from pathlib import Path
+
+          lines = ["## Fase 0 — Resultado\n"]
+
+          size_file = Path("model_cache/model_size.txt")
+          if size_file.exists():
+              lines.append(f"- **model_quantized.onnx:** {size_file.read_text().strip()} MB")
+
+          result_file = Path("model_cache/alignment_result.json")
+          if result_file.exists():
+              r = json.loads(result_file.read_text())
+              ms = f"{r['min_stored']:.6f}" if r["min_stored"] is not None else "N/A"
+              lines.append(f"- **Cosseno ST↔ONNX (min):** {r['min_test']:.6f}  ({r['n_test']} frases)")
+              lines.append(f"- **Cosseno ONNX↔stored (min):** {ms}  ({r['n_stored']} chunks)")
+              lines.append(f"- **Status:** {'✅ APROVADO' if r['ok'] else '❌ REPROVADO'}")
+          else:
+              lines.append("- **Alinhamento:** não executado (falhou em etapa anterior)")
+
+          summary = "\n".join(lines) + "\n"
+          print(summary)
+
+          sp = os.environ.get("GITHUB_STEP_SUMMARY")
+          if sp:
+              Path(sp).write_text(summary)
+          PYEOF
