@@ -839,6 +839,47 @@ def propagate_sibling_descriptions(index: dict) -> int:
                     index[pfx].append(new_entry)
                     count += 1
 
+    # ── HP: cross-group (entrada curta menciona código de grupo adjacente) ─────
+    HP_CODE_IN_TEXT_RE = re.compile(r'\b(\d{2}\.[0-9A-F]{1,2}\.[0-9A-F]{2})\b', re.IGNORECASE)
+    for key in list(index.keys()):
+        if not HP_FULL_RE.match(key):
+            continue
+        own_entries = index.get(key, [])
+        if not own_entries:
+            continue
+        own_best = max(own_entries, key=lambda e: len(e['text']))
+        if len(own_best['text']) >= 300:
+            continue
+        if HP_COMPLETE_RE.search(own_best['text']):
+            continue
+        mentioned = HP_CODE_IN_TEXT_RE.findall(own_best['text'])
+        for ref_code in mentioned:
+            ref_key = ref_code if ref_code in index else (ref_code.upper() if ref_code.upper() in index else None)
+            if ref_key is None or ref_key == key:
+                continue
+            ref_entries = index.get(ref_key, [])
+            if not ref_entries:
+                continue
+            ref_best = max(ref_entries, key=lambda e: len(e['text']))
+            if len(ref_best['text']) < 400:
+                continue
+            m = HP_ACTION_RE.search(ref_best['text'])
+            if not m:
+                continue
+            action_block = ref_best['text'][m.start():][:4000]
+            own_desc = own_best['text'].rstrip(' ●\n')
+            synthetic = own_desc + '\n\n' + action_block
+            new_entry = {'key': own_best['key'], 'text': synthetic}
+            if not any(e['text'] == synthetic for e in index[key]):
+                index[key].append(new_entry)
+                count += 1
+            parts = key.split('.')
+            for pfx in ['.'.join(parts[:2]), parts[0]]:
+                if pfx in index and not any(e['text'] == synthetic for e in index[pfx]):
+                    index[pfx].append(new_entry)
+                    count += 1
+            break
+
     # ── Ricoh: grupos SCxxx ───────────────────────────────────────────────────
     RICOH_FULL_RE = re.compile(r'^SC(\d{3})-(\d{2})$')
     ricoh_groups: dict[str, list[str]] = defaultdict(list)
@@ -873,6 +914,57 @@ def propagate_sibling_descriptions(index: dict) -> int:
                 count += 1
 
             # Variante sem hífen (SC22001)
+            no_h = key.replace('-', '')
+            if no_h in index and no_h != key:
+                if not any(e['text'] == synthetic for e in index[no_h]):
+                    index[no_h].append(new_entry)
+                    count += 1
+
+    # ── Ricoh: grupos adjacentes (quando grupo não tem irmão rico) ───────────
+    RICOH_ADJ_ACTION_RE = re.compile(
+        r'(Refer to|Turn.*off|Turn.*on|Clean|Replace|Reset|Adjust)',
+        re.IGNORECASE
+    )
+    for group, keys in list(ricoh_groups.items()):
+        group_max = max(
+            (max((len(e['text']) for e in index.get(k, [])), default=0) for k in keys),
+            default=0
+        )
+        if group_max >= 300:
+            continue  # grupo já tem conteúdo suficiente
+        sc_num = int(group[2:])
+        adj_rich_entry = None
+        for delta in [1, -1]:
+            next_group = f'SC{sc_num + delta:03d}'
+            if next_group not in ricoh_groups:
+                continue
+            next_keys = ricoh_groups[next_group]
+            adj_best_key = max(
+                next_keys,
+                key=lambda k: max((len(e['text']) for e in index.get(k, [])), default=0)
+            )
+            adj_candidate = max(index.get(adj_best_key, [{'text': ''}]), key=lambda e: len(e['text']))
+            if len(adj_candidate['text']) < 120:
+                continue
+            if not RICOH_ADJ_ACTION_RE.search(adj_candidate['text']):
+                continue
+            adj_rich_entry = adj_candidate
+            break
+        if not adj_rich_entry:
+            continue
+        for key in keys:
+            own_entries = index.get(key, [])
+            if not own_entries:
+                continue
+            own_best = max(own_entries, key=lambda e: len(e['text']))
+            if len(own_best['text']) >= 120:
+                continue
+            own_line = own_best['text'].rstrip('\n')
+            synthetic = own_line + '\n\n' + adj_rich_entry['text']
+            new_entry = {'key': own_best['key'], 'text': synthetic}
+            if not any(e['text'] == synthetic for e in index[key]):
+                index[key].append(new_entry)
+                count += 1
             no_h = key.replace('-', '')
             if no_h in index and no_h != key:
                 if not any(e['text'] == synthetic for e in index[no_h]):
