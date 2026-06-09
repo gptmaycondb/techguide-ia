@@ -40,7 +40,7 @@ jobs:
         run: npx expo prebuild --platform android --no-install
 
       - name: Fix minSdkVersion post-prebuild
-        run: sed -i 's/minSdkVersion [0-9]*/minSdkVersion 24/g' android/app/build.gradle
+        run: sed -i 's/minSdkVersion = [0-9]\+/minSdkVersion = 24/' android/build.gradle
 
       - name: Bundle JS
         run: |
