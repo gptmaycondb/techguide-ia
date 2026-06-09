@@ -384,11 +384,14 @@ def extract_hp_errors_from_cpmd(text: str) -> dict:
 
     # Padrão que captura a PRIMEIRA linha com um ou mais códigos HP
     # Suporta "XX.YY.ZZ", "XX.YY.ZZ, XX.YY.ZZ", "XX.YY.ZZ or XX.YY.ZZ"
+    # O delimitador após o código aceita espaço OU ":" colado — alguns blocos
+    # (ex.: base 53 "53.B0.01: Tray 1 feed roller…", 60.xx, 65.80.A0, 80.03.xx)
+    # usam dois-pontos sem espaço, que o padrão antigo (só "\s+") descartava.
     CODE = r'\d{2}(?:\.[0-9A-Z*]{2,3})+'
     MULTI_CODE = rf'({CODE}(?:(?:,\s*|\s+or\s+){CODE})*)'
     SECTION_START = re.compile(
         rf'(?:^|(?<=\n)|(?<=\. ))({CODE}(?:(?:,\s*|\s+or\s+){CODE})*)'
-        rf'(?:\s+(?!error messages|errors|\*))',
+        rf'(?:\s*:|\s+(?!error messages|errors|\*))',
         re.MULTILINE
     )
 
@@ -433,6 +436,14 @@ RICOH_SC_RE = re.compile(
     re.MULTILINE
 )
 
+# Limite de fim de seção: início da PRÓXIMA seção quando ela não é um SCxxx-yy
+# normal (que o RICOH_SC_RE já delimita). Cobre cabeçalho curinga "SC816-**" e
+# marcador de capítulo "6.10 SERVICE CALL 816-899" / "SERVICE CALL 700-792".
+SECTION_BOUNDARY_RE = re.compile(
+    r'(?:\n|^)(?:SC\d{3}-?\*\*|\d+(?:\.\d+)+\s+SERVICE\s+CALL\b|SERVICE\s+CALL\s+\d{3}-\d{3}\b)',
+    re.IGNORECASE
+)
+
 # Seções "When SC… is Displayed" — contêm Causa + Solução completas.
 # Cobre imc3000 (mixed case) e mpc3004 (UPPERCASE + numeração "6.12.2 WHEN SC370...").
 # Parênteses: [^\n]* greedy (acha o último ")" da linha sem backtracking exponencial).
@@ -460,7 +471,18 @@ def extract_ricoh_sc_sections(text: str, service_key: str = 'ricoh_imc3000_servi
         start = m.start()
         end = matches[i + 1].start() if i + 1 < len(matches) else start + 3000
         end = min(end, start + 3000)
-        section = text[start:end].strip()
+        section = text[start:end]
+
+        # A próxima seção pode usar cabeçalho curinga (ex.: "SC816-**") ou um
+        # marcador de capítulo ("6.10 SERVICE CALL 816-899") que o RICOH_SC_RE
+        # não reconhece como delimitador — então a seção "vaza" e engole texto
+        # de navegação que parece índice (e seria descartado em finalize, ex.:
+        # SC792-00 do MP C3004). Cortar no primeiro desses marcadores após o
+        # cabeçalho atual mantém só o conteúdo real da seção.
+        cut = SECTION_BOUNDARY_RE.search(section, 40)
+        if cut:
+            section = section[:cut.start()]
+        section = section.strip()
 
         if len(section) < 60:
             continue
@@ -475,6 +497,72 @@ def extract_ricoh_sc_sections(text: str, service_key: str = 'ricoh_imc3000_servi
         # Só adicionar ao grupo se ainda não tiver (primeiro representa o grupo)
         if not results[group]:
             results[group].append(entry)
+
+    return results
+
+# Cabeçalho de seção de solução com curinga: "681**" ou "SC681-**" + tipo A-D.
+# Esses blocos contêm a solução completa (passo a passo) válida para todos os
+# subcódigos da base.
+RICOH_WILDCARD_RE = re.compile(r'(?:^|\n)(?:SC)?(\d{3})-?\*\*\s*\n+\s*[A-D]\b', re.MULTILINE)
+
+# Linha da tabela "Service Call Conditions": código SEM prefixo SC seguido da
+# descrição curta — ex.: "681-12\n\nToner bottle: IDChip Communication error…".
+RICOH_CONDITION_ROW_RE = re.compile(
+    r'(?:^|\n)(\d{3})-(\d{2})\s*\n+\s*([A-Z][^\n]{7,})', re.MULTILINE)
+
+def extract_ricoh_condition_table(text: str, service_key: str = 'ricoh_imc3000_service') -> dict:
+    """
+    Captura a tabela "Service Call Conditions" do service manual Ricoh, onde os
+    subcódigos aparecem SEM o prefixo "SC" (ex.: "681-12" em vez de "SC681-12").
+
+    Necessário porque alguns SC só existem nesse formato: SC681/SC682 (toner /
+    TD sensor ID chip — 32 subcódigos cada) têm a solução num bloco curinga
+    "681**" e a identificação por subcódigo apenas nesta tabela; e SC912
+    (External controller error) aparece só aqui no IM C3000. O RICOH_SC_RE exige
+    "SC" literal e perdia todos esses códigos.
+
+    Cada entry recebe a descrição da linha + (quando existe) o bloco de solução
+    curinga da base, para respostas completas por subcódigo.
+    """
+    results = defaultdict(list)
+
+    # 1. Coletar blocos de solução curinga (SCxxx** … passos), por base.
+    solutions = {}
+    wc_matches = list(RICOH_WILDCARD_RE.finditer(text))
+    for i, m in enumerate(wc_matches):
+        base = m.group(1)
+        start = m.start()
+        end = min(wc_matches[i + 1].start() if i + 1 < len(wc_matches) else start + 2500,
+                  start + 2500)
+        sol = re.sub(r'[ \t]{3,}', '  ', text[start:end].strip())
+        if len(sol) > 80 and base not in solutions:
+            solutions[base] = sol
+
+    # 2. Percorrer a tabela de condições (código sem SC + descrição curta).
+    seen_groups = set()
+    for m in RICOH_CONDITION_ROW_RE.finditer(text):
+        base, suffix, desc = m.group(1), m.group(2), m.group(3).strip()
+        if not (100 <= int(base) <= 999):
+            continue
+        # Filtro anti-ruído: descrição real tem ao menos uma minúscula
+        # (descarta linhas de part number / cabeçalho em CAIXA ALTA).
+        if not any(c.islower() for c in desc):
+            continue
+
+        group  = f'SC{base}'
+        full   = f'{group}{suffix}'   # SC68112
+        hyphen = f'{group}-{suffix}'  # SC681-12
+
+        body = f'{group}-{suffix}\n{desc}'
+        if base in solutions:
+            body += f'\n\n{solutions[base]}'
+        entry = {'key': service_key, 'text': body}
+
+        results[full].append(entry)
+        results[hyphen].append(entry)
+        if group not in seen_groups:
+            results[group].append(entry)
+            seen_groups.add(group)
 
     return results
 
@@ -669,6 +757,14 @@ def build_error_codes_index() -> dict:
                     index[code].append(e)
     unique_sc = len([k for k in ricoh_errors if re.fullmatch(r'SC\d{3}-\d{2}', k)])
     print(f'  → {unique_sc} SC codes completos + {len(sc_groups)} grupos do service Ricoh')
+    ricoh_table = extract_ricoh_condition_table(ricoh_svc_text)
+    table_count = 0
+    for code, entries in ricoh_table.items():
+        for e in entries:
+            if not any(x['key'] == 'ricoh_imc3000_service' and x['text'] == e['text'] for x in index[code]):
+                index[code].append(e)
+                table_count += 1
+    print(f'  → {table_count} entradas da tabela de condições (sem prefixo SC: SC681/682/912 etc) (imc3000)')
     ricoh_detailed = extract_ricoh_sc_detailed_sections(ricoh_svc_text)
     detailed_count = 0
     for code, entries in ricoh_detailed.items():
@@ -691,6 +787,14 @@ def build_error_codes_index() -> dict:
                     index[code].append(e)
     mpc_unique = len([k for k in mpc_errors if re.fullmatch(r'SC\d{3}-\d{2}', k)])
     print(f'  → {mpc_unique} SC codes completos + {len(mpc_groups)} grupos do service MP C3004/3504')
+    mpc_table = extract_ricoh_condition_table(mpc_svc_text, 'ricoh_mpc3004_service')
+    mpc_table_count = 0
+    for code, entries in mpc_table.items():
+        for e in entries:
+            if not any(x['key'] == 'ricoh_mpc3004_service' and x['text'] == e['text'] for x in index[code]):
+                index[code].append(e)
+                mpc_table_count += 1
+    print(f'  → {mpc_table_count} entradas da tabela de condições (sem prefixo SC: SC681/682 etc) (mpc3004)')
     mpc_detailed = extract_ricoh_sc_detailed_sections(mpc_svc_text, 'ricoh_mpc3004_service')
     mpc_detailed_count = 0
     for code, entries in mpc_detailed.items():

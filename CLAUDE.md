@@ -422,8 +422,8 @@ const TIPS = TIPS_BY_BRAND[manual.brand] || TIPS_BY_BRAND.generic;
 
 | Marca   | Formato de código                  | Parser atual       |
 |---------|------------------------------------|--------------------|
-| HP      | `49.XX.YZ`                         | `extract_hp_errors_from_cpmd()` |
-| Ricoh   | `SC20200` ou `SC285-00` (hífen)    | `extract_ricoh_sc_sections(text, service_key)` |
+| HP      | `49.XX.YZ` (espaço **ou** `:` colado, ex `53.B0.01:`) | `extract_hp_errors_from_cpmd()` |
+| Ricoh   | `SC20200` / `SC285-00` (hífen) / `681**` (curinga, sem `SC`) | `extract_ricoh_sc_sections()` + `extract_ricoh_condition_table()` |
 | Canon   | `Exxx`, `Fxxx`                     | ⚠ não implementado |
 | Kyocera | `C-xxxx`                           | ⚠ não implementado |
 | Xerox   | `xxx-xxx`                          | ⚠ não implementado |
@@ -433,6 +433,24 @@ const TIPS = TIPS_BY_BRAND[manual.brand] || TIPS_BY_BRAND.generic;
 > Ambos os parsers (`extract_ricoh_sc_sections` e `extract_ricoh_sc_groups`) são
 > parametrizados por `service_key` — sempre passe a chave do modelo para que os códigos
 > fiquem atribuídos ao índice correto no `error_codes_index.json`.
+
+> **Ricoh — tabela "Service Call Conditions" (`extract_ricoh_condition_table`):** alguns SC só
+> aparecem nessa tabela **sem o prefixo `SC`** (ex: `681-12`, `912-00`) e usam um bloco de
+> solução curinga `681**`. O `RICOH_SC_RE` (que exige `SC`) os perdia inteiros — SC681/SC682
+> (toner / TD sensor ID chip, 32 subcódigos cada) e SC912 (External controller error). Esse
+> parser captura as linhas `\d{3}-\d{2}` + descrição, anexa o bloco de solução curinga da base,
+> e filtra ruído exigindo ao menos uma minúscula na descrição. Roda **depois** das seções
+> completas, então só agrega (entries longos vêm primeiro na busca).
+
+> **Ricoh — corte de fim de seção (`SECTION_BOUNDARY_RE`):** quando a próxima seção usa cabeçalho
+> curinga (`SC816-**`) ou marcador de capítulo (`6.10 SERVICE CALL 816-899`), o `RICOH_SC_RE`
+> não a reconhece como delimitador e a seção anterior "vaza" 3000 chars, engolindo texto de
+> navegação que `finalize_error_index` descartaria como índice remissivo (era o caso do
+> SC792-00 do MP C3004). O `extract_ricoh_sc_sections` agora trunca nesse limite.
+
+> **HP — delimitador `:` colado:** o `SECTION_START` aceita espaço **ou** `:` após o código.
+> A base 53 (e 42/60/65/80 parciais) usa `53.B0.01:` sem espaço, que o padrão antigo (só `\s+`)
+> descartava. Sem isso, toda a família 53.XX.YZ ficava impesquisável no E52645 e E62655.
 
 Para adicionar um parser novo, seguir o padrão de `extract_ricoh_sc_sections()`:
 regex que captura o código + seção de texto até o próximo código.

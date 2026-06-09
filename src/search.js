@@ -132,7 +132,9 @@ export function searchErrorCode(query, indexKey) {
   // Normaliza "SC 400" → "SC400", "SC 543-00" → "SC543-00"
   const q = query.trim().replace(/\b(SC)\s+(\d)/gi, '$1$2');
   const codes = [
-    ...(q.toUpperCase().match(/SC\d{3,6}/g) || []),
+    // Captura o sufixo "-NN" quando presente (ex: "SC681-12") para acertar o
+    // subcódigo exato; sem hífen continua casando a base/forma canônica (SC68112).
+    ...(q.toUpperCase().match(/SC\d{3,6}(?:-\d{2})?/g) || []),
     ...(q.match(/\b\d{2}\.\d{2}(?:\.\d{2}(?:\.\d{2})?)?\b/g) || []),
     // HP codes com dígitos hex (ex: 50.2F.00, 49.38.07 com letra)
     ...(q.toUpperCase().match(/\b\d{2}\.[0-9A-F]{2,3}(?:\.[0-9A-F]{2})?\b/g) || []),
