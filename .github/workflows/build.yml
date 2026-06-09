@@ -36,11 +36,13 @@ jobs:
       - name: Install dependencies
         run: npm install
 
+      - name: Pin onnxruntime-android version
+        run: |
+          sed -i 's/onnxruntime-android:latest\.integration@aar/onnxruntime-android:1.20.1@aar/' \
+            node_modules/onnxruntime-react-native/android/build.gradle
+
       - name: Expo Prebuild
         run: npx expo prebuild --platform android --no-install
-
-      - name: Fix minSdkVersion post-prebuild
-        run: sed -i 's/minSdkVersion = [0-9]\+/minSdkVersion = 24/' android/build.gradle
 
       - name: Bundle JS
         run: |
