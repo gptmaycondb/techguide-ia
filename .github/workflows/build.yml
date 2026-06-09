@@ -38,7 +38,7 @@ jobs:
 
       - name: Pin onnxruntime-android version
         run: |
-          sed -i 's/onnxruntime-android:latest\.integration@aar/onnxruntime-android:1.20.1@aar/' \
+          sed -i 's/onnxruntime-android:latest\.integration@aar/onnxruntime-android:1.20.0@aar/' \
             node_modules/onnxruntime-react-native/android/build.gradle
 
       - name: Expo Prebuild
