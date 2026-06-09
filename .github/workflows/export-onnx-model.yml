@@ -38,7 +38,8 @@ jobs:
             "onnx>=1.14" \
             "transformers>=4.40" \
             numpy \
-            huggingface_hub
+            huggingface_hub \
+            sympy
 
       - name: Baixar Xenova full-precision (model.onnx) + tokenizer
         run: |
