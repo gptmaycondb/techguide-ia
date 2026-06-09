@@ -1,0 +1,2671 @@
+{
+  "index_sha256": "3fd996c042b01fd411819b03116553e5928a3a230eeb8444361529ed18aac9a6",
+  "per_key": {
+    "cpmd": {
+      "candidates": 392,
+      "covered": 217,
+      "missing": [
+        "10.22.15",
+        "13.A3.D3",
+        "13.A3.D4",
+        "13.A3.D5",
+        "13.A4.D4",
+        "13.A4.D5",
+        "13.A5.D5",
+        "13.B2.A1",
+        "13.B2.A2",
+        "13.B2.A3",
+        "13.B2.A4",
+        "13.B2.A5",
+        "13.B2.AD",
+        "13.B2.D2",
+        "13.B2.D3",
+        "13.B2.D4",
+        "13.B2.D5",
+        "13.B2.DD",
+        "13.B2.FF",
+        "13.B9.A1",
+        "13.B9.A2",
+        "13.B9.A3",
+        "13.B9.A4",
+        "13.B9.A5",
+        "13.B9.AD",
+        "13.B9.B4",
+        "13.B9.B5",
+        "13.B9.C2",
+        "13.B9.C3",
+        "13.B9.C4",
+        "13.B9.C5",
+        "13.B9.C6",
+        "13.B9.CB",
+        "13.B9.CC",
+        "13.B9.CD",
+        "13.B9.D3",
+        "13.B9.D4",
+        "13.B9.D5",
+        "13.B9.DD",
+        "13.E1.D3",
+        "32.08.A1",
+        "32.08.A2",
+        "33.01.01",
+        "33.01.02",
+        "33.01.03",
+        "33.05.01",
+        "33.05.02",
+        "33.05.03",
+        "33.05.04",
+        "33.05.06",
+        "33.05.07",
+        "33.05.08",
+        "33.05.09",
+        "33.05.10",
+        "33.05.11",
+        "33.05.12",
+        "33.05.21",
+        "33.05.22",
+        "33.05.23",
+        "33.05.24",
+        "33.05.51",
+        "33.05.52",
+        "33.05.53",
+        "33.05.54",
+        "41.03.F0",
+        "41.03.F1",
+        "41.03.F2",
+        "41.03.F3",
+        "41.03.F4",
+        "41.03.F5",
+        "41.03.FD",
+        "50.2F.00",
+        "53.B0.02",
+        "53.B0.03",
+        "53.B0.04",
+        "53.B0.05",
+        "53.B0.06",
+        "53.B1.01",
+        "53.B1.02",
+        "53.B1.03",
+        "53.B1.04",
+        "53.B1.05",
+        "53.B1.06",
+        "53.B2.01",
+        "53.B2.02",
+        "53.B2.03",
+        "53.B2.04",
+        "53.B2.05",
+        "53.B2.06",
+        "53.B3.01",
+        "53.B3.02",
+        "53.B3.03",
+        "53.B3.04",
+        "53.B3.06",
+        "53.C1.02",
+        "53.C1.04",
+        "53.C1.05",
+        "53.C1.06",
+        "55.00.01",
+        "55.00.03",
+        "55.01.06",
+        "55.02.06",
+        "59.A2.03",
+        "59.A2.04",
+        "59.A2.05",
+        "60.00.02",
+        "60.00.03",
+        "60.00.04",
+        "60.01.02",
+        "60.01.03",
+        "60.01.04",
+        "66.80.01",
+        "66.80.02",
+        "66.80.03",
+        "66.80.21",
+        "66.80.22",
+        "66.80.23",
+        "66.80.33",
+        "66.80.35",
+        "66.80.51",
+        "66.80.55",
+        "66.80.56",
+        "66.80.57",
+        "66.80.58",
+        "66.80.59",
+        "66.80.60",
+        "66.80.61",
+        "66.80.63",
+        "66.80.64",
+        "66.80.65",
+        "66.80.70",
+        "66.80.71",
+        "66.80.72",
+        "66.80.73",
+        "66.80.74",
+        "66.80.75",
+        "66.80.76",
+        "80.00.00",
+        "80.01.01",
+        "80.01.02",
+        "80.01.03",
+        "80.01.04",
+        "80.01.05",
+        "80.01.80",
+        "80.01.81",
+        "80.01.82",
+        "80.01.8B",
+        "80.01.8C",
+        "80.03.01",
+        "80.03.02",
+        "80.03.03",
+        "80.03.04",
+        "80.03.05",
+        "80.03.06",
+        "80.03.07",
+        "80.03.08",
+        "80.03.09",
+        "80.03.10",
+        "80.03.12",
+        "80.03.14",
+        "80.03.15",
+        "80.03.17",
+        "80.03.18",
+        "82.00.00",
+        "82.73.45",
+        "99.00.20",
+        "99.00.21",
+        "99.00.22",
+        "99.00.23",
+        "99.00.24",
+        "99.00.25",
+        "99.00.26",
+        "99.01.10",
+        "99.01.20",
+        "99.01.21"
+      ],
+      "missing_detail": {
+        "10.22.15": {
+          "context": "system component that is causing the error. For example, in error code 10.22.15, 10 = Supplies for HP LaserJets. ● The remaining four",
+          "count": 1
+        },
+        "13.A3.D3": {
+          "context": "where the jam occurred. Z = The tray being used to print the job. ● 13.A3.D3, 13.A3.D4, 13.A3.D5 = Tray 3: Paper did not reach Tray 3 paper",
+          "count": 1
+        },
+        "13.A3.D4": {
+          "context": "where the jam occurred. Z = The tray being used to print the job. ● 13.A3.D3, 13.A3.D4, 13.A3.D5 = Tray 3: Paper did not reach Tray 3 paper",
+          "count": 1
+        },
+        "13.A3.D5": {
+          "context": "where the jam occurred. Z = The tray being used to print the job. ● 13.A3.D3, 13.A3.D4, 13.A3.D5 = Tray 3: Paper did not reach Tray 3 paper",
+          "count": 1
+        },
+        "13.A4.D4": {
+          "context": "Feed Sensor (PS432) when pulling from Tray 3-5 ● 13.A4.D4, 13.A4.D5 = Tray 4: Paper did not reach Tray 4 paper Feed Sensor (PS432)",
+          "count": 1
+        },
+        "13.A4.D5": {
+          "context": "Feed Sensor (PS432) when pulling from Tray 3-5 ● 13.A4.D4, 13.A4.D5 = Tray 4: Paper did not reach Tray 4 paper Feed Sensor (PS432)",
+          "count": 1
+        },
+        "13.A5.D5": {
+          "context": "when pulling from Tray 4-5 ● 13.A5.D5 = Tray 5 Paper did not reach Tray 5 paper Feed Sensor (PS432) when pulling from Tray 5",
+          "count": 1
+        },
+        "13.B2.A1": {
+          "context": "● 13.B2.A1",
+          "count": 1
+        },
+        "13.B2.A2": {
+          "context": "● 13.B2.A2",
+          "count": 1
+        },
+        "13.B2.A3": {
+          "context": "● 13.B2.A3",
+          "count": 1
+        },
+        "13.B2.A4": {
+          "context": "● 13.B2.A4",
+          "count": 1
+        },
+        "13.B2.A5": {
+          "context": "● 13.B2.A5",
+          "count": 1
+        },
+        "13.B2.AD": {
+          "context": "● 13.B2.AD",
+          "count": 1
+        },
+        "13.B2.D2": {
+          "context": "● 13.B2.D2",
+          "count": 2
+        },
+        "13.B2.D3": {
+          "context": "● 13.B2.D3",
+          "count": 1
+        },
+        "13.B2.D4": {
+          "context": "● 13.B2.D4",
+          "count": 1
+        },
+        "13.B2.D5": {
+          "context": "● 13.B2.D5",
+          "count": 1
+        },
+        "13.B2.DD": {
+          "context": "● 13.B2.DD",
+          "count": 1
+        },
+        "13.B2.FF": {
+          "context": "elevating the issue. (J151, J110, J144) 13.B2.FF Jam in top cover Paper residual jam in top cover at image area. Paper present at SR2 at",
+          "count": 2
+        },
+        "13.B9.A1": {
+          "context": "● 13.B9.A1",
+          "count": 1
+        },
+        "13.B9.A2": {
+          "context": "● 13.B9.A2",
+          "count": 1
+        },
+        "13.B9.A3": {
+          "context": "● 13.B9.A3",
+          "count": 1
+        },
+        "13.B9.A4": {
+          "context": "● 13.B9.A4",
+          "count": 1
+        },
+        "13.B9.A5": {
+          "context": "● 13.B9.A5",
+          "count": 1
+        },
+        "13.B9.AD": {
+          "context": "● 13.B9.AD",
+          "count": 1
+        },
+        "13.B9.B4": {
+          "context": "● 13.B9.B4",
+          "count": 1
+        },
+        "13.B9.B5": {
+          "context": "● 13.B9.B5",
+          "count": 1
+        },
+        "13.B9.C2": {
+          "context": "● 13.B9.C2 (event code) Fuser wrap jam when Normal. ● 13.B9.C3 (event code) Fuser wrap jam when Light 1 or Light 2 (see event log",
+          "count": 1
+        },
+        "13.B9.C3": {
+          "context": "● 13.B9.C2 (event code) Fuser wrap jam when Normal. ● 13.B9.C3 (event code) Fuser wrap jam when Light 1 or Light 2 (see event log",
+          "count": 1
+        },
+        "13.B9.C4": {
+          "context": "secondary jam information for specific code). ● 13.B9.C4 (event code) Fuser wrap jam when Heavy 1. ● 13.B9.C5 (event code) Fuser wrap",
+          "count": 1
+        },
+        "13.B9.C5": {
+          "context": "secondary jam information for specific code). ● 13.B9.C4 (event code) Fuser wrap jam when Heavy 1. ● 13.B9.C5 (event code) Fuser wrap",
+          "count": 1
+        },
+        "13.B9.C6": {
+          "context": "jam when Heavy 2. ● 13.B9.C6 (event code) Fuser wrap jam when Heavy paper 3. ● 13.B9.CB (event code) Fuser wrap jam when",
+          "count": 1
+        },
+        "13.B9.CB": {
+          "context": "jam when Heavy 2. ● 13.B9.C6 (event code) Fuser wrap jam when Heavy paper 3. ● 13.B9.CB (event code) Fuser wrap jam when",
+          "count": 1
+        },
+        "13.B9.CC": {
+          "context": "Transparency. ● 13.B9.CC (event code) Fuser wrap jam when Label. ● 13.B9.CD (event code) Fuser wrap jam when Envelope 1 or",
+          "count": 1
+        },
+        "13.B9.CD": {
+          "context": "Transparency. ● 13.B9.CC (event code) Fuser wrap jam when Label. ● 13.B9.CD (event code) Fuser wrap jam when Envelope 1 or",
+          "count": 1
+        },
+        "13.B9.D3": {
+          "context": "● 13.B9.D3",
+          "count": 1
+        },
+        "13.B9.D4": {
+          "context": "● 13.B9.D4",
+          "count": 1
+        },
+        "13.B9.D5": {
+          "context": "● 13.B9.D5",
+          "count": 1
+        },
+        "13.B9.DD": {
+          "context": "● 13.B9.DD",
+          "count": 1
+        },
+        "13.E1.D3": {
+          "context": "3. Type the error code (for example, 13.E1.D3) in the Error Code Lookup field, and then select the search icon. 1 2 4. The error code",
+          "count": 2
+        },
+        "32.08.A1": {
+          "context": "32.08.A1, 32.08.A2, 32.08.A3",
+          "count": 3
+        },
+        "32.08.A2": {
+          "context": "32.08.A1, 32.08.A2, 32.08.A3",
+          "count": 3
+        },
+        "33.01.01": {
+          "context": "A save or restore process has occurred. ● 33.01.01 (event code) A restore process has occurred. ● 33.01.02 (event code) A save process",
+          "count": 1
+        },
+        "33.01.02": {
+          "context": "A save or restore process has occurred. ● 33.01.01 (event code) A restore process has occurred. ● 33.01.02 (event code) A save process",
+          "count": 1
+        },
+        "33.01.03": {
+          "context": "has occurred. ● 33.01.03 (event code) Save recover functionality OK after previously being disabled.",
+          "count": 1
+        },
+        "33.05.01": {
+          "context": "The printer detected and recovered from a corrupted version of BIOS. ● 33.05.01 Boot code corrupt (Event code) ● 33.05.02 Boot code",
+          "count": 3
+        },
+        "33.05.02": {
+          "context": "The printer detected and recovered from a corrupted version of BIOS. ● 33.05.01 Boot code corrupt (Event code) ● 33.05.02 Boot code",
+          "count": 3
+        },
+        "33.05.03": {
+          "context": "corrupt (Event code) ● 33.05.03 Boot code corrupt (Event code) 228 Chapter 6 Numerical control panel messages",
+          "count": 3
+        },
+        "33.05.04": {
+          "context": "The newly downloaded firmware failed to cryptographically validate the BIOS code. ● 33.05.04 Security alert ● 33.05.04 Upgrade corrupt (Event code) ● 33.05.05 Security alert ● 33.05.05 Boot code corru",
+          "count": 4
+        },
+        "33.05.06": {
+          "context": "The newly downloaded firmware failed to cryptographically validate the BIOS code. ● 33.05.04 Security alert ● 33.05.04 Upgrade corrupt (Event code) ● 33.05.05 Security alert ● 33.05.05 Boot code corru",
+          "count": 4
+        },
+        "33.05.07": {
+          "context": "The newly downloaded firmware failed to cryptographically validate the BIOS code. ● 33.05.04 Security alert ● 33.05.04 Upgrade corrupt (Event code) ● 33.05.05 Security alert ● 33.05.05 Boot code corru",
+          "count": 4
+        },
+        "33.05.08": {
+          "context": "● 33.05.07 Security alert ● 33.05.07 Upgrade corrupt (event code) ● 33.05.08 Invalid boot attempt (event code) ● 33.05.09 Downgrade",
+          "count": 1
+        },
+        "33.05.09": {
+          "context": "● 33.05.07 Security alert ● 33.05.07 Upgrade corrupt (event code) ● 33.05.08 Invalid boot attempt (event code) ● 33.05.09 Downgrade",
+          "count": 1
+        },
+        "33.05.10": {
+          "context": "An error occurred with a firmware file digital signature or an error with the certificate used to validate the firmware file certificate. ● 33.05.10",
+          "count": 2
+        },
+        "33.05.11": {
+          "context": "Security alert ● 33.05.10 Firmware verification Error: XX (Event code) ● 33.05.11 Security alert ● 33.05.11 Firmware verification Error: XX",
+          "count": 2
+        },
+        "33.05.12": {
+          "context": "(Event code) ● 33.05.12 Security alert ● 33.05.12 Firmware verification Error: XX (Event code)",
+          "count": 2
+        },
+        "33.05.21": {
+          "context": "system memory. ● 33.05.21 Security alert ● 33.05.21 Potential intrusion (Event code) The intrusion detection memory process heartbeat was",
+          "count": 2
+        },
+        "33.05.22": {
+          "context": "not detected. ● 33.05.22 Security alert ● 33.05.22 Cannot scan for potential intrusions (Event code) The intrusion detection memory process",
+          "count": 2
+        },
+        "33.05.23": {
+          "context": "did not initialize. ● 33.05.23 Security alert ● 33.05.23 Intrusion detection not initialized (Event code) ● 33.05.24 Intrusion detection",
+          "count": 2
+        },
+        "33.05.24": {
+          "context": "did not initialize. ● 33.05.23 Security alert ● 33.05.23 Intrusion detection not initialized (Event code) ● 33.05.24 Intrusion detection",
+          "count": 1
+        },
+        "33.05.51": {
+          "context": "system memory. ● 33.05.51 Security alert ● 33.05.51 Potential intrusion (Event code) The intrusion detection memory process heartbeat was",
+          "count": 2
+        },
+        "33.05.52": {
+          "context": "not detected. ● 33.05.52 Security alert ● 33.05.52 Cannot scan for potential intrusions (Event code) The intrusion detection memory process",
+          "count": 2
+        },
+        "33.05.53": {
+          "context": "did not initialize. ● 33.05.53 Security alert ● 33.05.53 Intrusion detection not initialized (Event code) ● 33.05.54 Intrusion detection",
+          "count": 2
+        },
+        "33.05.54": {
+          "context": "did not initialize. ● 33.05.53 Security alert ● 33.05.53 Intrusion detection not initialized (Event code) ● 33.05.54 Intrusion detection",
+          "count": 1
+        },
+        "41.03.F0": {
+          "context": "● 41.03.F0",
+          "count": 1
+        },
+        "41.03.F1": {
+          "context": "● 41.03.F1",
+          "count": 1
+        },
+        "41.03.F2": {
+          "context": "● 41.03.F2",
+          "count": 1
+        },
+        "41.03.F3": {
+          "context": "● 41.03.F3",
+          "count": 1
+        },
+        "41.03.F4": {
+          "context": "● 41.03.F4",
+          "count": 1
+        },
+        "41.03.F5": {
+          "context": "● 41.03.F5",
+          "count": 1
+        },
+        "41.03.FD": {
+          "context": "● 41.03.FD",
+          "count": 1
+        },
+        "50.2F.00": {
+          "context": "for a possible printer replacement. 50.2F.00 Fuser Error Fuser warm up failure.",
+          "count": 3
+        },
+        "53.B0.02": {
+          "context": "of life. ● 53.B0.02: Tray 2 feed roller nearing end of life. ● 53.B0.03: Tray 3 feed roller nearing end of life. ● 53.B0.04: Tray 4 feed roller",
+          "count": 2
+        },
+        "53.B0.03": {
+          "context": "of life. ● 53.B0.02: Tray 2 feed roller nearing end of life. ● 53.B0.03: Tray 3 feed roller nearing end of life. ● 53.B0.04: Tray 4 feed roller",
+          "count": 2
+        },
+        "53.B0.04": {
+          "context": "of life. ● 53.B0.02: Tray 2 feed roller nearing end of life. ● 53.B0.03: Tray 3 feed roller nearing end of life. ● 53.B0.04: Tray 4 feed roller",
+          "count": 2
+        },
+        "53.B0.05": {
+          "context": "nearing end of life. ● 53.B0.05: Tray 5 feed roller nearing end of life. ● 53.B0.06: Tray 6 feed roller nearing end of life.",
+          "count": 2
+        },
+        "53.B0.06": {
+          "context": "nearing end of life. ● 53.B0.05: Tray 5 feed roller nearing end of life. ● 53.B0.06: Tray 6 feed roller nearing end of life.",
+          "count": 2
+        },
+        "53.B1.01": {
+          "context": "Tray number. ● 53.B1.01: Tray 1 feed roller at end of life. ● 53.B1.02: Tray 2 feed roller at end of life. ● 53.B1.03: Tray 3 feed roller at end of",
+          "count": 1
+        },
+        "53.B1.02": {
+          "context": "Tray number. ● 53.B1.01: Tray 1 feed roller at end of life. ● 53.B1.02: Tray 2 feed roller at end of life. ● 53.B1.03: Tray 3 feed roller at end of",
+          "count": 1
+        },
+        "53.B1.03": {
+          "context": "Tray number. ● 53.B1.01: Tray 1 feed roller at end of life. ● 53.B1.02: Tray 2 feed roller at end of life. ● 53.B1.03: Tray 3 feed roller at end of",
+          "count": 1
+        },
+        "53.B1.04": {
+          "context": "life. ● 53.B1.04: Tray 4 feed roller at end of life. ● 53.B1.05: Tray 5 feed roller at end of life. ● 53.B1.06: Tray 6 feed roller at end of life.",
+          "count": 1
+        },
+        "53.B1.05": {
+          "context": "life. ● 53.B1.04: Tray 4 feed roller at end of life. ● 53.B1.05: Tray 5 feed roller at end of life. ● 53.B1.06: Tray 6 feed roller at end of life.",
+          "count": 1
+        },
+        "53.B1.06": {
+          "context": "life. ● 53.B1.04: Tray 4 feed roller at end of life. ● 53.B1.05: Tray 5 feed roller at end of life. ● 53.B1.06: Tray 6 feed roller at end of life.",
+          "count": 1
+        },
+        "53.B2.01": {
+          "context": "Tray number. ● 53.B2.01: Tray 1 feed roller brand new. ● 53.B2.02: Tray 2 feed roller brand new. ● 53.B2.03: Tray 3 feed roller brand new.",
+          "count": 1
+        },
+        "53.B2.02": {
+          "context": "Tray number. ● 53.B2.01: Tray 1 feed roller brand new. ● 53.B2.02: Tray 2 feed roller brand new. ● 53.B2.03: Tray 3 feed roller brand new.",
+          "count": 1
+        },
+        "53.B2.03": {
+          "context": "Tray number. ● 53.B2.01: Tray 1 feed roller brand new. ● 53.B2.02: Tray 2 feed roller brand new. ● 53.B2.03: Tray 3 feed roller brand new.",
+          "count": 1
+        },
+        "53.B2.04": {
+          "context": "● 53.B2.04: Tray 4 feed roller brand new. ● 53.B2.05: Tray 5 feed roller brand new. ● 53.B2.06: Tray 6 feed roller brand new.",
+          "count": 1
+        },
+        "53.B2.05": {
+          "context": "● 53.B2.04: Tray 4 feed roller brand new. ● 53.B2.05: Tray 5 feed roller brand new. ● 53.B2.06: Tray 6 feed roller brand new.",
+          "count": 1
+        },
+        "53.B2.06": {
+          "context": "● 53.B2.04: Tray 4 feed roller brand new. ● 53.B2.05: Tray 5 feed roller brand new. ● 53.B2.06: Tray 6 feed roller brand new.",
+          "count": 1
+        },
+        "53.B3.01": {
+          "context": "panel. \"Z\" = Tray number. ● 53.B3.01: Tray 1 feed roller brand new (engine detected). ● 53.B3.02: Tray 2 feed roller brand new (engine",
+          "count": 1
+        },
+        "53.B3.02": {
+          "context": "panel. \"Z\" = Tray number. ● 53.B3.01: Tray 1 feed roller brand new (engine detected). ● 53.B3.02: Tray 2 feed roller brand new (engine",
+          "count": 1
+        },
+        "53.B3.03": {
+          "context": "detected). ● 53.B3.03: Tray 3 feed roller brand new (engine detected). ● 53.B3.04: Tray 4 feed roller brand new (engine detected). ●",
+          "count": 1
+        },
+        "53.B3.04": {
+          "context": "detected). ● 53.B3.03: Tray 3 feed roller brand new (engine detected). ● 53.B3.04: Tray 4 feed roller brand new (engine detected). ●",
+          "count": 1
+        },
+        "53.B3.06": {
+          "context": "● 53.B3.06: Tray 6 feed roller brand new (engine detected).",
+          "count": 1
+        },
+        "53.C1.02": {
+          "context": "the tray was swapped out or the physical trays locks in the tray were removed and the guides changed. ● 53.C1.02: Tray 2 size mismatch. ●",
+          "count": 1
+        },
+        "53.C1.04": {
+          "context": "53.C1.03: Tray 3 size mismatch. ● 53.C1.04: Tray 4 size mismatch. ● 53.C1.05: Tray 5 size mismatch. ● 53.C1.06: Tray 6 size mismatch.",
+          "count": 1
+        },
+        "53.C1.05": {
+          "context": "53.C1.03: Tray 3 size mismatch. ● 53.C1.04: Tray 4 size mismatch. ● 53.C1.05: Tray 5 size mismatch. ● 53.C1.06: Tray 6 size mismatch.",
+          "count": 1
+        },
+        "53.C1.06": {
+          "context": "53.C1.03: Tray 3 size mismatch. ● 53.C1.04: Tray 4 size mismatch. ● 53.C1.05: Tray 5 size mismatch. ● 53.C1.06: Tray 6 size mismatch.",
+          "count": 1
+        },
+        "55.00.01": {
+          "context": "DC controller PCA error. ● 55.00.01 (event code) DC controller memory error. ● 55.00.03 (event code DC controller no engine response. ●",
+          "count": 1
+        },
+        "55.00.03": {
+          "context": "DC controller PCA error. ● 55.00.01 (event code) DC controller memory error. ● 55.00.03 (event code DC controller no engine response. ●",
+          "count": 1
+        },
+        "55.01.06": {
+          "context": "For instructions: See the Repair Service Manual for this product. 55.0x.yy to.continue.off.on DC controller PCA error. ● 55.01.06 (event code)",
+          "count": 1
+        },
+        "55.02.06": {
+          "context": "NVRAM memory data error warning. ● 55.02.06 (event code) NVRAM memory access error warning.",
+          "count": 1
+        },
+        "59.A2.03": {
+          "context": "number 59.A2.03 — Tray 3 59.A2.04 — Tray 4 59.A2.05 — Tray 5",
+          "count": 1
+        },
+        "59.A2.04": {
+          "context": "number 59.A2.03 — Tray 3 59.A2.04 — Tray 4 59.A2.05 — Tray 5",
+          "count": 1
+        },
+        "59.A2.05": {
+          "context": "number 59.A2.03 — Tray 3 59.A2.04 — Tray 4 59.A2.05 — Tray 5",
+          "count": 1
+        },
+        "60.00.02": {
+          "context": "60.00.02: Tray 2",
+          "count": 3
+        },
+        "60.00.03": {
+          "context": "60.00.03: Tray 3",
+          "count": 3
+        },
+        "60.00.04": {
+          "context": "60.00.04: Tray 4",
+          "count": 1
+        },
+        "60.01.02": {
+          "context": "NOTE: You can determine the tray number from the last digit in the error number. For example: ● 60.00.02 or 60.01.02 = Tray 2 ● 60.00.03",
+          "count": 3
+        },
+        "60.01.03": {
+          "context": "or 60.01.03 = Tray 3",
+          "count": 3
+        },
+        "60.01.04": {
+          "context": "60.01.04: Tray 4",
+          "count": 1
+        },
+        "66.80.01": {
+          "context": "An external paper handling accessory error has occurred. ● 66.80.01 (event code)",
+          "count": 1
+        },
+        "66.80.02": {
+          "context": "● 66.80.02 (event code)",
+          "count": 1
+        },
+        "66.80.03": {
+          "context": "● 66.80.03 (event code)",
+          "count": 1
+        },
+        "66.80.21": {
+          "context": "● 66.80.21 (event code)",
+          "count": 1
+        },
+        "66.80.22": {
+          "context": "● 66.80.22 (event code)",
+          "count": 1
+        },
+        "66.80.23": {
+          "context": "● 66.80.23 (event code)",
+          "count": 1
+        },
+        "66.80.33": {
+          "context": "● 66.80.33 (event code)",
+          "count": 1
+        },
+        "66.80.35": {
+          "context": "● 66.80.35 (event code)",
+          "count": 1
+        },
+        "66.80.51": {
+          "context": "● 66.80.51 (event code) System error (FW error) ● 66.80.55 (event code) System error 5 (FW error) ● 66.80.56 (event code) System error 6",
+          "count": 1
+        },
+        "66.80.55": {
+          "context": "● 66.80.51 (event code) System error (FW error) ● 66.80.55 (event code) System error 5 (FW error) ● 66.80.56 (event code) System error 6",
+          "count": 1
+        },
+        "66.80.56": {
+          "context": "● 66.80.51 (event code) System error (FW error) ● 66.80.55 (event code) System error 5 (FW error) ● 66.80.56 (event code) System error 6",
+          "count": 1
+        },
+        "66.80.57": {
+          "context": "(FW error) ● 66.80.57 (event code) System error 7 (FW error) ● 66.80.58 (event code) System error 8 (FW error) ● 66.80.59 (event code)",
+          "count": 1
+        },
+        "66.80.58": {
+          "context": "(FW error) ● 66.80.57 (event code) System error 7 (FW error) ● 66.80.58 (event code) System error 8 (FW error) ● 66.80.59 (event code)",
+          "count": 1
+        },
+        "66.80.59": {
+          "context": "(FW error) ● 66.80.57 (event code) System error 7 (FW error) ● 66.80.58 (event code) System error 8 (FW error) ● 66.80.59 (event code)",
+          "count": 1
+        },
+        "66.80.60": {
+          "context": "System error 9 (FW error) ● 66.80.60 (event code) System error 10 (FW error) ● 66.80.61 (event code) System error 11 (FW error) ●",
+          "count": 1
+        },
+        "66.80.61": {
+          "context": "System error 9 (FW error) ● 66.80.60 (event code) System error 10 (FW error) ● 66.80.61 (event code) System error 11 (FW error) ●",
+          "count": 1
+        },
+        "66.80.63": {
+          "context": "66.80.62 (event code) System error 12 (FW error) ● 66.80.63 (event code) System error 13 (FW error) ● 66.80.64 (event code) System error",
+          "count": 1
+        },
+        "66.80.64": {
+          "context": "66.80.62 (event code) System error 12 (FW error) ● 66.80.63 (event code) System error 13 (FW error) ● 66.80.64 (event code) System error",
+          "count": 1
+        },
+        "66.80.65": {
+          "context": "14 (FW error) ● 66.80.65 (event code) 336 Chapter 6 Numerical control panel messages",
+          "count": 1
+        },
+        "66.80.70": {
+          "context": "System error 15 (FW error) ● 66.80.70 (event code)",
+          "count": 1
+        },
+        "66.80.71": {
+          "context": "● 66.80.71 (event code)",
+          "count": 1
+        },
+        "66.80.72": {
+          "context": "● 66.80.72 (event code)",
+          "count": 1
+        },
+        "66.80.73": {
+          "context": "● 66.80.73 (event code)",
+          "count": 1
+        },
+        "66.80.74": {
+          "context": "● 66.80.74 (event code)",
+          "count": 1
+        },
+        "66.80.75": {
+          "context": "● 66.80.75 (event code)",
+          "count": 1
+        },
+        "66.80.76": {
+          "context": "● 66.80.76 (event code)",
+          "count": 1
+        },
+        "80.00.00": {
+          "context": "with an external I/O device, such as a Jetdirect card, an EIO card, or an external hard disk. ● 80.00.00 error: Managed device lost connection",
+          "count": 1
+        },
+        "80.01.01": {
+          "context": "to service provider. The product is under a service contract and has lost network connectivity for license validation. ● 80.01.01 error: HP",
+          "count": 1
+        },
+        "80.01.02": {
+          "context": "Accessibility Assistant connection error. Managed device is unable to establish a connection with the HP Accessibility Assistant. ● 80.01.02",
+          "count": 1
+        },
+        "80.01.03": {
+          "context": "error: Managed Device Unknown HP Accessibility Assistant error. ● 80.01.03 error: HP Accessibility Assistant connection lost. The product",
+          "count": 1
+        },
+        "80.01.04": {
+          "context": "lost communication with the HP Accessibility Assistant. ● 80.01.04 error: HP Accessibility Assistant disconnected. The HP Accessibility",
+          "count": 1
+        },
+        "80.01.05": {
+          "context": "● 80.01.05 error: HP Accessibility Assistant detected. Restart required. The HP Accessibility Assistant was connected to the product after turn",
+          "count": 1
+        },
+        "80.01.80": {
+          "context": "JetDirect print server critical error has occurred. ● 80.01.80: (event log) No heartbeat ● 80.01.81: (event log) Reclaim timeout ● 80.01.82:",
+          "count": 1
+        },
+        "80.01.81": {
+          "context": "JetDirect print server critical error has occurred. ● 80.01.80: (event log) No heartbeat ● 80.01.81: (event log) Reclaim timeout ● 80.01.82:",
+          "count": 1
+        },
+        "80.01.82": {
+          "context": "JetDirect print server critical error has occurred. ● 80.01.80: (event log) No heartbeat ● 80.01.81: (event log) Reclaim timeout ● 80.01.82:",
+          "count": 1
+        },
+        "80.01.8B": {
+          "context": "(event log) Invalid data length ● 80.01.8B: (event log) Invalid max outstanding packet header field ● 80.01.8C: (event log) Invalid channel",
+          "count": 1
+        },
+        "80.01.8C": {
+          "context": "(event log) Invalid data length ● 80.01.8B: (event log) Invalid max outstanding packet header field ● 80.01.8C: (event log) Invalid channel",
+          "count": 1
+        },
+        "80.03.01": {
+          "context": "mapping response ● 80.03.01: (event log) No PGP buffers ● 80.03.02: (event log) Channel table full ● 80.03.03: (event log) Producer index",
+          "count": 1
+        },
+        "80.03.02": {
+          "context": "mapping response ● 80.03.01: (event log) No PGP buffers ● 80.03.02: (event log) Channel table full ● 80.03.03: (event log) Producer index",
+          "count": 1
+        },
+        "80.03.03": {
+          "context": "mapping response ● 80.03.01: (event log) No PGP buffers ● 80.03.02: (event log) Channel table full ● 80.03.03: (event log) Producer index",
+          "count": 1
+        },
+        "80.03.04": {
+          "context": "not reset ● 80.03.04: (event log) Consumer index not reset ● 80.03.05: (event log) Queue position size too small ● 80.03.06: (event log)",
+          "count": 1
+        },
+        "80.03.05": {
+          "context": "not reset ● 80.03.04: (event log) Consumer index not reset ● 80.03.05: (event log) Queue position size too small ● 80.03.06: (event log)",
+          "count": 1
+        },
+        "80.03.06": {
+          "context": "not reset ● 80.03.04: (event log) Consumer index not reset ● 80.03.05: (event log) Queue position size too small ● 80.03.06: (event log)",
+          "count": 1
+        },
+        "80.03.07": {
+          "context": "Transport overflow ● 80.03.07: (event log) No overflow packets ● 80.03.08: (event log) Invalid identify response ● 80.03.09: (event log)",
+          "count": 1
+        },
+        "80.03.08": {
+          "context": "Transport overflow ● 80.03.07: (event log) No overflow packets ● 80.03.08: (event log) Invalid identify response ● 80.03.09: (event log)",
+          "count": 1
+        },
+        "80.03.09": {
+          "context": "Transport overflow ● 80.03.07: (event log) No overflow packets ● 80.03.08: (event log) Invalid identify response ● 80.03.09: (event log)",
+          "count": 1
+        },
+        "80.03.10": {
+          "context": "Invalid channel map return status ● 80.03.10: (event log) Invalid reclaim return status ● 80.03.12: (event log) Datagram invalid buffer ●",
+          "count": 1
+        },
+        "80.03.12": {
+          "context": "Invalid channel map return status ● 80.03.10: (event log) Invalid reclaim return status ● 80.03.12: (event log) Datagram invalid buffer ●",
+          "count": 1
+        },
+        "80.03.14": {
+          "context": "80.03.13: (event log) Max stream channels ● 80.03.14: (event log) Max datagram channels ● 80.03.15: (event log) Card reset failed ●",
+          "count": 1
+        },
+        "80.03.15": {
+          "context": "80.03.13: (event log) Max stream channels ● 80.03.14: (event log) Max datagram channels ● 80.03.15: (event log) Card reset failed ●",
+          "count": 1
+        },
+        "80.03.17": {
+          "context": "80.03.16: (event log) Self-test failure ● 80.03.17: (event log) Unknown PGP packet ● 80.03.18: (event log) Duplicate I/O channel",
+          "count": 1
+        },
+        "80.03.18": {
+          "context": "80.03.16: (event log) Self-test failure ● 80.03.17: (event log) Unknown PGP packet ● 80.03.18: (event log) Duplicate I/O channel",
+          "count": 1
+        },
+        "82.00.00": {
+          "context": "the 82.* family indicate a problem with an external I/O device, such as a Jetdirect card, an EIO card, or an external hard disk. ● 82.00.00",
+          "count": 1
+        },
+        "82.73.45": {
+          "context": "error: Memory Error. ● 82.73.45 error: Memory Error. Disk successfully cleaned. Event log only. ● 82.73.46 error: Memory Error. A hard disk",
+          "count": 1
+        },
+        "99.00.20": {
+          "context": "the same. ● 99.00.20 (event log) The bundle is not for this product. ● 99.00.21 (event log) The bundle is not signed with the correct signature,",
+          "count": 1
+        },
+        "99.00.21": {
+          "context": "the same. ● 99.00.20 (event log) The bundle is not for this product. ● 99.00.21 (event log) The bundle is not signed with the correct signature,",
+          "count": 1
+        },
+        "99.00.22": {
+          "context": "or the signature is invalid. ● 99.00.22 (event log) The bundle header version is not supported by this firmware.",
+          "count": 1
+        },
+        "99.00.23": {
+          "context": "● 99.00.23 (event log) The package header version is not supported by this firmware. ● 99.00.24 (event log) The format of the bundle is",
+          "count": 1
+        },
+        "99.00.24": {
+          "context": "● 99.00.23 (event log) The package header version is not supported by this firmware. ● 99.00.24 (event log) The format of the bundle is",
+          "count": 1
+        },
+        "99.00.25": {
+          "context": "invalid. ● 99.00.25 (event log) The format of the package is invalid. ● 99.00.26 (event log) A CRC32 check did not pass. ● 99.00.27 (event",
+          "count": 1
+        },
+        "99.00.26": {
+          "context": "invalid. ● 99.00.25 (event log) The format of the package is invalid. ● 99.00.26 (event log) A CRC32 check did not pass. ● 99.00.27 (event",
+          "count": 1
+        },
+        "99.01.10": {
+          "context": "99.01.00 ● 99.01.10 ● 99.01.20 ● 99.01.21",
+          "count": 1
+        },
+        "99.01.20": {
+          "context": "99.01.00 ● 99.01.10 ● 99.01.20 ● 99.01.21",
+          "count": 1
+        },
+        "99.01.21": {
+          "context": "99.01.00 ● 99.01.10 ● 99.01.20 ● 99.01.21",
+          "count": 1
+        }
+      },
+      "orphans": [
+        "33.05.0X",
+        "41.02.00",
+        "41.03.FZ",
+        "50.2X",
+        "50.4X",
+        "50.7X",
+        "50.9X",
+        "58.00.04",
+        "58.01.04",
+        "58.02.04",
+        "59.A2.0X",
+        "60.00.0X",
+        "60.01.0X",
+        "80.0X",
+        "82.0X",
+        "98.0X",
+        "98.0X.0Y"
+      ]
+    },
+    "e62655_cpmd": {
+      "candidates": 461,
+      "covered": 294,
+      "missing": [
+        "10.22.15",
+        "13.60.51",
+        "13.60.61",
+        "13.80.A1",
+        "13.83.A1",
+        "13.83.D1",
+        "13.B9.A1",
+        "13.B9.A2",
+        "13.B9.A3",
+        "13.B9.A4",
+        "13.B9.A5",
+        "13.B9.C1",
+        "13.B9.C2",
+        "13.B9.C3",
+        "13.B9.C4",
+        "13.B9.C5",
+        "13.B9.C6",
+        "13.B9.C7",
+        "13.B9.C8",
+        "13.B9.C9",
+        "13.B9.CB",
+        "13.B9.CC",
+        "13.B9.D1",
+        "13.B9.D2",
+        "13.B9.D3",
+        "13.B9.D4",
+        "13.B9.D5",
+        "13.D3.D2",
+        "13.D3.D3",
+        "13.D3.D4",
+        "13.D3.D5",
+        "13.D3.D6",
+        "13.D3.D7",
+        "13.D3.D8",
+        "13.E1.D4",
+        "13.E1.D5",
+        "13.E1.D6",
+        "13.E1.D7",
+        "13.E1.D8",
+        "30.01.57",
+        "31.03.14",
+        "32.08.A1",
+        "32.08.A2",
+        "32.1C.62",
+        "33.01.01",
+        "33.01.02",
+        "33.05.01",
+        "33.05.02",
+        "33.05.04",
+        "33.05.05",
+        "33.05.06",
+        "33.05.08",
+        "33.05.10",
+        "33.05.11",
+        "33.05.23",
+        "33.05.53",
+        "40.80.04",
+        "41.03.F0",
+        "41.03.F1",
+        "41.03.F2",
+        "41.03.F3",
+        "41.03.F4",
+        "41.03.F5",
+        "47.FC.01",
+        "47.FC.02",
+        "47.FC.03",
+        "47.FC.11",
+        "47.FC.12",
+        "47.FC.13",
+        "47.FC.21",
+        "47.FC.22",
+        "47.FC.23",
+        "47.FC.31",
+        "47.FC.32",
+        "47.FC.33",
+        "47.FC.41",
+        "47.FC.42",
+        "48.05.05",
+        "51.00.10",
+        "52.00.00",
+        "53.A0.10",
+        "53.A0.11",
+        "53.A0.20",
+        "53.A0.21",
+        "53.A0.30",
+        "53.A0.31",
+        "53.A0.40",
+        "53.A0.41",
+        "53.A0.51",
+        "53.A1.10",
+        "53.A1.11",
+        "53.A1.20",
+        "53.A1.21",
+        "53.A1.30",
+        "53.A1.31",
+        "53.A1.40",
+        "53.A1.41",
+        "53.A1.50",
+        "53.A1.51",
+        "53.A2.10",
+        "53.A2.11",
+        "53.A2.20",
+        "53.A2.21",
+        "53.A2.30",
+        "53.A2.31",
+        "53.A2.40",
+        "53.A2.41",
+        "53.A2.50",
+        "53.A2.51",
+        "53.B0.01",
+        "53.B0.02",
+        "53.B0.03",
+        "53.B0.04",
+        "53.B0.05",
+        "53.B1.01",
+        "53.B1.02",
+        "53.B1.03",
+        "53.B1.04",
+        "53.B1.05",
+        "53.B2.01",
+        "53.B2.02",
+        "53.B2.03",
+        "53.B2.05",
+        "53.B3.01",
+        "53.B3.02",
+        "53.B3.03",
+        "53.B3.04",
+        "53.B3.05",
+        "53.C1.02",
+        "53.C1.03",
+        "53.C1.04",
+        "53.C1.05",
+        "54.00.03",
+        "60.00.02",
+        "66.80.21",
+        "66.80.22",
+        "66.80.23",
+        "76.00.24",
+        "80.01.80",
+        "80.01.81",
+        "80.01.82",
+        "80.01.8B",
+        "80.01.8C",
+        "80.03.01",
+        "80.03.02",
+        "80.03.03",
+        "80.03.04",
+        "80.03.05",
+        "80.03.06",
+        "80.03.07",
+        "80.03.08",
+        "80.03.09",
+        "80.03.10",
+        "80.03.12",
+        "80.03.13",
+        "80.03.14",
+        "80.03.16",
+        "80.03.17",
+        "82.00.00",
+        "98.00.0C",
+        "99.00.20",
+        "99.00.24",
+        "99.00.25",
+        "99.00.26",
+        "99.01.00",
+        "99.01.10",
+        "99.01.20"
+      ],
+      "missing_detail": {
+        "10.22.15": {
+          "context": "For example, in error code 10.22.15, 10 = Supplies for HP LaserJets.",
+          "count": 1
+        },
+        "13.60.51": {
+          "context": "13.60.51 A jam is detected when printing to output tray 1.",
+          "count": 1
+        },
+        "13.60.61": {
+          "context": "13.60.61 A jam is detected when printing to output tray 1.",
+          "count": 1
+        },
+        "13.80.A1": {
+          "context": "MFP - 13.B9.A1 or 13.80.A1 Jam (Emerging Issue).",
+          "count": 5
+        },
+        "13.83.A1": {
+          "context": "13.83.A1 A jam is detected when printing to output bin 1.",
+          "count": 1
+        },
+        "13.83.D1": {
+          "context": "13.83.D1 A jam is detected when printing to output bin 1.",
+          "count": 1
+        },
+        "13.B9.A1": {
+          "context": "MFP - 13.B9.A1 or 13.80.A1 Jam (Emerging Issue).",
+          "count": 5
+        },
+        "13.B9.A2": {
+          "context": "13.B9.A2 jam is detected when printing from Tray 2.",
+          "count": 1
+        },
+        "13.B9.A3": {
+          "context": "13.B9.A3 jam is detected when printing from Tray 3.",
+          "count": 1
+        },
+        "13.B9.A4": {
+          "context": "13.B9.A4 jam is detected when printing from Tray 4.",
+          "count": 1
+        },
+        "13.B9.A5": {
+          "context": "13.B9.A5 jam is detected when printing from Tray 5.",
+          "count": 1
+        },
+        "13.B9.C1": {
+          "context": "13.B9.C1 Fuser wrap jam when Auto Sense (Normal).",
+          "count": 1
+        },
+        "13.B9.C2": {
+          "context": "13.B9.C2 Fuser wrap jam when Normal.",
+          "count": 1
+        },
+        "13.B9.C3": {
+          "context": "13.B9.C3 Fuser wrap jam when Light 1 or Light 2.",
+          "count": 1
+        },
+        "13.B9.C4": {
+          "context": "13.B9.C4 Fuser wrap jam when Heavy 1.",
+          "count": 1
+        },
+        "13.B9.C5": {
+          "context": "13.B9.C5 Fuser wrap jam when Heavy 2.",
+          "count": 1
+        },
+        "13.B9.C6": {
+          "context": "13.B9.C6 Fuser wrap jam when Heavy Paper 3.",
+          "count": 1
+        },
+        "13.B9.C7": {
+          "context": "13.B9.C7 Fuser wrap jam when Glossy Paper 1.",
+          "count": 1
+        },
+        "13.B9.C8": {
+          "context": "13.B9.C8 Fuser wrap jam when Glossy Paper 2.",
+          "count": 1
+        },
+        "13.B9.C9": {
+          "context": "13.B9.C9 Fuser wrap jam when Glossy Paper 3.",
+          "count": 1
+        },
+        "13.B9.CB": {
+          "context": "13.B9.CB Fuser wrap jam when Transparency.",
+          "count": 1
+        },
+        "13.B9.CC": {
+          "context": "13.B9.CC Fuser wrap jam when Label.",
+          "count": 1
+        },
+        "13.B9.D1": {
+          "context": "13.B9.D1 Fuser delivery delay jam when printing from Tray 1.",
+          "count": 1
+        },
+        "13.B9.D2": {
+          "context": "13.B9.D2 Fuser delivery delay jam when printing from Tray 2.",
+          "count": 1
+        },
+        "13.B9.D3": {
+          "context": "13.B9.D3 Fuser delivery delay jam when printing from Tray 3.",
+          "count": 1
+        },
+        "13.B9.D4": {
+          "context": "13.B9.D4 Fuser delivery delay jam when printing from Tray 4.",
+          "count": 1
+        },
+        "13.B9.D5": {
+          "context": "13.B9.D5 Fuser delivery delay jam when printing from Tray 5.",
+          "count": 1
+        },
+        "13.D3.D2": {
+          "context": "13.D3.D2 The fuser is printing in fuser mode Normal.",
+          "count": 1
+        },
+        "13.D3.D3": {
+          "context": "13.D3.D3 The fuser is printing in fuser mode Light 1 or Light 2.",
+          "count": 1
+        },
+        "13.D3.D4": {
+          "context": "13.D3.D4 The fuser is printing in fuser mode Heavy 1.",
+          "count": 1
+        },
+        "13.D3.D5": {
+          "context": "13.D3.D5 The fuser is printing in fuser mode Heavy 2.",
+          "count": 1
+        },
+        "13.D3.D6": {
+          "context": "13.D3.D6 The fuser is printing in fuser mode Heavy Paper 3.",
+          "count": 1
+        },
+        "13.D3.D7": {
+          "context": "13.D3.D7 The fuser is printing in fuser mode Glossy Paper 1.",
+          "count": 1
+        },
+        "13.D3.D8": {
+          "context": "13.D3.D8 The fuser is printing in fuser mode Glossy Paper 2.",
+          "count": 1
+        },
+        "13.E1.D4": {
+          "context": "13.E1.D4 The fuser is printing in fuser mode Heavy 1.",
+          "count": 1
+        },
+        "13.E1.D5": {
+          "context": "13.E1.D5 The fuser is printing in fuser mode Heavy 2.",
+          "count": 1
+        },
+        "13.E1.D6": {
+          "context": "13.E1.D6 The fuser is printing in fuser mode Heavy Paper 3.",
+          "count": 1
+        },
+        "13.E1.D7": {
+          "context": "13.E1.D7 The fuser is printing in fuser mode Glossy Paper 1.",
+          "count": 1
+        },
+        "13.E1.D8": {
+          "context": "13.E1.D8 The fuser is printing in fuser mode Glossy Paper 2.",
+          "count": 1
+        },
+        "30.01.57": {
+          "context": "30.01.57",
+          "count": 1
+        },
+        "31.03.14": {
+          "context": "31.03.14",
+          "count": 2
+        },
+        "32.08.A1": {
+          "context": "32.08.A1, 32.08.A2, 32.08.A3",
+          "count": 2
+        },
+        "32.08.A2": {
+          "context": "32.08.A1, 32.08.A2, 32.08.A3",
+          "count": 2
+        },
+        "32.1C.62": {
+          "context": "32.1C.62",
+          "count": 1
+        },
+        "33.01.01": {
+          "context": "33.01.01 (event code)",
+          "count": 1
+        },
+        "33.01.02": {
+          "context": "33.01.02 (event code)",
+          "count": 1
+        },
+        "33.05.01": {
+          "context": "33.05.01 Boot code corrupt (event code)",
+          "count": 2
+        },
+        "33.05.02": {
+          "context": "33.05.02 Boot code corrupt (event code)",
+          "count": 2
+        },
+        "33.05.04": {
+          "context": "33.05.04 Security alert",
+          "count": 2
+        },
+        "33.05.05": {
+          "context": "33.05.05 Security alert",
+          "count": 2
+        },
+        "33.05.06": {
+          "context": "33.05.06 Security alert",
+          "count": 2
+        },
+        "33.05.08": {
+          "context": "33.05.08 Invalid boot attempt (event code)",
+          "count": 1
+        },
+        "33.05.10": {
+          "context": "33.05.10 Security alert",
+          "count": 2
+        },
+        "33.05.11": {
+          "context": "33.05.11 Security alert",
+          "count": 2
+        },
+        "33.05.23": {
+          "context": "33.05.23 Security alert",
+          "count": 2
+        },
+        "33.05.53": {
+          "context": "33.05.53 Security alert",
+          "count": 2
+        },
+        "40.80.04": {
+          "context": "40.80.04 Failed to read NVRAM",
+          "count": 1
+        },
+        "41.03.F0": {
+          "context": "41.03.F0",
+          "count": 1
+        },
+        "41.03.F1": {
+          "context": "41.03.F1",
+          "count": 1
+        },
+        "41.03.F2": {
+          "context": "41.03.F2",
+          "count": 1
+        },
+        "41.03.F3": {
+          "context": "41.03.F3",
+          "count": 1
+        },
+        "41.03.F4": {
+          "context": "41.03.F4",
+          "count": 1
+        },
+        "41.03.F5": {
+          "context": "41.03.F5",
+          "count": 1
+        },
+        "47.FC.01": {
+          "context": "47.FC.01 (event code) CPR Store Image failure",
+          "count": 1
+        },
+        "47.FC.02": {
+          "context": "47.FC.02 (event code) CPR Image not found",
+          "count": 1
+        },
+        "47.FC.03": {
+          "context": "47.FC.03 (event code) CPR Print engine execution failure",
+          "count": 1
+        },
+        "47.FC.11": {
+          "context": "47.FC.11 (event code) Consecutive Dmax Dhalf Store image failure",
+          "count": 1
+        },
+        "47.FC.12": {
+          "context": "47.FC.12 (event code) Consecutive Dmax Dhalf Image not found",
+          "count": 1
+        },
+        "47.FC.13": {
+          "context": "47.FC.13 (event code) Consecutive Dmax Dhalf Print engine execution failure",
+          "count": 1
+        },
+        "47.FC.21": {
+          "context": "47.FC.21 (event code) Error Diffusion Store image failure",
+          "count": 1
+        },
+        "47.FC.22": {
+          "context": "47.FC.22 (event code) Error Diffusion Image not found",
+          "count": 1
+        },
+        "47.FC.23": {
+          "context": "47.FC.23 Error Diffusion Print engine execution failure",
+          "count": 1
+        },
+        "47.FC.31": {
+          "context": "47.FC.31 (event code) Drum Speed Adjustment Store image failure",
+          "count": 1
+        },
+        "47.FC.32": {
+          "context": "47.FC.32 (event code) Drum Speed Adjustment Image not found",
+          "count": 1
+        },
+        "47.FC.33": {
+          "context": "47.FC.33 (event code) Drum Speed Adjustment Print engine execution failure",
+          "count": 1
+        },
+        "47.FC.41": {
+          "context": "47.FC.41 (event code) Pulse Width Modulation Store image failure",
+          "count": 1
+        },
+        "47.FC.42": {
+          "context": "47.FC.42 (event code) Pulse Width Modulation Image not found",
+          "count": 1
+        },
+        "48.05.05": {
+          "context": "48.05.05",
+          "count": 1
+        },
+        "51.00.10": {
+          "context": "51.00.10 Beam detect error",
+          "count": 1
+        },
+        "52.00.00": {
+          "context": "52.00.00/52.00.20 Scanner Startup/Rotation error",
+          "count": 3
+        },
+        "53.A0.10": {
+          "context": "53.A0.10: Tray 1 Side guide misalignment resolved.",
+          "count": 1
+        },
+        "53.A0.11": {
+          "context": "53.A0.11: Tray 1 side guide misalignment warning.",
+          "count": 1
+        },
+        "53.A0.20": {
+          "context": "53.A0.20: Tray 2 side guide misalignment resolved.",
+          "count": 1
+        },
+        "53.A0.21": {
+          "context": "53.A0.21: Tray 2 side guide misalignment warning.",
+          "count": 1
+        },
+        "53.A0.30": {
+          "context": "53.A0.30: Tray 3 side guide misalignment resolved.",
+          "count": 1
+        },
+        "53.A0.31": {
+          "context": "53.A0.31: Tray 3 side guide misalignment warning.",
+          "count": 1
+        },
+        "53.A0.40": {
+          "context": "53.A0.40: Tray 4 side guide misalignment resolved.",
+          "count": 1
+        },
+        "53.A0.41": {
+          "context": "53.A0.41: Tray 4 side guide misalignment warning.",
+          "count": 1
+        },
+        "53.A0.51": {
+          "context": "53.A0.51: Tray 5 side guide misalignment warning.",
+          "count": 1
+        },
+        "53.A1.10": {
+          "context": "53.A1.10: Tray 1 Side guide misalignment resolved.",
+          "count": 1
+        },
+        "53.A1.11": {
+          "context": "53.A1.11: Tray 1 paper delivery direction misalignment warning.",
+          "count": 2
+        },
+        "53.A1.20": {
+          "context": "53.A1.20: Tray 2 side guide misalignment resolved.",
+          "count": 1
+        },
+        "53.A1.21": {
+          "context": "53.A1.21: Tray 2 paper delivery direction misalignment warning.",
+          "count": 2
+        },
+        "53.A1.30": {
+          "context": "53.A1.30: Tray 3 side guide misalignment resolved.",
+          "count": 1
+        },
+        "53.A1.31": {
+          "context": "53.A1.31: Tray 3 paper delivery direction misalignment warning.",
+          "count": 2
+        },
+        "53.A1.40": {
+          "context": "53.A1.40: Tray 4 side guide misalignment resolved.",
+          "count": 1
+        },
+        "53.A1.41": {
+          "context": "53.A1.41: Tray 4 paper delivery direction misalignment warning.",
+          "count": 2
+        },
+        "53.A1.50": {
+          "context": "53.A1.50: Tray 5 side guide misalignment resolved.",
+          "count": 1
+        },
+        "53.A1.51": {
+          "context": "53.A1.51: Tray 5 paper delivery direction misalignment warning.",
+          "count": 2
+        },
+        "53.A2.10": {
+          "context": "53.A2.10: Tray 1 overload resolved.",
+          "count": 1
+        },
+        "53.A2.11": {
+          "context": "53.A2.11: Tray 1 overload warning.",
+          "count": 1
+        },
+        "53.A2.20": {
+          "context": "53.A2.20: Tray 2 overload resolved.",
+          "count": 1
+        },
+        "53.A2.21": {
+          "context": "53.A2.21: Tray 2 overload warning.",
+          "count": 1
+        },
+        "53.A2.30": {
+          "context": "53.A2.30: Tray 3 overload resolved.",
+          "count": 1
+        },
+        "53.A2.31": {
+          "context": "53.A2.31: Tray 3 overload warning.",
+          "count": 1
+        },
+        "53.A2.40": {
+          "context": "53.A2.40: Tray 4 overload resolved.",
+          "count": 1
+        },
+        "53.A2.41": {
+          "context": "53.A2.41: Tray 4 overload warning.",
+          "count": 1
+        },
+        "53.A2.50": {
+          "context": "53.A2.50: Tray 5 overload resolved.",
+          "count": 1
+        },
+        "53.A2.51": {
+          "context": "53.A2.51: Tray 5 overload warning.",
+          "count": 1
+        },
+        "53.B0.01": {
+          "context": "53.B0.01: Tray 1 feed roller nearing end of life.",
+          "count": 2
+        },
+        "53.B0.02": {
+          "context": "53.B0.02: Tray 2 feed roller nearing end of life.",
+          "count": 2
+        },
+        "53.B0.03": {
+          "context": "53.B0.03: Tray 3 feed roller nearing end of life.",
+          "count": 2
+        },
+        "53.B0.04": {
+          "context": "53.B0.04: Tray 4 feed roller nearing end of life.",
+          "count": 2
+        },
+        "53.B0.05": {
+          "context": "53.B0.05: Tray 5 feed roller nearing end of life.",
+          "count": 2
+        },
+        "53.B1.01": {
+          "context": "53.B1.01: Tray 1 feed roller at end of life.",
+          "count": 1
+        },
+        "53.B1.02": {
+          "context": "53.B1.02: Tray 2 feed roller at end of life.",
+          "count": 1
+        },
+        "53.B1.03": {
+          "context": "53.B1.03: Tray 3 feed roller at end of life.",
+          "count": 1
+        },
+        "53.B1.04": {
+          "context": "53.B1.04: Tray 4 feed roller at end of life.",
+          "count": 1
+        },
+        "53.B1.05": {
+          "context": "53.B1.05: Tray 5 feed roller at end of life.",
+          "count": 1
+        },
+        "53.B2.01": {
+          "context": "53.B2.01: Tray 1 feed roller brand new.",
+          "count": 1
+        },
+        "53.B2.02": {
+          "context": "53.B2.02: Tray 2 feed roller brand new.",
+          "count": 1
+        },
+        "53.B2.03": {
+          "context": "53.B2.03: Tray 3 feed roller brand new.",
+          "count": 1
+        },
+        "53.B2.05": {
+          "context": "53.B2.05: Tray 5 feed roller brand new.",
+          "count": 1
+        },
+        "53.B3.01": {
+          "context": "53.B3.01: Tray 1 feed roller brand new (engine detected).",
+          "count": 1
+        },
+        "53.B3.02": {
+          "context": "53.B3.02: Tray 2 feed roller brand new (engine detected).",
+          "count": 1
+        },
+        "53.B3.03": {
+          "context": "53.B3.03: Tray 3 feed roller brand new (engine detected).",
+          "count": 1
+        },
+        "53.B3.04": {
+          "context": "53.B3.04: Tray 4 feed roller brand new (engine detected).",
+          "count": 1
+        },
+        "53.B3.05": {
+          "context": "53.B3.05: Tray 5 feed roller brand new (engine detected).",
+          "count": 1
+        },
+        "53.C1.02": {
+          "context": "53.C1.02: Tray 2 size mismatch.",
+          "count": 1
+        },
+        "53.C1.03": {
+          "context": "53.C1.03: Tray 3 size mismatch.",
+          "count": 1
+        },
+        "53.C1.04": {
+          "context": "53.C1.04: Tray 4 size mismatch.",
+          "count": 1
+        },
+        "53.C1.05": {
+          "context": "53.C1.05: Tray 5 size mismatch.",
+          "count": 1
+        },
+        "54.00.03": {
+          "context": "54.00.01 / 54.00.03",
+          "count": 1
+        },
+        "60.00.02": {
+          "context": "60.00.02 or 60.01.02 = Tray 2",
+          "count": 8
+        },
+        "66.80.21": {
+          "context": "66.80.21, 66.80.22, 66.80.23, and 66.80.33 device failure",
+          "count": 2
+        },
+        "66.80.22": {
+          "context": "66.80.21, 66.80.22, 66.80.23, and 66.80.33 device failure",
+          "count": 2
+        },
+        "66.80.23": {
+          "context": "66.80.21, 66.80.22, 66.80.23, and 66.80.33 device failure",
+          "count": 2
+        },
+        "76.00.24": {
+          "context": "76.00.24 5",
+          "count": 1
+        },
+        "80.01.80": {
+          "context": "80.01.80 (event log) No heartbeat",
+          "count": 1
+        },
+        "80.01.81": {
+          "context": "80.01.81 (event log) Reclaim time-out",
+          "count": 1
+        },
+        "80.01.82": {
+          "context": "80.01.82 (event log) Invalid data length",
+          "count": 1
+        },
+        "80.01.8B": {
+          "context": "80.01.8B (event log) Invalid max outstanding packet header field",
+          "count": 1
+        },
+        "80.01.8C": {
+          "context": "80.01.8C (event log) Invalid channel mapping response",
+          "count": 1
+        },
+        "80.03.01": {
+          "context": "80.03.01 (event log) No PGP buffers",
+          "count": 1
+        },
+        "80.03.02": {
+          "context": "80.03.02 (event log) Channel table full",
+          "count": 1
+        },
+        "80.03.03": {
+          "context": "80.03.03 (event log) Producer index not reset",
+          "count": 1
+        },
+        "80.03.04": {
+          "context": "80.03.04 (event log) Consumer index not reset",
+          "count": 1
+        },
+        "80.03.05": {
+          "context": "80.03.05 (event log) Queue position size too small",
+          "count": 1
+        },
+        "80.03.06": {
+          "context": "80.03.06 (event log) Transport overflow",
+          "count": 1
+        },
+        "80.03.07": {
+          "context": "80.03.07 (event log) No overflow packets",
+          "count": 1
+        },
+        "80.03.08": {
+          "context": "80.03.08 (event log) Invalid identify response",
+          "count": 1
+        },
+        "80.03.09": {
+          "context": "80.03.09 (event log) Invalid channel map return status",
+          "count": 1
+        },
+        "80.03.10": {
+          "context": "80.03.10 (event log) Invalid reclaim return status",
+          "count": 1
+        },
+        "80.03.12": {
+          "context": "80.03.12 (event log) Datagram invalid buffer",
+          "count": 1
+        },
+        "80.03.13": {
+          "context": "80.03.13 (event log) Max stream channels",
+          "count": 1
+        },
+        "80.03.14": {
+          "context": "80.03.14 (event log) Max datagram channels",
+          "count": 1
+        },
+        "80.03.16": {
+          "context": "80.03.16 (event log) Self-test failure",
+          "count": 1
+        },
+        "80.03.17": {
+          "context": "80.03.17 (event log) Unknown PGP packet",
+          "count": 1
+        },
+        "82.00.00": {
+          "context": "82.00.00 error: Memory Error.",
+          "count": 1
+        },
+        "98.00.0C": {
+          "context": "98.00.0c",
+          "count": 13
+        },
+        "99.00.20": {
+          "context": "99.00.20 (event log)",
+          "count": 1
+        },
+        "99.00.24": {
+          "context": "99.00.24 (event log)",
+          "count": 1
+        },
+        "99.00.25": {
+          "context": "99.00.25 (event log)",
+          "count": 1
+        },
+        "99.00.26": {
+          "context": "99.00.26 (event log)",
+          "count": 1
+        },
+        "99.01.00": {
+          "context": "99.01.00",
+          "count": 1
+        },
+        "99.01.10": {
+          "context": "99.01.10",
+          "count": 1
+        },
+        "99.01.20": {
+          "context": "99.01.20",
+          "count": 1
+        }
+      },
+      "orphans": [
+        "13.83.FO",
+        "13.B2.DX",
+        "13.E1.D1",
+        "33.03.03",
+        "41.03.FZ",
+        "50.2X",
+        "50.3X",
+        "50.4X",
+        "50.6X",
+        "50.8X",
+        "50.9X",
+        "50.AX",
+        "50.BX",
+        "80.0X",
+        "82.0X",
+        "90.15.01"
+      ]
+    },
+    "e62655_service": {
+      "candidates": 19,
+      "covered": 10,
+      "missing": [
+        "13.A3.A3",
+        "13.A4.A4",
+        "13.A5.A5",
+        "31.13.01",
+        "66.80.03",
+        "66.80.19",
+        "66.80.20",
+        "99.09.67",
+        "99.09.68"
+      ],
+      "missing_detail": {
+        "13.A3.A3": {
+          "context": "13.A3.A3 Jam in tray 3",
+          "count": 1
+        },
+        "13.A4.A4": {
+          "context": "13.A4.A4 Jam in tray 4",
+          "count": 2
+        },
+        "13.A5.A5": {
+          "context": "13.A5.A5 Jam in tray 5",
+          "count": 1
+        },
+        "31.13.01": {
+          "context": "To watch a video to help resolve this error, go to: Fixing 31.13.01/.02 ADF Jam Errors | HP PageWide MFP/",
+          "count": 1
+        },
+        "66.80.03": {
+          "context": "66.80.03 Stapler malfunction",
+          "count": 1
+        },
+        "66.80.19": {
+          "context": "66.80.19 Stapler malfunction",
+          "count": 1
+        },
+        "66.80.20": {
+          "context": "66.80.20 Staple jam",
+          "count": 1
+        },
+        "99.09.67": {
+          "context": "a 99.09.67 error displays on the control panel. A",
+          "count": 3
+        },
+        "99.09.68": {
+          "context": "the 99.09.68 error is displayed.",
+          "count": 1
+        }
+      },
+      "orphans": [
+        "13.8X",
+        "13.DX"
+      ]
+    },
+    "ricoh_imc3000_service": {
+      "candidates": 639,
+      "covered": 614,
+      "missing": [
+        "SC375-02",
+        "SC543-03",
+        "SC544-00",
+        "SC554-00",
+        "SC672-20",
+        "SC816-10",
+        "SC816-13",
+        "SC816-15",
+        "SC816-20",
+        "SC816-23",
+        "SC816-26",
+        "SC816-29",
+        "SC816-36",
+        "SC816-99",
+        "SC852-02",
+        "SC863-23",
+        "SC864-23",
+        "SC865-23",
+        "SC865-50",
+        "SC868-00",
+        "SC874-61",
+        "SC910-01",
+        "SC910-02",
+        "SC911-20",
+        "SC911-21"
+      ],
+      "missing_detail": {
+        "SC375-02": {
+          "context": "or SC375-02 (ID sensor output error: damage to the belt detected) is issued.",
+          "count": 1
+        },
+        "SC543-03": {
+          "context": "If a lock signal is not obtained for 50 times (140 times for SC543-03)",
+          "count": 1
+        },
+        "SC544-00": {
+          "context": "• When canceling a fusing unit SC, (SC544-00/",
+          "count": 1
+        },
+        "SC554-00": {
+          "context": "SC554-00/ SC564-00/ SC574-00), perform the part",
+          "count": 1
+        },
+        "SC672-20": {
+          "context": "SC672-20",
+          "count": 3
+        },
+        "SC816-10": {
+          "context": "SC81610 to 12",
+          "count": 1
+        },
+        "SC816-13": {
+          "context": "SC81613",
+          "count": 1
+        },
+        "SC816-15": {
+          "context": "SC81615 to 18",
+          "count": 1
+        },
+        "SC816-20": {
+          "context": "SC81620",
+          "count": 1
+        },
+        "SC816-23": {
+          "context": "SC81623, 24",
+          "count": 1
+        },
+        "SC816-26": {
+          "context": "SC81626 to 28",
+          "count": 1
+        },
+        "SC816-29": {
+          "context": "SC81629, 30",
+          "count": 1
+        },
+        "SC816-36": {
+          "context": "SC81636 to 96",
+          "count": 1
+        },
+        "SC816-99": {
+          "context": "SC 81699",
+          "count": 2
+        },
+        "SC852-02": {
+          "context": "For SC852-02, HDD and memory may cause the problem. Replace the HDD",
+          "count": 1
+        },
+        "SC863-23": {
+          "context": "(An error occurred in partition \"a\" (SC863-02) to partition \"v\" (SC863-23)).",
+          "count": 1
+        },
+        "SC864-23": {
+          "context": "(An error occurred in partition \"a\" (SC864-02) to partition \"v\" (SC864-23)).",
+          "count": 1
+        },
+        "SC865-23": {
+          "context": "(An error occurred in partition \"a\" (SC865-02) to partition \"v\" (SC865-23)).",
+          "count": 1
+        },
+        "SC865-50": {
+          "context": "SC865-50 to",
+          "count": 1
+        },
+        "SC868-00": {
+          "context": "SC86800",
+          "count": 1
+        },
+        "SC874-61": {
+          "context": "SC87461 to -65",
+          "count": 1
+        },
+        "SC910-01": {
+          "context": "SC91001",
+          "count": 2
+        },
+        "SC910-02": {
+          "context": "SC91002",
+          "count": 1
+        },
+        "SC911-20": {
+          "context": "SC911-20",
+          "count": 1
+        },
+        "SC911-21": {
+          "context": "SC911-21",
+          "count": 1
+        }
+      },
+      "orphans": [
+        "SC215-01",
+        "SC215-02",
+        "SC215-04",
+        "SC21501",
+        "SC21502",
+        "SC21504",
+        "SC533-01",
+        "SC53301",
+        "SC681-01",
+        "SC681-02",
+        "SC681-03",
+        "SC681-04",
+        "SC681-06",
+        "SC681-07",
+        "SC681-08",
+        "SC681-09",
+        "SC681-11",
+        "SC681-12",
+        "SC681-13",
+        "SC681-14",
+        "SC681-16",
+        "SC681-17",
+        "SC681-18",
+        "SC681-19",
+        "SC681-21",
+        "SC681-22",
+        "SC681-23",
+        "SC681-24",
+        "SC681-26",
+        "SC681-27",
+        "SC681-28",
+        "SC681-29",
+        "SC681-31",
+        "SC681-32",
+        "SC681-33",
+        "SC681-34",
+        "SC681-36",
+        "SC681-37",
+        "SC681-38",
+        "SC681-39",
+        "SC68101",
+        "SC68102",
+        "SC68103",
+        "SC68104",
+        "SC68106",
+        "SC68107",
+        "SC68108",
+        "SC68109",
+        "SC68111",
+        "SC68112",
+        "SC68113",
+        "SC68114",
+        "SC68116",
+        "SC68117",
+        "SC68118",
+        "SC68119",
+        "SC68121",
+        "SC68122",
+        "SC68123",
+        "SC68124",
+        "SC68126",
+        "SC68127",
+        "SC68128",
+        "SC68129",
+        "SC68131",
+        "SC68132",
+        "SC68133",
+        "SC68134",
+        "SC68136",
+        "SC68137",
+        "SC68138",
+        "SC68139",
+        "SC682-01",
+        "SC682-02",
+        "SC682-03",
+        "SC682-04",
+        "SC682-06",
+        "SC682-07",
+        "SC682-08",
+        "SC682-09",
+        "SC682-11",
+        "SC682-12",
+        "SC682-13",
+        "SC682-14",
+        "SC682-16",
+        "SC682-17",
+        "SC682-18",
+        "SC682-19",
+        "SC682-21",
+        "SC682-22",
+        "SC682-23",
+        "SC682-24",
+        "SC682-26",
+        "SC682-27",
+        "SC682-28",
+        "SC682-29",
+        "SC682-31",
+        "SC682-32",
+        "SC682-33",
+        "SC682-34",
+        "SC682-36",
+        "SC682-37",
+        "SC682-38",
+        "SC682-39",
+        "SC68201",
+        "SC68202",
+        "SC68203",
+        "SC68204",
+        "SC68206",
+        "SC68207",
+        "SC68208",
+        "SC68209",
+        "SC68211",
+        "SC68212",
+        "SC68213",
+        "SC68214",
+        "SC68216",
+        "SC68217",
+        "SC68218",
+        "SC68219",
+        "SC68221",
+        "SC68222",
+        "SC68223",
+        "SC68224",
+        "SC68226",
+        "SC68227",
+        "SC68228",
+        "SC68229",
+        "SC68231",
+        "SC68232",
+        "SC68233",
+        "SC68234",
+        "SC68236",
+        "SC68237",
+        "SC68238",
+        "SC68239",
+        "SC816-00",
+        "SC816-70",
+        "SC816-95",
+        "SC816-96",
+        "SC81600",
+        "SC81670",
+        "SC81695",
+        "SC81696",
+        "SC818-00",
+        "SC81800",
+        "SC827-00",
+        "SC82700",
+        "SC839-00",
+        "SC83900",
+        "SC850-00",
+        "SC85000",
+        "SC875-03",
+        "SC87503",
+        "SC882-01",
+        "SC88201",
+        "SC911-89",
+        "SC91189",
+        "SC912-00",
+        "SC91200",
+        "SC913-00",
+        "SC91300",
+        "SC914-00",
+        "SC91400"
+      ]
+    },
+    "ricoh_mpc3004_service": {
+      "candidates": 477,
+      "covered": 429,
+      "missing": [
+        "SC361-01",
+        "SC361-02",
+        "SC361-03",
+        "SC520-01",
+        "SC520-02",
+        "SC521-01",
+        "SC544-00",
+        "SC545-01",
+        "SC554-00",
+        "SC555-01",
+        "SC720-10",
+        "SC720-11",
+        "SC720-13",
+        "SC720-15",
+        "SC720-20",
+        "SC720-24",
+        "SC720-27",
+        "SC720-30",
+        "SC720-50",
+        "SC720-52",
+        "SC720-71",
+        "SC720-72",
+        "SC720-73",
+        "SC721-27",
+        "SC721-28",
+        "SC721-30",
+        "SC721-33",
+        "SC721-58",
+        "SC722-27",
+        "SC722-28",
+        "SC722-30",
+        "SC722-33",
+        "SC722-71",
+        "SC761-03",
+        "SC816-99",
+        "SC843-02",
+        "SC845-01",
+        "SC845-02",
+        "SC845-03",
+        "SC852-02",
+        "SC863-23",
+        "SC864-02",
+        "SC864-23",
+        "SC865-23",
+        "SC865-50",
+        "SC910-01",
+        "SC910-02",
+        "SC925-00"
+      ],
+      "missing_detail": {
+        "SC361-01": {
+          "context": "SC361-01",
+          "count": 1
+        },
+        "SC361-02": {
+          "context": "SC361-02",
+          "count": 1
+        },
+        "SC361-03": {
+          "context": "SC361-03",
+          "count": 1
+        },
+        "SC520-01": {
+          "context": "SC520-01",
+          "count": 1
+        },
+        "SC520-02": {
+          "context": "SC520-02",
+          "count": 1
+        },
+        "SC521-01": {
+          "context": "SC521-01",
+          "count": 1
+        },
+        "SC544-00": {
+          "context": "When canceling a fusing unit SC, (SC544-00/",
+          "count": 1
+        },
+        "SC545-01": {
+          "context": "SC545-01",
+          "count": 1
+        },
+        "SC554-00": {
+          "context": "SC554-00/ SC564-00/ SC574-00), perform part",
+          "count": 1
+        },
+        "SC555-01": {
+          "context": "SC555-01",
+          "count": 1
+        },
+        "SC720-10": {
+          "context": "SC720-10",
+          "count": 1
+        },
+        "SC720-11": {
+          "context": "SC720-11",
+          "count": 1
+        },
+        "SC720-13": {
+          "context": "SC720-13",
+          "count": 1
+        },
+        "SC720-15": {
+          "context": "SC720-15",
+          "count": 1
+        },
+        "SC720-20": {
+          "context": "SC720-20",
+          "count": 1
+        },
+        "SC720-24": {
+          "context": "SC720-24",
+          "count": 1
+        },
+        "SC720-27": {
+          "context": "SC720-27",
+          "count": 1
+        },
+        "SC720-30": {
+          "context": "SC720-30",
+          "count": 1
+        },
+        "SC720-50": {
+          "context": "SC720-50",
+          "count": 1
+        },
+        "SC720-52": {
+          "context": "SC720-52",
+          "count": 1
+        },
+        "SC720-71": {
+          "context": "SC720-71",
+          "count": 1
+        },
+        "SC720-72": {
+          "context": "SC720-72",
+          "count": 1
+        },
+        "SC720-73": {
+          "context": "SC720-73",
+          "count": 1
+        },
+        "SC721-27": {
+          "context": "SC721-27",
+          "count": 1
+        },
+        "SC721-28": {
+          "context": "SC721-28",
+          "count": 1
+        },
+        "SC721-30": {
+          "context": "SC721-30",
+          "count": 1
+        },
+        "SC721-33": {
+          "context": "SC721-33",
+          "count": 1
+        },
+        "SC721-58": {
+          "context": "SC721-58",
+          "count": 1
+        },
+        "SC722-27": {
+          "context": "SC722-27",
+          "count": 1
+        },
+        "SC722-28": {
+          "context": "SC722-28",
+          "count": 1
+        },
+        "SC722-30": {
+          "context": "SC722-30",
+          "count": 1
+        },
+        "SC722-33": {
+          "context": "SC722-33",
+          "count": 1
+        },
+        "SC722-71": {
+          "context": "SC722-71",
+          "count": 1
+        },
+        "SC761-03": {
+          "context": "SC761-03",
+          "count": 1
+        },
+        "SC816-99": {
+          "context": "• SC816-99 occurs as a subsystem error except any error from -06 to",
+          "count": 2
+        },
+        "SC843-02": {
+          "context": "IS NOW NECESSARY” IS DISPLAYED AND SC843-02 OCCURS ........................ 6-318",
+          "count": 3
+        },
+        "SC845-01": {
+          "context": "SC845-01",
+          "count": 2
+        },
+        "SC845-02": {
+          "context": "SC845-02",
+          "count": 2
+        },
+        "SC845-03": {
+          "context": "SC845-03",
+          "count": 2
+        },
+        "SC852-02": {
+          "context": "For SC852-02, HDD and memory may cause the problem. Replace the HDD",
+          "count": 1
+        },
+        "SC863-23": {
+          "context": "(An error occurred in partition \"a\" (SC863-02) to partition \"v\" (SC863-23)).",
+          "count": 1
+        },
+        "SC864-02": {
+          "context": "SC864-02 to",
+          "count": 2
+        },
+        "SC864-23": {
+          "context": "(An error occurred in partition \"a\" (SC864-02) to partition \"v\" (SC864-23)).",
+          "count": 1
+        },
+        "SC865-23": {
+          "context": "(An error occurred in partition \"a\" (SC865-02) to partition \"v\" (SC865-23)).",
+          "count": 1
+        },
+        "SC865-50": {
+          "context": "SC865-50 to",
+          "count": 1
+        },
+        "SC910-01": {
+          "context": "SC910-01",
+          "count": 2
+        },
+        "SC910-02": {
+          "context": "SC910-02",
+          "count": 1
+        },
+        "SC925-00": {
+          "context": "SC925-00",
+          "count": 1
+        }
+      },
+      "orphans": [
+        "SC204-00",
+        "SC20400",
+        "SC272-01",
+        "SC272-02",
+        "SC272-03",
+        "SC272-04",
+        "SC27201",
+        "SC27202",
+        "SC27203",
+        "SC27204",
+        "SC285-03",
+        "SC28503",
+        "SC362-04",
+        "SC36204",
+        "SC531-01",
+        "SC531-03",
+        "SC53101",
+        "SC53103",
+        "SC533-01",
+        "SC533-03",
+        "SC533-04",
+        "SC53301",
+        "SC53303",
+        "SC53304",
+        "SC534-01",
+        "SC534-02",
+        "SC534-03",
+        "SC53401",
+        "SC53402",
+        "SC53403",
+        "SC535-00",
+        "SC53500",
+        "SC540-00",
+        "SC54000",
+        "SC620-02",
+        "SC62002",
+        "SC622-01",
+        "SC622-11",
+        "SC622-31",
+        "SC62201",
+        "SC62211",
+        "SC62231",
+        "SC641-01",
+        "SC641-02",
+        "SC641-03",
+        "SC641-04",
+        "SC64101",
+        "SC64102",
+        "SC64103",
+        "SC64104",
+        "SC669-02",
+        "SC669-03",
+        "SC669-04",
+        "SC669-05",
+        "SC669-06",
+        "SC669-07",
+        "SC669-08",
+        "SC669-09",
+        "SC66902",
+        "SC66903",
+        "SC66904",
+        "SC66905",
+        "SC66906",
+        "SC66907",
+        "SC66908",
+        "SC66909",
+        "SC670-05",
+        "SC67005",
+        "SC672-21",
+        "SC67221",
+        "SC681-01",
+        "SC681-02",
+        "SC681-03",
+        "SC681-04",
+        "SC681-06",
+        "SC681-07",
+        "SC681-08",
+        "SC681-09",
+        "SC681-11",
+        "SC681-12",
+        "SC681-13",
+        "SC681-14",
+        "SC681-16",
+        "SC681-17",
+        "SC681-18",
+        "SC681-19",
+        "SC681-21",
+        "SC681-22",
+        "SC681-23",
+        "SC681-24",
+        "SC681-26",
+        "SC681-27",
+        "SC681-28",
+        "SC681-29",
+        "SC681-31",
+        "SC681-32",
+        "SC681-33",
+        "SC681-34",
+        "SC681-36",
+        "SC681-37",
+        "SC681-38",
+        "SC681-39",
+        "SC68101",
+        "SC68102",
+        "SC68103",
+        "SC68104",
+        "SC68106",
+        "SC68107",
+        "SC68108",
+        "SC68109",
+        "SC68111",
+        "SC68112",
+        "SC68113",
+        "SC68114",
+        "SC68116",
+        "SC68117",
+        "SC68118",
+        "SC68119",
+        "SC68121",
+        "SC68122",
+        "SC68123",
+        "SC68124",
+        "SC68126",
+        "SC68127",
+        "SC68128",
+        "SC68129",
+        "SC68131",
+        "SC68132",
+        "SC68133",
+        "SC68134",
+        "SC68136",
+        "SC68137",
+        "SC68138",
+        "SC68139",
+        "SC682-01",
+        "SC682-02",
+        "SC682-03",
+        "SC682-04",
+        "SC682-06",
+        "SC682-07",
+        "SC682-08",
+        "SC682-09",
+        "SC682-11",
+        "SC682-12",
+        "SC682-13",
+        "SC682-14",
+        "SC682-16",
+        "SC682-17",
+        "SC682-18",
+        "SC682-19",
+        "SC682-21",
+        "SC682-22",
+        "SC682-23",
+        "SC682-24",
+        "SC682-26",
+        "SC682-27",
+        "SC682-28",
+        "SC682-29",
+        "SC682-31",
+        "SC682-32",
+        "SC682-33",
+        "SC682-34",
+        "SC682-36",
+        "SC682-37",
+        "SC682-38",
+        "SC682-39",
+        "SC68201",
+        "SC68202",
+        "SC68203",
+        "SC68204",
+        "SC68206",
+        "SC68207",
+        "SC68208",
+        "SC68209",
+        "SC68211",
+        "SC68212",
+        "SC68213",
+        "SC68214",
+        "SC68216",
+        "SC68217",
+        "SC68218",
+        "SC68219",
+        "SC68221",
+        "SC68222",
+        "SC68223",
+        "SC68224",
+        "SC68226",
+        "SC68227",
+        "SC68228",
+        "SC68229",
+        "SC68231",
+        "SC68232",
+        "SC68233",
+        "SC68234",
+        "SC68236",
+        "SC68237",
+        "SC68238",
+        "SC68239",
+        "SC700-02",
+        "SC700-04",
+        "SC700-05",
+        "SC70002",
+        "SC70004",
+        "SC70005",
+        "SC720-80",
+        "SC720-81",
+        "SC720-83",
+        "SC72080",
+        "SC72081",
+        "SC72083",
+        "SC721-44",
+        "SC721-70",
+        "SC721-80",
+        "SC72144",
+        "SC72170",
+        "SC72180",
+        "SC792-00",
+        "SC79200",
+        "SC816-00",
+        "SC816-01",
+        "SC816-02",
+        "SC816-03",
+        "SC816-04",
+        "SC816-05",
+        "SC816-07",
+        "SC816-08",
+        "SC816-14",
+        "SC816-19",
+        "SC816-22",
+        "SC816-26",
+        "SC816-35",
+        "SC816-36",
+        "SC81600",
+        "SC81601",
+        "SC81602",
+        "SC81603",
+        "SC81604",
+        "SC81605",
+        "SC81607",
+        "SC81608",
+        "SC81614",
+        "SC81619",
+        "SC81622",
+        "SC81626",
+        "SC81635",
+        "SC81636",
+        "SC827-00",
+        "SC82700",
+        "SC828-00",
+        "SC82800",
+        "SC829-00",
+        "SC82900",
+        "SC850-00",
+        "SC85000",
+        "SC870-55",
+        "SC870-56",
+        "SC870-57",
+        "SC870-58",
+        "SC87055",
+        "SC87056",
+        "SC87057",
+        "SC87058",
+        "SC871-01",
+        "SC87101",
+        "SC873-00",
+        "SC87300",
+        "SC875-03",
+        "SC87503"
+      ]
+    },
+    "service": {
+      "candidates": 5,
+      "covered": 1,
+      "missing": [
+        "10.22.15",
+        "13.B2.D2",
+        "13.E1.D3",
+        "99.09.68"
+      ],
+      "missing_detail": {
+        "10.22.15": {
+          "context": "numeric and represent the system component that is causing the error. For example, in error code 10.22.15, 10 = Supplies for HP LaserJets.",
+          "count": 1
+        },
+        "13.B2.D2": {
+          "context": "tool drop-down list M606 4. Type the error code (for example, 13.b2.d2) in the Error Code Lookup keyword field, and then select the search",
+          "count": 1
+        },
+        "13.E1.D3": {
+          "context": "list 3. Type the error code (for example, 13.E1.D3) in the Search keyword field, and then select the search icon. Figure 4-88 WISE Search 1 2",
+          "count": 2
+        },
+        "99.09.68": {
+          "context": "enabled only for the Boot device. This will be grayed out unless the 99.09.68 error is displayed. 88 Chapter 4 Solve problems",
+          "count": 1
+        }
+      },
+      "orphans": []
+    }
+  }
+}

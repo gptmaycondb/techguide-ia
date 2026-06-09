@@ -13,6 +13,7 @@ Uso:
   python3 scripts/audit_index.py --fail-short # retorna exit code 1 se houver short/fixable
 """
 
+import hashlib
 import json
 import re
 import sys
@@ -161,6 +162,53 @@ def main():
         print(f'⚠  {fixable} fixable + {shorts} short detectados.')
 
     if fail_mode and (fixable > 0):
+        sys.exit(1)
+
+    if '--fail-missing' in sys.argv:
+        _check_coverage()
+
+
+def _canon(code: str) -> str:
+    return re.sub(r'[\s.\-/]', '', code.upper())
+
+
+def _check_coverage() -> None:
+    report_path = Path(__file__).parent / 'coverage_report.json'
+    ignore_path = Path(__file__).parent / 'codes_ignore.json'
+
+    if not report_path.exists():
+        print('❌ coverage_report.json não encontrado.')
+        print('   Execute: python3 scripts/coverage_report.py (requer PDFs em /tmp)')
+        sys.exit(1)
+
+    report = json.loads(report_path.read_text(encoding='utf-8'))
+    ignore = json.loads(ignore_path.read_text(encoding='utf-8')) if ignore_path.exists() else {}
+
+    stored_hash  = report.get('index_sha256', '')
+    current_hash = hashlib.sha256(INDEX_PATH.read_bytes()).hexdigest()
+    if stored_hash != current_hash:
+        print('❌ coverage_report.json desatualizado — error_codes_index.json mudou desde a geração.')
+        print('   Regenere: python3 scripts/coverage_report.py (requer PDFs em /tmp)')
+        sys.exit(1)
+
+    print('\n── Cobertura por service_key ──')
+    total_eff = 0
+    for svc, data in sorted(report.get('per_key', {}).items()):
+        ig       = {_canon(k) for k in ignore.get(svc, {})}
+        efetivos = [c for c in data['missing'] if _canon(c) not in ig]
+        ignored  = len(data['missing']) - len(efetivos)
+        total    = data['candidates']
+        covered  = data['covered']
+        print(f'   {svc}: {covered}/{total} cobertos | faltando={len(efetivos)} ignorados={ignored}')
+        if efetivos[:6]:
+            print(f'      → {", ".join(efetivos[:6])}{"…" if len(efetivos) > 6 else ""}')
+        total_eff += len(efetivos)
+
+    print()
+    if total_eff == 0:
+        print('✅ Cobertura OK — todos os candidatos estão indexados.')
+    else:
+        print(f'❌ {total_eff} candidatos faltando no índice.')
         sys.exit(1)
 
 
