@@ -41,6 +41,16 @@ ERROR_KEYS = [
     'ricoh_imc3000_service', 'ricoh_mpc3004_service',
 ]
 
+# Grupos de equivalência por modelo — espelham os searchKeys de src/data.js.
+# searchErrorCode() aceita array → um código é "findable" se estiver sob QUALQUER
+# key do grupo. O relatório per_key é granular; per_model dá a visão do usuário.
+MODEL_SEARCHKEYS: dict[str, list[str]] = {
+    'E52645':   ['cpmd', 'service'],            # e52645_guia não tem error codes
+    'E62655':   ['e62655_cpmd', 'e62655_service'],
+    'imc3000':  ['ricoh_imc3000_service'],
+    'mpc3004':  ['ricoh_mpc3004_service'],
+}
+
 # Detectores permissivos por família
 HP_FULL_RE     = re.compile(r'\b(\d{2}\.[0-9A-F]{1,2}\.[0-9A-F]{2})\b', re.IGNORECASE)
 RICOH_FULL_RE  = re.compile(r'\bSC\s?(\d{3}-\d{2}|\d{5})\b', re.IGNORECASE)
@@ -179,6 +189,7 @@ def main() -> None:
     ignore     = json.loads(IGNORE_PATH.read_text(encoding='utf-8')) if IGNORE_PATH.exists() else {}
 
     per_key: dict = {}
+    raw_cands_by_key: dict = {}  # cands dict por key (para per_model, não vai pro JSON)
 
     for svc in ERROR_KEYS:
         paths     = PDF_SOURCES.get(svc, [])
@@ -193,6 +204,7 @@ def main() -> None:
         ig    = {canon(k) for k in ignore.get(svc, {})}
         hp    = svc in ('cpmd', 'service', 'e62655_cpmd', 'e62655_service')
         cands = extract_hp(text) if hp else extract_ricoh(text)
+        raw_cands_by_key[svc] = cands
 
         missing: list        = []
         missing_detail: dict = {}
@@ -220,9 +232,39 @@ def main() -> None:
         print(f'    cands={len(cands)} covered={len(cands)-len(missing)} '
               f'missing={len(missing)} orphans={len(orphans)}')
 
+    # ── Visão per_model ───────────────────────────────────────────────────────
+    # Espelha MODEL_SEARCHKEYS (= searchKeys do data.js): um candidato é "covered"
+    # se estiver no índice sob QUALQUER key do modelo — mesma semântica de
+    # searchErrorCode(q, searchKeys[]).
+    per_model: dict = {}
+    for model, keys in MODEL_SEARCHKEYS.items():
+        available_keys = [k for k in keys if k in raw_cands_by_key]
+        if not available_keys:
+            continue
+        model_cands: dict = {}
+        for k in available_keys:
+            model_cands.update(raw_cands_by_key[k])
+        model_cov: set = set()
+        for k in keys:
+            model_cov |= covered_canons(index, k)
+        model_ig: set = set()
+        for k in keys:
+            model_ig |= {canon(c) for c in ignore.get(k, {})}
+        model_missing = sorted(
+            info['original'] for c, info in sorted(model_cands.items())
+            if c not in model_cov and c not in model_ig
+        )
+        per_model[model] = {
+            'keys':       keys,
+            'candidates': len(model_cands),
+            'covered':    len(model_cands) - len(model_missing),
+            'missing':    model_missing,
+        }
+
     report = {
         'index_sha256': index_hash,
         'per_key':      {k: per_key[k] for k in sorted(per_key)},
+        'per_model':    per_model,
     }
     REPORT_PATH.write_text(
         json.dumps(report, ensure_ascii=False, indent=2, sort_keys=True),

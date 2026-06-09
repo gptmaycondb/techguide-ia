@@ -128,7 +128,16 @@ function wildcardMatchHP(pattern, code) {
   return regex.test(code);
 }
 
+// indexKey aceita string (key única) ou array de strings (todas as keys do modelo).
+// Array = isolamento cross-model preservado; evita 508 códigos HP inalcançáveis quando
+// cpmd e service são keys distintas mas pertencem ao mesmo modelo.
+// NÃO "simplificar" de volta para uma key única — ver CLAUDE.md § searchErrorCode.
 export function searchErrorCode(query, indexKey) {
+  const keySet = indexKey
+    ? new Set(Array.isArray(indexKey) ? indexKey : [indexKey])
+    : null;
+  const matchKey = keySet ? e => keySet.has(e.key) : () => true;
+
   // Normaliza "SC 400" → "SC400", "SC 543-00" → "SC543-00"
   const q = query.trim().replace(/\b(SC)\s+(\d)/gi, '$1$2');
   const codes = [
@@ -147,13 +156,12 @@ export function searchErrorCode(query, indexKey) {
   const results = [];
   for (const code of toTry) {
     if (errorCodesData[code]) {
-      const entries = errorCodesData[code];
-      const filtered = indexKey ? entries.filter(e => e.key === indexKey) : entries;
+      const filtered = errorCodesData[code].filter(matchKey);
       if (filtered.length) results.push(...filtered.map(e => e.text));
     } else {
       for (const [k, entries] of Object.entries(errorCodesData)) {
         if (k.startsWith(code) || (code.length >= 4 && k.includes(code)) || wildcardMatchHP(k, code)) {
-          const filtered = indexKey ? entries.filter(e => e.key === indexKey) : entries;
+          const filtered = entries.filter(matchKey);
           if (filtered.length) results.push(...filtered.map(e => e.text));
           if (results.length >= 5) break;
         }

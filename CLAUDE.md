@@ -115,16 +115,22 @@ const searchKeys = (manual.searchKeys && manual.searchKeys.length
   : [primaryKey]).filter((v, i, a) => a.indexOf(v) === i);
 ```
 
-O `serviceKey` para `searchErrorCode` é derivado automaticamente do `searchKeys`:
+A busca de erro passa **todas as keys do modelo** para `searchErrorCode`:
 ```javascript
-// Usa o índice de service do modelo ativo p/ filtrar erros — evita misturar SC codes entre modelos.
-const serviceKey = searchKeys.find(k => k.includes('service')) || primaryKey;
-const errorChunks = searchErrorCode(q, serviceKey);
+// searchErrorCode recebe todas as keys do modelo — cobre cpmd + service + guia.
+// Isolamento cross-model preservado: filtro pelas keys do modelo, não por uma key única.
+const errorChunks = searchErrorCode(q, searchKeys);
 ```
-Isso garante que consultas de código de erro em um modelo Ricoh não retornem resultados
-do service manual de outro modelo. **Não é necessário editar o ChatScreen** para novos
-modelos — o `serviceKey` é resolvido automaticamente desde que `searchKeys` contenha
-a chave `*_service` do modelo.
+`searchErrorCode` aceita `indexKey` como `string` (key única) **ou** `string[]` (array de keys).
+Isso garante que códigos HP indexados sob `cpmd` sejam encontráveis para o E52645 e que
+consultas Ricoh não retornem resultados de outro modelo. **Não é necessário editar o ChatScreen**
+para novos modelos — basta declarar `searchKeys` correto no `data.js`.
+
+> **⚠ Não "simplificar" de volta para uma key única.** A derivação antiga
+> `searchKeys.find(k => k.includes('service'))` foi desenhada para Ricoh (SC codes vivem
+> no service manual) e tornava inalcançáveis os 508 códigos HP da key `cpmd` — invisíveis
+> no app. O isolamento cross-model é garantido pelo filtro com as keys **do modelo**, não
+> por uma key única.
 
 ### 6. Dicas do assistente flutuante em `src/tips.js`
 Adicionar um bloco de dicas **específicas do modelo** com o campo `model` igual ao `id`
@@ -269,10 +275,10 @@ o componente quando o manual muda, resetando todo o estado local (`loading`, scr
 Sem o `key`, trocar de manual com uma requisição em andamento deixava o input bloqueado.
 
 ### searchErrorCode sem fallback cross-manual
-`src/search.js` → `searchErrorCode()`: quando o código existe no índice mas não para
-o `indexKey` do modelo ativo, o resultado é vazio (não há fallback para outros manuais).
-Sem isso, um usuário Ricoh poderia receber descrições de erros HP e vice-versa ao buscar
-códigos que existem em múltiplos manuais.
+`src/search.js` → `searchErrorCode(query, indexKey: string | string[])`: filtra por todas
+as keys do modelo ativo; sem resultado cross-model (um usuário Ricoh não recebe HP e
+vice-versa). Novo contrato desde PR-2: `indexKey` aceita array — ChatScreen passa
+`searchKeys` completo em vez de uma key única (fix de 508 códigos HP invisíveis).
 
 ### Skills e Hooks
 `.claude/skills/` — 12 skills invocadas manualmente com `/nome` na sessão do Claude Code.

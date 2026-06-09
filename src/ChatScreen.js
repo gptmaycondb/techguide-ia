@@ -89,11 +89,9 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
     // ficam em 1200 chars — contexto de apoio, não a resposta principal.
     const capErr = c => c.length > 2400 ? c.substring(0, 2400) + '…' : c;
     const capMan = c => c.length > 2400 ? c.substring(0, 2400) + '…' : c;
-    // Busca erros em todos os índices do modelo (evita cruzamento entre modelos Ricoh
-    // porque cada modelo só tem seus próprios índices em searchKeys).
-    const errorChunks = searchKeys
-      .flatMap(k => searchErrorCode(q, k))
-      .filter((t, i, a) => a.indexOf(t) === i)
+    // searchErrorCode recebe todas as keys do modelo para cobrir cpmd + service + guia.
+    // Isolamento cross-model preservado: filtro por keys do modelo, não por key única.
+    const errorChunks = searchErrorCode(q, searchKeys)
       .slice(0, 4).map(capErr);
     // Busca semântica on-device quando modelo está pronto; fallback keyword se ainda não carregou
     const rawManualChunks = isModelReady()
