@@ -14,7 +14,16 @@
       "backgroundColor": "#161920",
       "barStyle": "light-content"
     },
+    "assetBundlePatterns": [
+      "assets/manuals/**",
+      "assets/search_index.json",
+      "assets/error_codes_index.json",
+      "assets/icon.png",
+      "assets/adaptive-icon.png",
+      "assets/assistant.png"
+    ],
     "android": {
+      "minSdkVersion": 24,
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#0096ff"
@@ -27,15 +36,7 @@
     },
     "plugins": [
       "expo-font",
-      "expo-secure-store",
-      [
-        "expo-build-properties",
-        {
-          "android": {
-            "minSdkVersion": 24
-          }
-        }
-      ]
+      "expo-secure-store"
     ],
     "extra": {
       "eas": {
