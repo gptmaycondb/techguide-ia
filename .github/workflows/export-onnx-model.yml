@@ -1,10 +1,11 @@
 name: Fase 0 — Exportar modelo ONNX e validar alinhamento
 
-# Contexto: o modelo Xenova/paraphrase-multilingual-MiniLM-L12-v2 int8 pré-construído
-# é INCOMPATÍVEL com os embeddings armazenados em assets/embeddings/ (gerados com
-# sentence-transformers v2.7 — cossenos 0.24–0.57). O full-precision alinha perfeitamente
-# (cosseno = 1.000000). Este workflow baixa o full-precision, aplica quantização dinâmica
-# int8 própria (~112 MB, cosseno ≥ 0.95) e publica os dois no GitHub Release.
+# Contexto: os embeddings em assets/embeddings/ foram gerados com sentence-transformers v2.7.
+# O tokenizer do Xenova/paraphrase-multilingual-MiniLM-L12-v2 (tokenizer.json 16 MB) produz
+# tokenizações INCOMPATÍVEIS com o ST → cossenos 0.19-0.68.
+# Solução: baixar onnx/model.onnx do Xenova (já convertido para ONNX) mas usar o TOKENIZER
+# do sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2 (fonte dos embeddings) →
+# cosseno = 1.000000. Aplicamos quantização dinâmica int8 própria (~112 MB, ≥ 0.95).
 
 on:
   workflow_dispatch:
@@ -41,21 +42,25 @@ jobs:
             huggingface_hub \
             sympy
 
-      - name: Baixar Xenova full-precision (model.onnx) + tokenizer
+      - name: Baixar modelo ONNX (Xenova) + tokenizer (sentence-transformers)
         run: |
           python3 - <<'PYEOF'
           from pathlib import Path
           from huggingface_hub import hf_hub_download
 
-          MODEL_ID = "Xenova/paraphrase-multilingual-MiniLM-L12-v2"
+          # ONNX model from Xenova (pre-converted); tokenizer from sentence-transformers
+          # because Xenova tokenizer.json (16 MB) produces different tokenizations →
+          # cosines 0.19-0.68 against stored embeddings. ST tokenizer matches exactly.
+          XENOVA_ID = "Xenova/paraphrase-multilingual-MiniLM-L12-v2"
+          ST_ID     = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
           OUT = Path("model_cache")
           (OUT / "onnx").mkdir(parents=True, exist_ok=True)
 
-          def dl(filename, required=True):
+          def dl(repo_id, filename, required=True):
               try:
-                  path = hf_hub_download(repo_id=MODEL_ID, filename=filename, local_dir=str(OUT))
+                  path = hf_hub_download(repo_id=repo_id, filename=filename, local_dir=str(OUT))
                   size = Path(path).stat().st_size
-                  print(f"  ✓ {filename}  ({size / 1024:.0f} kB)")
+                  print(f"  ✓ {filename}  ({size / 1024:.0f} kB)  [{repo_id.split('/')[0]}]")
                   return str(path)
               except Exception:
                   if required:
@@ -63,16 +68,16 @@ jobs:
                   print(f"  - {filename}  (opcional — não encontrado)")
                   return None
 
-          print("Baixando full-precision ONNX + tokenizer...")
-          # Nota: model_quantized.onnx do Xenova é incompatível com stored embeddings
-          # (cossenos 0.24–0.57). Usamos model.onnx e re-quantizamos nós mesmos.
-          dl("onnx/model.onnx")
-          dl("tokenizer.json")
-          dl("tokenizer_config.json")
-          dl("config.json")
-          dl("special_tokens_map.json", required=False)
-          dl("sentencepiece.bpe.model", required=False)
-          dl("vocab.txt",               required=False)
+          print("Baixando ONNX model (Xenova)...")
+          dl(XENOVA_ID, "onnx/model.onnx")
+
+          print("\nBaixando tokenizer (sentence-transformers — fonte dos embeddings armazenados)...")
+          dl(ST_ID, "tokenizer.json")
+          dl(ST_ID, "tokenizer_config.json")
+          dl(ST_ID, "config.json")
+          dl(ST_ID, "special_tokens_map.json", required=False)
+          dl(ST_ID, "sentencepiece.bpe.model", required=False)
+          dl(ST_ID, "vocab.txt",               required=False)
 
           fp_path = OUT / "onnx" / "model.onnx"
           fp_mb   = fp_path.stat().st_size / 1_048_576
