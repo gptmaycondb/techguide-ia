@@ -14,6 +14,14 @@
       "backgroundColor": "#161920",
       "barStyle": "light-content"
     },
+    "assetBundlePatterns": [
+      "assets/manuals/**",
+      "assets/search_index.json",
+      "assets/error_codes_index.json",
+      "assets/icon.png",
+      "assets/adaptive-icon.png",
+      "assets/assistant.png"
+    ],
     "android": {
       "minSdkVersion": 24,
       "adaptiveIcon": {
