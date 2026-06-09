@@ -817,7 +817,7 @@ def build_error_codes_index() -> dict:
                 if re.match(rf'^SC{gn}[-\d]', existing_key) and existing_key != code:
                     for e in entries:
                         if not any(x['key'] == svc_key and x['text'] == e['text'] for x in index[existing_key]):
-                            index[existing_key].append(e)
+                            index[existing_key].append(dict(e, src='xref'))
                             xref_count += 1
     if xref_count:
         print(f'  → {xref_count} entradas propagadas de grupos SC para subcódigos')
@@ -930,7 +930,7 @@ def propagate_sibling_descriptions(index: dict) -> int:
 
             own_desc = own_best['text'].rstrip(' ●\n')
             synthetic = own_desc + '\n\n' + action_block
-            new_entry = {'key': own_best['key'], 'text': synthetic}
+            new_entry = {'key': own_best['key'], 'text': synthetic, 'src': 'propagated'}
 
             if not any(e['text'] == synthetic for e in index[key]):
                 index[key].append(new_entry)
@@ -970,7 +970,7 @@ def propagate_sibling_descriptions(index: dict) -> int:
 
             own_line = own_best['text'].rstrip('\n')
             synthetic = own_line + '\n\n' + rich_entry['text']
-            new_entry = {'key': own_best['key'], 'text': synthetic}
+            new_entry = {'key': own_best['key'], 'text': synthetic, 'src': 'propagated'}
 
             if not any(e['text'] == synthetic for e in index[key]):
                 index[key].append(new_entry)

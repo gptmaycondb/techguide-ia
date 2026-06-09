@@ -54,12 +54,17 @@ MODEL_SEARCHKEYS: dict[str, list[str]] = {
 # Detectores permissivos por família
 HP_FULL_RE     = re.compile(r'\b(\d{2}\.[0-9A-F]{1,2}\.[0-9A-F]{2})\b', re.IGNORECASE)
 RICOH_FULL_RE  = re.compile(r'\bSC\s?(\d{3}-\d{2}|\d{5})\b', re.IGNORECASE)
-RICOH_TABLE_RE = re.compile(r'^(\d{3}-\d{2})(?=[ \t])', re.MULTILINE)
+RICOH_TABLE_RE    = re.compile(r'^(\d{3}-\d{2})(?=[ \t])', re.MULTILINE)
+# Mirrors RICOH_CONDITION_ROW_RE in build_index.py: code on its own line, description on next.
+# Covers SC681/682 subcodes and SC215/SC533 that appear as "681-01\n\nToner bottle…"
+RICOH_TABLE_NL_RE = re.compile(r'(?:^|\n)(\d{3}-\d{2})\s*\n+\s*([A-Z][^\n]{7,})', re.MULTILINE)
 
 # Padrões de orphans esperados (não gateiam)
 PSEUDO_RE      = re.compile(r'^(PCU-YIELD|PM-PARTS|VIDA-UTIL)')
 RICOH_GROUP_RE = re.compile(r'^SC\d{3}$')            # grupo sem subcódigo (SC681)
 HP_PREFIX_RE   = re.compile(r'^\d{2}(\.[0-9A-F]{1,2})?$', re.IGNORECASE)  # 53 / 53.B0
+# HP partial wildcard codes: 50.2X, 82.0X, 33.05.0X, 13.B2.DX etc. — prefix matchers, never literal in PDF
+HP_WILDCARD_RE = re.compile(r'[WXYZ]', re.IGNORECASE)
 
 
 def canon(code: str) -> str:
@@ -92,8 +97,14 @@ def covered_canons(index: dict, service_key: str) -> set:
 
 
 def is_expected_orphan(code: str) -> bool:
-    """Orphan esperado: pseudo-código, grupo SC, prefixo HP, ou par duplo (SC285/SC285-00)."""
-    return bool(PSEUDO_RE.match(code) or RICOH_GROUP_RE.match(code) or HP_PREFIX_RE.match(code))
+    """Orphan esperado: pseudo-código, grupo SC, prefixo HP, ou código HP com wildcard."""
+    if PSEUDO_RE.match(code) or RICOH_GROUP_RE.match(code) or HP_PREFIX_RE.match(code):
+        return True
+    # HP partial/wildcard entries (50.2X, 82.0X, 33.05.0X, 13.B2.DX, 41.03.FZ …)
+    # are prefix-matchers in searchErrorCode, not codes that literally appear in PDFs.
+    if re.match(r'^\d', code) and HP_WILDCARD_RE.search(code):
+        return True
+    return False
 
 
 def _ctx(text: str, pos: int, end: int) -> str:
@@ -119,6 +130,13 @@ def extract_hp(text: str) -> dict:
             cands[c]['toc_only'] = False
             if not cands[c]['context']:
                 cands[c]['context'] = _ctx(text, m.start(), m.end())
+        else:
+            # TOC block: bypass discard if description text follows within 200 chars.
+            local_ctx = text[m.end(): min(len(text), m.end() + 200)]
+            if re.search(r'[a-z]{4,}', local_ctx):
+                cands[c]['toc_only'] = False
+                if not cands[c]['context']:
+                    cands[c]['context'] = _ctx(text, m.start(), m.end())
     return {c: v for c, v in cands.items() if not v['toc_only']}
 
 
@@ -144,6 +162,15 @@ def extract_ricoh(text: str) -> dict:
             sc_exp[c]['toc_only'] = False
             if not sc_exp[c]['context']:
                 sc_exp[c]['context'] = _ctx(text, m.start(), m.end())
+        else:
+            # TOC block: bypass discard if description text follows within 200 chars.
+            # Covers: "SC914-00  External controller error" (same line) and
+            # "SC914-00\n\nExternal controller error" (next line).
+            local_ctx = text[m.end(): min(len(text), m.end() + 200)]
+            if re.search(r'[a-z]{4,}', local_ctx):
+                sc_exp[c]['toc_only'] = False
+                if not sc_exp[c]['context']:
+                    sc_exp[c]['context'] = _ctx(text, m.start(), m.end())
 
     for m in RICOH_TABLE_RE.finditer(text):
         raw  = m.group(1)
@@ -164,6 +191,31 @@ def extract_ricoh(text: str) -> dict:
         if not in_toc(m.start(), tb):
             table[c]['toc_only'] = False
             if not table[c]['context'] and has_desc:
+                table[c]['context'] = _ctx(text, m.start(), m.end())
+
+    for m in RICOH_TABLE_NL_RE.finditer(text):
+        raw  = m.group(1)
+        desc = m.group(2)
+        code = f'SC{raw}'.upper()
+        c    = canon(code)
+        if c in sc_exp or c in table:
+            continue  # já coberto por forma SC-explícita ou tabela same-line
+
+        # Next-line descriptions: use [a-z]{2,} (covers acronyms like "FCU error")
+        has_desc = bool(re.search(r'[a-z]{2,}', desc))
+        if c not in table:
+            table[c] = {'original': code, 'count': 0, 'context': '', 'toc_only': True, 'has_desc': False}
+        table[c]['count'] += 1
+        if has_desc:
+            table[c]['has_desc'] = True
+        if not in_toc(m.start(), tb):
+            table[c]['toc_only'] = False
+            if not table[c]['context'] and has_desc:
+                table[c]['context'] = _ctx(text, m.start(), m.end())
+        elif has_desc:
+            # Description on next line: bypass TOC discard — real table entry
+            table[c]['toc_only'] = False
+            if not table[c]['context']:
                 table[c]['context'] = _ctx(text, m.start(), m.end())
 
     result: dict = {}
@@ -220,6 +272,8 @@ def main() -> None:
             if any(e['key'] == svc for e in ents)
             and not is_expected_orphan(code)
             and canon(code) not in cands
+            and not all(e.get('src') in ('propagated', 'xref')
+                        for e in ents if e['key'] == svc)
         )
 
         per_key[svc] = {
