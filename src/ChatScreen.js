@@ -6,6 +6,10 @@ import {
 } from 'react-native';
 import { searchManual, searchErrorCode, hasRelevantContent, MANUAL_INDEX_MAP } from './search';
 import { API_URL, DEFAULT_PROVIDER } from './data';
+import {
+  loadModel, loadEmbeddings, unloadEmbeddings,
+  isModelReady, semanticSearchManual,
+} from './semanticSearch';
 
 const C = {
   bg: '#0d0f14', surface: '#161920', surface2: '#1e2230',
@@ -32,6 +36,23 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
   const [loading, setLoading] = useState(false);
   const listRef = useRef(null);
   const inputRef = useRef(null);
+
+  // searchKeys derivado do manual — estável durante a vida do componente (key={chatKey})
+  const primaryKey = MANUAL_INDEX_MAP[manual.id] || manual.indexKey || 'e52645_guia';
+  const searchKeys = (manual.searchKeys?.length ? manual.searchKeys : [primaryKey])
+    .filter((v, i, a) => a.indexOf(v) === i);
+
+  // Inicia download do modelo em background no 1º render (falha silenciosa → fallback keyword)
+  useEffect(() => {
+    loadModel().catch(() => {});
+  }, []);
+
+  // Pré-carrega embeddings do manual atual; libera ao desmontar (manual trocado via key={})
+  useEffect(() => {
+    searchKeys.forEach(k => loadEmbeddings(k).catch(() => {}));
+    return () => searchKeys.forEach(unloadEmbeddings);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
   useEffect(() => {
     if (pendingQuestion) {
       send(pendingQuestion);
@@ -62,13 +83,6 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
 
     // Limit history to last 6 messages (3 exchanges) to avoid growing token cost
     const history = newMsgs.slice(-6).map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text }));
-    // Cada manual declara seus próprios índices de busca (src/data.js → searchKeys).
-    // Fallback para a chave primária do MANUAL_INDEX_MAP quando não declarado.
-    const primaryKey = MANUAL_INDEX_MAP[manual.id] || manual.indexKey || 'e52645_guia';
-    const searchKeys = (manual.searchKeys && manual.searchKeys.length
-      ? manual.searchKeys
-      : [primaryKey]
-    ).filter((v, i, a) => a.indexOf(v) === i);
 
     // Trechos de código de erro carregam o procedimento completo do manual
     // (defeito + causas + solução), até 2400 chars. Trechos de manual (busca textual)
@@ -81,7 +95,11 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
       .flatMap(k => searchErrorCode(q, k))
       .filter((t, i, a) => a.indexOf(t) === i)
       .slice(0, 4).map(capErr);
-    const manualChunks = searchKeys.flatMap(k => searchManual(q, k, 3)).slice(0, 4).map(capMan);
+    // Busca semântica on-device quando modelo está pronto; fallback keyword se ainda não carregou
+    const rawManualChunks = isModelReady()
+      ? await semanticSearchManual(q, searchKeys, 5)
+      : searchKeys.flatMap(k => searchManual(q, k, 3));
+    const manualChunks = rawManualChunks.slice(0, 5).map(capMan);
     const seen = new Set();
     const chunks = [...errorChunks, ...manualChunks].filter(c => {
       const key = c.slice(0, 80);

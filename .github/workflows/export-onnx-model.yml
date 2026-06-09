@@ -1,0 +1,351 @@
+name: Fase 0 — Exportar modelo ONNX e validar alinhamento
+
+# Contexto: os embeddings em assets/embeddings/ foram gerados com sentence-transformers v2.7.
+# O tokenizer do Xenova/paraphrase-multilingual-MiniLM-L12-v2 (tokenizer.json 16 MB) produz
+# tokenizações INCOMPATÍVEIS com o ST → cossenos 0.19-0.68.
+# Solução: baixar onnx/model.onnx do Xenova (já convertido para ONNX) mas usar o TOKENIZER
+# do sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2 (fonte dos embeddings) →
+# cosseno = 1.000000. Aplicamos quantização dinâmica int8 própria (~112 MB, ≥ 0.95).
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - claude/last-project-search-X1Xt4
+    paths:
+      - '.github/workflows/export-onnx-model.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  export-validate-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Instalar dependências Python
+        run: |
+          pip install --quiet \
+            "onnxruntime>=1.17" \
+            "onnx>=1.14" \
+            "transformers>=4.40" \
+            numpy \
+            huggingface_hub \
+            sympy
+
+      - name: Baixar modelo ONNX (Xenova) + tokenizer (sentence-transformers)
+        run: |
+          python3 - <<'PYEOF'
+          from pathlib import Path
+          from huggingface_hub import hf_hub_download
+
+          # ONNX model from Xenova (pre-converted); tokenizer from sentence-transformers
+          # because Xenova tokenizer.json (16 MB) produces different tokenizations →
+          # cosines 0.19-0.68 against stored embeddings. ST tokenizer matches exactly.
+          XENOVA_ID = "Xenova/paraphrase-multilingual-MiniLM-L12-v2"
+          ST_ID     = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
+          OUT = Path("model_cache")
+          (OUT / "onnx").mkdir(parents=True, exist_ok=True)
+
+          def dl(repo_id, filename, required=True):
+              try:
+                  path = hf_hub_download(repo_id=repo_id, filename=filename, local_dir=str(OUT))
+                  size = Path(path).stat().st_size
+                  print(f"  ✓ {filename}  ({size / 1024:.0f} kB)  [{repo_id.split('/')[0]}]")
+                  return str(path)
+              except Exception:
+                  if required:
+                      raise
+                  print(f"  - {filename}  (opcional — não encontrado)")
+                  return None
+
+          print("Baixando ONNX model (Xenova)...")
+          dl(XENOVA_ID, "onnx/model.onnx")
+
+          print("\nBaixando tokenizer (sentence-transformers — fonte dos embeddings armazenados)...")
+          dl(ST_ID, "tokenizer.json")
+          dl(ST_ID, "tokenizer_config.json")
+          dl(ST_ID, "config.json")
+          dl(ST_ID, "special_tokens_map.json", required=False)
+          dl(ST_ID, "sentencepiece.bpe.model", required=False)
+          dl(ST_ID, "vocab.txt",               required=False)
+
+          fp_path = OUT / "onnx" / "model.onnx"
+          fp_mb   = fp_path.stat().st_size / 1_048_576
+          print(f"\nmodel.onnx (full-precision): {fp_mb:.1f} MB")
+          (OUT / "fp_size.txt").write_text(f"{fp_mb:.2f}")
+          PYEOF
+
+      - name: Quantizar para int8 dinâmico (apenas pesos)
+        run: |
+          python3 - <<'PYEOF'
+          from pathlib import Path
+          from onnxruntime.quantization import quantize_dynamic, QuantType
+
+          src = Path("model_cache/onnx/model.onnx")
+          dst = Path("model_cache/onnx/model_int8.onnx")
+
+          print("Aplicando quantize_dynamic (int8 weights only)...")
+          quantize_dynamic(str(src), str(dst), weight_type=QuantType.QInt8)
+
+          q_mb = dst.stat().st_size / 1_048_576
+          print(f"model_int8.onnx: {q_mb:.1f} MB")
+          Path("model_cache/q_size.txt").write_text(f"{q_mb:.2f}")
+          PYEOF
+
+      - name: Validar alinhamento full-precision ↔ armazenados (≥ 0.9999)
+        run: |
+          python3 - <<'PYEOF'
+          import json, sys
+          from pathlib import Path
+          import numpy as np
+          import onnxruntime as ort
+          from transformers import AutoTokenizer
+
+          CACHE   = Path("model_cache")
+          EMB_DIR = Path("assets/embeddings")
+
+          tok        = AutoTokenizer.from_pretrained(str(CACHE))
+          sess_fp    = ort.InferenceSession(str(CACHE/"onnx/model.onnx"),
+                                            providers=["CPUExecutionProvider"])
+          in_names   = [x.name for x in sess_fp.get_inputs()]
+          out_names  = [x.name for x in sess_fp.get_outputs()]
+          print(f"inputs:  {in_names}")
+          print(f"outputs: {out_names}")
+
+          def embed(sess, texts):
+              enc  = tok(texts, padding=True, truncation=True,
+                         max_length=128, return_tensors="np")
+              feed = {
+                  "input_ids":      enc["input_ids"].astype(np.int64),
+                  "attention_mask": enc["attention_mask"].astype(np.int64),
+              }
+              if "token_type_ids" in in_names:
+                  tt = enc.get("token_type_ids", np.zeros_like(enc["input_ids"]))
+                  feed["token_type_ids"] = tt.astype(np.int64)
+              out = sess.run(None, feed)[0]
+              if out.ndim == 3:
+                  mask = enc["attention_mask"][:, :, None].astype(np.float32)
+                  out  = (out * mask).sum(1) / mask.sum(1).clip(min=1e-9)
+              norms = np.linalg.norm(out, axis=1, keepdims=True)
+              return out / norms.clip(min=1e-9)
+
+          texts, stored_vecs = [], []
+          for jf in sorted(EMB_DIR.glob("*.json"))[:4]:
+              data = json.loads(jf.read_text(encoding="utf-8"))
+              for key, chunks in data.items():
+                  for chunk in chunks[:4]:
+                      if len(texts) >= 15:
+                          break
+                      texts.append(chunk["t"])
+                      stored_vecs.append(np.array(chunk["e"], dtype=np.float32))
+
+          print(f"\n─── Full-precision ↔ armazenados ({len(texts)} chunks) ───")
+          fp_vecs  = embed(sess_fp, texts)
+          cos_fp   = [float(np.dot(stored_vecs[i], fp_vecs[i])) for i in range(len(texts))]
+          all_fp   = True
+          for i, c in enumerate(cos_fp):
+              ok = c >= 0.9999
+              all_fp = all_fp and ok
+              print(f"  {'✅' if ok else '❌'} {c:.6f}  {texts[i][:50]!r}")
+
+          min_fp = min(cos_fp)
+          print(f"\n  min cosseno full-precision: {min_fp:.6f}")
+
+          (CACHE / "fp_result.json").write_text(json.dumps({
+              "ok": all_fp, "min": min_fp, "n": len(texts), "cos": cos_fp
+          }, indent=2))
+
+          if not all_fp:
+              print("\n❌ Full-precision fora de alinhamento — abortando.")
+              sys.exit(1)
+          print("✅ Full-precision alinhado com armazenados.")
+          PYEOF
+
+      - name: Validar alinhamento int8 dinâmico ↔ armazenados (≥ 0.95)
+        run: |
+          python3 - <<'PYEOF'
+          import json, sys
+          from pathlib import Path
+          import numpy as np
+          import onnxruntime as ort
+          from transformers import AutoTokenizer
+
+          CACHE   = Path("model_cache")
+          EMB_DIR = Path("assets/embeddings")
+          THRESH  = 0.95
+
+          tok      = AutoTokenizer.from_pretrained(str(CACHE))
+          sess_q   = ort.InferenceSession(str(CACHE/"onnx/model_int8.onnx"),
+                                          providers=["CPUExecutionProvider"])
+          in_names = [x.name for x in sess_q.get_inputs()]
+
+          def embed(texts):
+              enc  = tok(texts, padding=True, truncation=True,
+                         max_length=128, return_tensors="np")
+              feed = {
+                  "input_ids":      enc["input_ids"].astype(np.int64),
+                  "attention_mask": enc["attention_mask"].astype(np.int64),
+              }
+              if "token_type_ids" in in_names:
+                  tt = enc.get("token_type_ids", np.zeros_like(enc["input_ids"]))
+                  feed["token_type_ids"] = tt.astype(np.int64)
+              out = sess_q.run(None, feed)[0]
+              if out.ndim == 3:
+                  mask = enc["attention_mask"][:, :, None].astype(np.float32)
+                  out  = (out * mask).sum(1) / mask.sum(1).clip(min=1e-9)
+              norms = np.linalg.norm(out, axis=1, keepdims=True)
+              return out / norms.clip(min=1e-9)
+
+          texts, stored_vecs = [], []
+          for jf in sorted(EMB_DIR.glob("*.json"))[:4]:
+              data = json.loads(jf.read_text(encoding="utf-8"))
+              for key, chunks in data.items():
+                  for chunk in chunks[:4]:
+                      if len(texts) >= 15:
+                          break
+                      texts.append(chunk["t"])
+                      stored_vecs.append(np.array(chunk["e"], dtype=np.float32))
+
+          print(f"─── int8 dinâmico ↔ armazenados ({len(texts)} chunks, limiar={THRESH}) ───")
+          q_vecs = embed(texts)
+          cos_q  = [float(np.dot(stored_vecs[i], q_vecs[i])) for i in range(len(texts))]
+          all_q  = True
+          for i, c in enumerate(cos_q):
+              ok = c >= THRESH
+              all_q = all_q and ok
+              print(f"  {'✅' if ok else '❌'} {c:.6f}  {texts[i][:50]!r}")
+
+          min_q  = min(cos_q)
+          mean_q = sum(cos_q) / len(cos_q)
+          print(f"\n  min: {min_q:.6f}  |  mean: {mean_q:.6f}")
+
+          (CACHE / "q_result.json").write_text(json.dumps({
+              "ok": all_q, "min": min_q, "mean": mean_q, "n": len(texts), "cos": cos_q
+          }, indent=2))
+
+          if not all_q:
+              print(f"\n❌ int8 abaixo de {THRESH} — abortando.")
+              sys.exit(1)
+          print(f"✅ int8 dinâmico aceito (min cosseno {min_q:.6f} ≥ {THRESH}).")
+          PYEOF
+
+      - name: Preparar assets para Release
+        if: success()
+        run: |
+          mkdir -p release_assets
+          cp model_cache/onnx/model.onnx      release_assets/model.onnx
+          cp model_cache/onnx/model_int8.onnx release_assets/model_int8.onnx
+          cp model_cache/tokenizer.json        release_assets/
+          cp model_cache/tokenizer_config.json release_assets/
+          for f in special_tokens_map.json sentencepiece.bpe.model config.json vocab.txt; do
+            [ -f "model_cache/$f" ] && cp "model_cache/$f" release_assets/ || true
+          done
+          echo "Assets:"
+          ls -lh release_assets/
+
+      - name: Criar GitHub Release
+        if: success()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          TAG="onnx-model-$(date +%Y%m%d-%H%M%S)"
+          FP_MB=$(cat model_cache/fp_size.txt 2>/dev/null || echo "?")
+          Q_MB=$(cat model_cache/q_size.txt 2>/dev/null || echo "?")
+          MIN_FP=$(python3 -c "import json; r=json.load(open('model_cache/fp_result.json')); print(f\"{r['min']:.6f}\")" 2>/dev/null || echo "?")
+          MIN_Q=$(python3 -c "import json; r=json.load(open('model_cache/q_result.json')); print(f\"{r['min']:.6f}\")" 2>/dev/null || echo "?")
+
+          cat > release_notes.md <<NOTES
+          ## Modelo ONNX — paraphrase-multilingual-MiniLM-L12-v2
+
+          Exportado e validado automaticamente pela Action **Fase 0**.
+
+          ### Métricas de alinhamento vs embeddings armazenados em \`assets/embeddings/\`
+          | Modelo | Tamanho | Cosseno mínimo | Limiar |
+          |--------|---------|----------------|--------|
+          | \`model.onnx\` (float32) | ${FP_MB} MB | ${MIN_FP} | ≥ 0.9999 ✅ |
+          | \`model_int8.onnx\` (int8 dinâmico) | ${Q_MB} MB | ${MIN_Q} | ≥ 0.95 ✅ |
+
+          > **Nota:** o \`model_quantized.onnx\` pré-construído do Xenova é
+          > **incompatível** com os embeddings armazenados (cossenos 0.24–0.57).
+          > Use \`model_int8.onnx\` deste Release.
+
+          ### Assets
+          | Arquivo | Uso |
+          |---------|-----|
+          | \`model.onnx\` | Full-precision float32 (referência) |
+          | \`model_int8.onnx\` | **Recomendado para mobile** — int8 dinâmico, ~112 MB |
+          | \`tokenizer.json\` | Tokenizer BPE/SentencePiece |
+          | \`tokenizer_config.json\` | Configuração do tokenizer |
+          | \`config.json\` | Configuração do modelo BERT |
+
+          ### Como usar no app (Fase 1)
+          \`\`\`js
+          // 1. Baixar model_int8.onnx → FileSystem.documentDirectory (lazy, 1º uso)
+          // 2. Tokenizar com @xenova/transformers AutoTokenizer (tokenizer.json)
+          // 3. InferenceSession (onnxruntime-react-native) → last_hidden_state
+          // 4. Mean pooling × attention_mask + L2 normalize → vetor 384-d
+          // 5. Cosseno contra assets/embeddings/<key>.json
+          \`\`\`
+          NOTES
+
+          ASSET_FILES=""
+          for f in \
+            release_assets/model.onnx \
+            release_assets/model_int8.onnx \
+            release_assets/tokenizer.json \
+            release_assets/tokenizer_config.json \
+            release_assets/special_tokens_map.json \
+            release_assets/sentencepiece.bpe.model \
+            release_assets/config.json \
+            release_assets/vocab.txt
+          do
+            [ -f "$f" ] && ASSET_FILES="$ASSET_FILES $f"
+          done
+
+          gh release create "$TAG" \
+            --repo gptmaycondb/techguide-ia \
+            --title "ONNX Model — paraphrase-multilingual-MiniLM-L12-v2 [Fase 0]" \
+            --notes-file release_notes.md \
+            $ASSET_FILES
+
+          echo "✅ Release: https://github.com/gptmaycondb/techguide-ia/releases/tag/$TAG"
+
+      - name: Sumário do Job
+        if: always()
+        run: |
+          python3 - <<'PYEOF'
+          import json, os
+          from pathlib import Path
+
+          lines = ["## Fase 0 — Resultado\n"]
+
+          for label, key, size_file in [
+              ("model.onnx (float32)",  "fp_result.json", "fp_size.txt"),
+              ("model_int8.onnx (int8 dinâmico)", "q_result.json", "q_size.txt"),
+          ]:
+              sz = Path(f"model_cache/{size_file}")
+              rf = Path(f"model_cache/{key}")
+              size_str = sz.read_text().strip() if sz.exists() else "?"
+              if rf.exists():
+                  r = json.loads(rf.read_text())
+                  status = "✅" if r["ok"] else "❌"
+                  lines.append(f"- **{label}:** {size_str} MB | min cosseno = {r['min']:.6f} {status}")
+              else:
+                  lines.append(f"- **{label}:** {size_str} MB | não testado")
+
+          summary = "\n".join(lines) + "\n"
+          print(summary)
+          sp = os.environ.get("GITHUB_STEP_SUMMARY")
+          if sp:
+              Path(sp).write_text(summary)
+          PYEOF
