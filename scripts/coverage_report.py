@@ -52,7 +52,9 @@ MODEL_SEARCHKEYS: dict[str, list[str]] = {
 }
 
 # Detectores permissivos por família
-HP_FULL_RE     = re.compile(r'\b(\d{2}\.[0-9A-F]{1,2}\.[0-9A-F]{2})\b', re.IGNORECASE)
+# [0-9A-FO] inclui letra O maiúscula — OCR comum confunde 0 com O em fontes de manual HP.
+# O código extraído é normalizado (O→0) antes do canon para casar com a chave do índice.
+HP_FULL_RE     = re.compile(r'\b(\d{2}\.[0-9A-FO]{1,2}\.[0-9A-FO]{2})\b', re.IGNORECASE)
 RICOH_FULL_RE  = re.compile(r'\bSC\s?(\d{3}-\d{2}|\d{5})\b', re.IGNORECASE)
 RICOH_TABLE_RE    = re.compile(r'^(\d{3}-\d{2})(?=[ \t])', re.MULTILINE)
 # Mirrors RICOH_CONDITION_ROW_RE in build_index.py: code on its own line, description on next.
@@ -121,7 +123,7 @@ def extract_hp(text: str) -> dict:
     tb = toc_blocks(text)
     cands: dict = {}
     for m in HP_FULL_RE.finditer(text):
-        code = m.group(1).upper()
+        code = m.group(1).upper().replace('O', '0')  # O→0: OCR artifact normalization
         c = canon(code)
         if c not in cands:
             cands[c] = {'original': code, 'count': 0, 'context': '', 'toc_only': True}

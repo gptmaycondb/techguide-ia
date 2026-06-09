@@ -415,6 +415,9 @@ def extract_hp_errors_from_cpmd(text: str) -> dict:
 
         for code in individual_codes:
             code = code.strip()
+            # Uppercase letter O is not a hex digit in HP codes — common OCR artifact (F0 → FO).
+            # Normalize key only; entry text preserves the original PDF text.
+            code = code.replace('O', '0')
             results[code].append(entry)
             parts = code.split('.')
             if len(parts) >= 3:
