@@ -16,7 +16,7 @@ montado ao backend → backend chama a IA com streaming SSE → texto aparece ao
 assets/
   manuals/          ← PDFs HP E52645 (guia_e52645, cpmd_2023, service_part1-4) — bundled no app
   search_index.json ← chunks de texto para busca keyword offline (~20 MB, bundled)
-  error_codes_index.json ← código → descrição do erro (~4.8 MB, ~1770 entradas, 363 HP + 521 Ricoh)
+  error_codes_index.json ← código → descrição do erro (~3.5 MB, ~1848 entradas)
   embeddings/       ← vetores por índice para busca semântica no backend — 11 arquivos *.json
                        (ex: e52645_guia.json, ricoh_imc3000_service.json)
                        Gerados por build_index.py --embeddings; backend baixa do GitHub no start.
@@ -30,7 +30,6 @@ backend/
                        Requer secret MANUAIS_HP_TOKEN (fine-grained PAT, write em manuais-hp)
 scripts/
   build_index.py    ← indexador v2; reprocessa todos os PDFs
-  audit_index.py    ← auditor de qualidade do error_codes_index.json (HP + Ricoh)
 src/
   data.js           ← manuais, AI_PROVIDERS (lista de provedores), API_URL, DEFAULT_PROVIDER
   search.js         ← searchManual(), searchErrorCode(), hasRelevantContent(), MANUAL_INDEX_MAP
@@ -116,16 +115,23 @@ const searchKeys = (manual.searchKeys && manual.searchKeys.length
   : [primaryKey]).filter((v, i, a) => a.indexOf(v) === i);
 ```
 
-O `serviceKey` para `searchErrorCode` é derivado automaticamente do `searchKeys`:
+A busca de erro passa **todas as keys do modelo** para `searchErrorCode`:
 ```javascript
-// Usa o índice de service do modelo ativo p/ filtrar erros — evita misturar SC codes entre modelos.
-const serviceKey = searchKeys.find(k => k.includes('service')) || primaryKey;
-const errorChunks = searchErrorCode(q, serviceKey);
+// searchErrorCode recebe todas as keys do modelo — cobre cpmd + service + guia.
+// Isolamento cross-model preservado: filtro pelas keys do modelo, não por uma key única.
+const errorChunks = searchErrorCode(q, searchKeys);
 ```
-Isso garante que consultas de código de erro em um modelo Ricoh não retornem resultados
-do service manual de outro modelo. **Não é necessário editar o ChatScreen** para novos
-modelos — o `serviceKey` é resolvido automaticamente desde que `searchKeys` contenha
-a chave `*_service` do modelo.
+`searchErrorCode` aceita `indexKey` como `string` (key única) **ou** `string[]` (array de keys).
+Isso garante que códigos HP indexados sob `cpmd` sejam encontráveis para o E52645 e que
+consultas Ricoh não retornem resultados de outro modelo. **Não é necessário editar o ChatScreen**
+para novos modelos — basta declarar `searchKeys` correto no `data.js`.
+
+> **⚠ Não "simplificar" de volta para uma key única.** O código do ChatScreen sempre
+> percorreu todas as keys via `flatMap`; a documentação anterior descrevia uma derivação
+> `searchKeys.find(...)` que nunca foi o comportamento real. O fix (PR-2) moveu a semântica
+> multi-key para dentro de `searchErrorCode` (parâmetro `string | string[]`) e a cobriu com
+> testes no `test_findability.js` — agora é a única fonte de verdade. O isolamento
+> cross-model é garantido pelo filtro com as keys **do modelo**, não por key única.
 
 ### 6. Dicas do assistente flutuante em `src/tips.js`
 Adicionar um bloco de dicas **específicas do modelo** com o campo `model` igual ao `id`
@@ -269,58 +275,21 @@ cancelam o timer com `clearTimeout`.
 o componente quando o manual muda, resetando todo o estado local (`loading`, scroll, etc.).
 Sem o `key`, trocar de manual com uma requisição em andamento deixava o input bloqueado.
 
-### searchErrorCode sem fallback cross-manual
-`src/search.js` → `searchErrorCode()`: quando o código existe no índice mas não para
-o `indexKey` do modelo ativo, o resultado é vazio (não há fallback para outros manuais).
-Sem isso, um usuário Ricoh poderia receber descrições de erros HP e vice-versa ao buscar
-códigos que existem em múltiplos manuais.
+### searchErrorCode — contrato multi-key
+`src/search.js` → `searchErrorCode(query, indexKey: string | string[])`: filtra por todas
+as keys do modelo ativo; sem resultado cross-model (um usuário Ricoh não recebe HP e
+vice-versa). O ChatScreen sempre percorreu todas as keys do modelo; o PR-2 consolidou a
+semântica dentro da função (Set-filter por array) e adicionou dedup interno, tornando o
+comportamento testável via `test_findability.js`.
 
-### Indexador HP — entradas específicas por código
+### Regra de processo: ANTES/DEPOIS em checkpoint vem do git, não da documentação
 
-`extract_hp_errors_from_cpmd()` usa `SECTION_START` regex com três âncoras:
-- `^` / `(?<=\n)` — código no início de linha (padrão E62655 CPMD)
-- `(?<=\. )` — código inline após ponto (ex.: `50.2F.00` em `...replacement. 50.2F.00 Fuser Error`)
-- `(?<=● )` — código após bullet inline (padrão E52645 CPMD: `● 13.B2.A4 description`)
-
-Cada código HP específico (`XX.YY.ZZ`) recebe sua própria chave no índice. O indexador
-também cria chaves de prefixo (`XX.YY` e `XX`) com o mesmo conteúdo para fallback.
-
-**`is_book_index_chunk()` — guard de troubleshooting:** o filtro de índice remissivo
-retorna `False` imediatamente se o texto contiver linguagem de troubleshooting
-(`recommended action`, `turn the printer off`, etc.). Sem isso, seções HP com tabelas de
-part numbers (`RM2-xxxx-000CN`) inflavam a contagem de números e eram descartadas.
-
-### Propagação de irmãos (`propagate_sibling_descriptions`)
-
-Resolve o truncamento onde o bloco de "Recommended action" aparece APÓS o último irmão
-na tabela do PDF, deixando os primeiros irmãos com apenas a descrição:
-
-- **HP:** agrupa por `XX.YY`. Para cada código curto (< 300 chars), sintetiza
-  `"desc própria + action_block do irmão mais rico"`.
-  - Variante **cross-group:** se a descrição menciona outro código explicitamente
-    (ex.: `55.01.06, 55.02.06`), propaga do código referenciado mesmo sendo outro `XX.YY`.
-- **Ricoh (mesmo grupo):** agrupa por `SCxxx`. Para curtos (< 120 chars) com irmão rico
-  (≥ 300 chars), sintetiza `"linha própria + texto do irmão rico"`.
-- **Ricoh (grupo adjacente):** quando TODO o grupo `SCxxx` tem max < 300 chars, busca
-  em `SCxxx±1` por um entry com ação explícita (ex.: `SC913-00` → solução em `SC914-00`).
-
-### `audit_index.py` — auditoria reproduzível
-
-```bash
-python3 scripts/audit_index.py              # relatório completo
-python3 scripts/audit_index.py --fail-short # exit 1 se houver fixable pendente
-```
-
-Classifica cada código HP (`XX.YY.ZZ`) e Ricoh (`SC-com-hífen`) como:
-- `OK` — texto ≥ limiar mínimo com palavra-chave de ação (HP: 200 chars, Ricoh: 120 chars)
-  OU entrada com `HAS_ACTION_RE` match e len > 150 (completa mas compacta, ex.: `56.00.01`)
-  OU entrada com `no action necessary` e len > 80
-- `fixable` — curto mas irmão rico existe (≥ 400 chars) → regressão do build
-- `short` — curto sem irmão rico → manual genuinamente terso (aceitável)
-- `noAction` — tamanho OK mas sem palavra-chave de ação (informacional)
-
-Estado atual: HP 362/363 OK (100%), Ricoh 474/521 OK (91%), 0 fixable, 0 short.
-`80.00.00` (167 chars) é o único `short` restante — licensing error sem ação no CPMD.
+Todo ANTES/DEPOIS apresentado em checkpoint ou revisão de PR deve derivar de
+`git show <hash> -- <arquivo>` ou leitura direta do arquivo com o hash confirmado —
+**nunca da documentação**. O CLAUDE.md é mapa, não território; discrepâncias entre
+o mapa e o código real levam a análises falsas e fixes para problemas inexistentes.
+Esta regra emergiu de um episódio desta sessão em que o CLAUDE.md descrevia uma
+derivação `searchKeys.find(...)` que nunca existiu no código.
 
 ### Skills e Hooks
 `.claude/skills/` — 12 skills invocadas manualmente com `/nome` na sessão do Claude Code.
@@ -338,7 +307,7 @@ O `ChatScreen.js` bifurca o fluxo com base em `isOnline` (prop do `App.js`):
 
 ### Modo online (padrão quando servidor disponível)
 O app sempre faz o RAG **localmente** antes de chamar o backend:
-1. `searchErrorCode(q, serviceKey)` → `error_codes_index.json` (bundled, ~1770 entradas)
+1. `searchErrorCode(q, serviceKey)` → `error_codes_index.json` (bundled, 1848 entradas)
 2. `searchManual(q, k, 3)` para cada `k` em `manual.searchKeys` → `search_index.json`
 3. Monta `systemPrompt = manual.prompts[mode] + contextBlock` com os trechos
 
@@ -426,13 +395,16 @@ configuradas. Apenas `ANTHROPIC_API_KEY` é necessária para o app funcionar nor
 
 ## Melhorias planejadas (não implementadas)
 
-> **Já implementadas** (não repetir aqui): histórico persistente, erros amigáveis,
-> RAG semântico no backend, keepalive `/ping`, telemetria JSON, embeddings
-> `paraphrase-multilingual-MiniLM-L12-v2`, `SEMANTIC_SEARCH` flag, SSE streaming,
-> `max_tokens: 3072`, `searchErrorCode` sem fallback cross-manual, `key={chatKey}`
-> no ChatScreen, contrato legado (RAG local no app), AppState listener, retry automático
-> (`startRequest`), fix URLs E52645 invertidos + `localName` `_v2`, indexação completa
-> HP/Ricoh (When SC, propagação de irmãos, `audit_index.py`, entradas específicas por código).
+> **Já implementadas nesta sessão** (não repetir aqui): histórico persistente,
+> erros amigáveis, RAG semântico no backend, keepalive `/ping`, telemetria JSON,
+> embeddings `paraphrase-multilingual-MiniLM-L12-v2`, `SEMANTIC_SEARCH` flag,
+> SSE streaming, `max_tokens: 3072`, `searchErrorCode` contrato multi-key com dedup,
+> `key={chatKey}` no ChatScreen, contrato legado (RAG local no app), AppState listener,
+> retry automático (`startRequest`), fix URLs E52645 invertidos + `localName` `_v2`,
+> normalização `O→0` em extração HP, subcódigos inline `●` (Lote 1 — famílias 66.80,
+> 13.B9, 33.05, 80.03, 13.B2; +203 códigos HP E52645/E62655; lookahead para ação
+> herdada; sync guard no test_findability.js), gate de cobertura com baseline de
+> dívida (`coverage_baseline.json`) e proteção anti-carpet.
 > `search_index.json` off-bundle continua **deferido** — necessário para modo offline.
 
 ### A) `scripts/sources.json` — configuração de PDFs externalizada
@@ -471,8 +443,8 @@ const TIPS = TIPS_BY_BRAND[manual.brand] || TIPS_BY_BRAND.generic;
 
 | Marca   | Formato de código                  | Parser atual       |
 |---------|------------------------------------|--------------------|
-| HP      | `49.XX.YZ`                         | `extract_hp_errors_from_cpmd()` |
-| Ricoh   | `SC20200` ou `SC285-00` (hífen)    | `extract_ricoh_sc_sections(text, service_key)` |
+| HP      | `49.XX.YZ` (espaço **ou** `:` colado, ex `53.B0.01:`) | `extract_hp_errors_from_cpmd()` |
+| Ricoh   | `SC20200` / `SC285-00` (hífen) / `681**` (curinga, sem `SC`) | `extract_ricoh_sc_sections()` + `extract_ricoh_condition_table()` |
 | Canon   | `Exxx`, `Fxxx`                     | ⚠ não implementado |
 | Kyocera | `C-xxxx`                           | ⚠ não implementado |
 | Xerox   | `xxx-xxx`                          | ⚠ não implementado |
@@ -482,6 +454,24 @@ const TIPS = TIPS_BY_BRAND[manual.brand] || TIPS_BY_BRAND.generic;
 > Ambos os parsers (`extract_ricoh_sc_sections` e `extract_ricoh_sc_groups`) são
 > parametrizados por `service_key` — sempre passe a chave do modelo para que os códigos
 > fiquem atribuídos ao índice correto no `error_codes_index.json`.
+
+> **Ricoh — tabela "Service Call Conditions" (`extract_ricoh_condition_table`):** alguns SC só
+> aparecem nessa tabela **sem o prefixo `SC`** (ex: `681-12`, `912-00`) e usam um bloco de
+> solução curinga `681**`. O `RICOH_SC_RE` (que exige `SC`) os perdia inteiros — SC681/SC682
+> (toner / TD sensor ID chip, 32 subcódigos cada) e SC912 (External controller error). Esse
+> parser captura as linhas `\d{3}-\d{2}` + descrição, anexa o bloco de solução curinga da base,
+> e filtra ruído exigindo ao menos uma minúscula na descrição. Roda **depois** das seções
+> completas, então só agrega (entries longos vêm primeiro na busca).
+
+> **Ricoh — corte de fim de seção (`SECTION_BOUNDARY_RE`):** quando a próxima seção usa cabeçalho
+> curinga (`SC816-**`) ou marcador de capítulo (`6.10 SERVICE CALL 816-899`), o `RICOH_SC_RE`
+> não a reconhece como delimitador e a seção anterior "vaza" 3000 chars, engolindo texto de
+> navegação que `finalize_error_index` descartaria como índice remissivo (era o caso do
+> SC792-00 do MP C3004). O `extract_ricoh_sc_sections` agora trunca nesse limite.
+
+> **HP — delimitador `:` colado:** o `SECTION_START` aceita espaço **ou** `:` após o código.
+> A base 53 (e 42/60/65/80 parciais) usa `53.B0.01:` sem espaço, que o padrão antigo (só `\s+`)
+> descartava. Sem isso, toda a família 53.XX.YZ ficava impesquisável no E52645 e E62655.
 
 Para adicionar um parser novo, seguir o padrão de `extract_ricoh_sc_sections()`:
 regex que captura o código + seção de texto até o próximo código.
@@ -495,14 +485,14 @@ regex que captura o código + seção de texto até o próximo código.
 | `e52645_guia`            | `assets/manuals/guia_e52645.pdf` (bundled)   | 166    |
 | `cpmd`                   | `assets/manuals/cpmd_2023.pdf` (bundled)     | 300    |
 | `service`                | `assets/manuals/service_part1-4` (bundled)   | 615    |
-| `ricoh_imc3000_guia`     | `/tmp/ricoh_guia.pdf` (Google Drive)         | 220    |
-| `ricoh_imc3000_service`  | `/tmp/ricoh_service.pdf` (84 MB, Drive)      | 1764   |
+| `ricoh_imc3000_guia`     | `/tmp/ricoh_guia.pdf` (Google Drive)         | 218    |
+| `ricoh_imc3000_service`  | `/tmp/ricoh_service.pdf` (84 MB, Drive)      | 1763   |
 | `ricoh_imc3000_parts`    | `/tmp/ricoh_parts.pdf` (Google Drive)        | 10     |
-| `e62655_guia`            | `/tmp/e62655_guia.pdf` (Google Drive)        | 162    |
+| `e62655_guia`            | `/tmp/e62655_guia.pdf` (Google Drive)        | 160    |
 | `e62655_cpmd`            | `/tmp/e62655_cpmd.pdf` (Google Drive)        | 316    |
-| `e62655_service`         | `/tmp/e62655_service.pdf` (71 MB, Drive)     | 1095   |
-| `ricoh_mpc3004_guia`     | `/tmp/ricoh_mpc3004_guia.pdf` (7 MB, Drive)  | 163    |
-| `ricoh_mpc3004_service`  | `/tmp/ricoh_mpc3004_service.pdf` (61 MB, Drive) | 1223 |
+| `e62655_service`         | `/tmp/e62655_service.pdf` (71 MB, Drive)     | 1094   |
+| `ricoh_mpc3004_guia`     | `/tmp/ricoh_mpc3004_guia.pdf` (7 MB, Drive)  | 161    |
+| `ricoh_mpc3004_service`  | `/tmp/ricoh_mpc3004_service.pdf` (61 MB, Drive) | 1213 |
 
 > Os PDFs Ricoh e E62655 estão no Google Drive (IDs em `src/data.js` → `BRAND_GROUPS`).
 > Para reindexar, baixar para `/tmp/` com os nomes acima antes de rodar o script.
@@ -543,8 +533,20 @@ for k, v in idx.items():
     print(k)
 "
 
-# 4. Commitar os índices gerados
-git add assets/search_index.json assets/error_codes_index.json assets/embeddings/
+# 3b. Regenerar relatório de cobertura (requer PDFs em /tmp)
+python3 scripts/coverage_report.py
+
+# 4. Verificar gate de qualidade + cobertura
+python3 scripts/audit_index.py --fail-short --fail-missing
+# Saída esperada:
+#   "X pendente(s) de triagem (baseline) | 0 novos — gate OK."
+# Se houver códigos NOVOS (regressão), gate sai 1 — corrigir antes de commitar.
+# Para remover um código resolvido do baseline: editar coverage_baseline.json,
+# reduzir 'total' em 1 e remover da lista do service_key. O arquivo só pode encolher.
+
+# 5. Commitar os índices gerados
+git add assets/search_index.json assets/error_codes_index.json assets/embeddings/ \
+        scripts/coverage_report.json scripts/coverage_baseline.json
 git commit -m "chore: reindexar manuais"
 git push
 ```

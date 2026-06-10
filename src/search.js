@@ -128,11 +128,21 @@ function wildcardMatchHP(pattern, code) {
   return regex.test(code);
 }
 
+// indexKey aceita string (key única) ou array de strings (todas as keys do modelo).
+// Array = isolamento cross-model preservado; as keys do modelo delimitam o filtro.
+// NÃO "simplificar" de volta para uma key única — ver CLAUDE.md § searchErrorCode.
 export function searchErrorCode(query, indexKey) {
+  const keySet = indexKey
+    ? new Set(Array.isArray(indexKey) ? indexKey : [indexKey])
+    : null;
+  const matchKey = keySet ? e => keySet.has(e.key) : () => true;
+
   // Normaliza "SC 400" → "SC400", "SC 543-00" → "SC543-00"
   const q = query.trim().replace(/\b(SC)\s+(\d)/gi, '$1$2');
   const codes = [
-    ...(q.toUpperCase().match(/SC\d{3,6}/g) || []),
+    // Captura o sufixo "-NN" quando presente (ex: "SC681-12") para acertar o
+    // subcódigo exato; sem hífen continua casando a base/forma canônica (SC68112).
+    ...(q.toUpperCase().match(/SC\d{3,6}(?:-\d{2})?/g) || []),
     ...(q.match(/\b\d{2}\.\d{2}(?:\.\d{2}(?:\.\d{2})?)?\b/g) || []),
     // HP codes com dígitos hex (ex: 50.2F.00, 49.38.07 com letra)
     ...(q.toUpperCase().match(/\b\d{2}\.[0-9A-F]{2,3}(?:\.[0-9A-F]{2})?\b/g) || []),
@@ -142,24 +152,31 @@ export function searchErrorCode(query, indexKey) {
   const direct = q.toUpperCase().replace(/^(ERRO|ERROR|CODIGO|CODE|FALHA)\s+/i, '').trim();
   const toTry = codes.length > 0 ? codes : [direct];
 
-  const results = [];
+  const raw = [];
   for (const code of toTry) {
     if (errorCodesData[code]) {
-      const entries = errorCodesData[code];
-      const filtered = indexKey ? entries.filter(e => e.key === indexKey) : entries;
-      if (filtered.length) results.push(...filtered.map(e => e.text));
+      const filtered = errorCodesData[code].filter(matchKey);
+      if (filtered.length) raw.push(...filtered.map(e => e.text));
     } else {
       for (const [k, entries] of Object.entries(errorCodesData)) {
         if (k.startsWith(code) || (code.length >= 4 && k.includes(code)) || wildcardMatchHP(k, code)) {
-          const filtered = indexKey ? entries.filter(e => e.key === indexKey) : entries;
-          if (filtered.length) results.push(...filtered.map(e => e.text));
-          if (results.length >= 5) break;
+          const filtered = entries.filter(matchKey);
+          if (filtered.length) raw.push(...filtered.map(e => e.text));
+          if (raw.length >= 5) break;
         }
       }
     }
+    if (raw.length >= 5) break;
+  }
+  // Dedup by leading 80 chars (same text may appear under multiple matching keys)
+  const seen = new Set();
+  const results = [];
+  for (const t of raw) {
+    const sig = t.slice(0, 80);
+    if (!seen.has(sig)) { seen.add(sig); results.push(t); }
     if (results.length >= 5) break;
   }
-  return results.slice(0, 5);
+  return results;
 }
 
 export function hasRelevantContent(query, indexKey, minScore = 2) {

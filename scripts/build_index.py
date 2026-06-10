@@ -309,17 +309,7 @@ def is_book_index_chunk(text: str) -> bool:
 
     NÃO deve filtrar:
     - Seções SC do Ricoh que têm "Type" codes (D, D, D) como coluna da tabela
-    - Seções HP com tabelas de part numbers (RM2-xxxx) e instruções reais de troubleshooting
     """
-    # Seções com instruções reais de troubleshooting nunca são índice.
-    # Part number tables (RM2-xxxx-000CN) inflam a contagem de números mas o conteúdo é válido.
-    if re.search(
-        r'recommended action|follow these troubleshoot|turn the printer off|'
-        r'turn off.*then.*on|plug.*wall|replace the fuser',
-        text, re.IGNORECASE
-    ):
-        return False
-
     # Múltiplas ocorrências de "remove/removing and replace/replacing NNN"
     # → índice remissivo do HP service manual
     if len(re.findall(r'remov(?:e|ing) and replac(?:e|ing)\s+\d{3,4}', text, re.IGNORECASE)) >= 2:
@@ -382,6 +372,12 @@ def extract_hp_error_type_table(text: str) -> dict:
     return results
 
 
+# Bullet sub-codes "● XX.YY.ZZ" inside HP CPMD parent sections.
+# These codes precede their code with "●" so SECTION_START never captures them.
+# Families in cpmd/e62655_cpmd: 13.B2, 13.B9, 33.05, 66.80, 80.03 (Lote 1).
+BULLET_CODE_RE = re.compile(r'●\s*(\d{2}\.[0-9A-Z]{2,3}\.[0-9A-Z]{2})', re.IGNORECASE)
+BULLET_ACTION_RE = re.compile(r'\nRecommended action\b', re.IGNORECASE)
+
 def extract_hp_errors_from_cpmd(text: str) -> dict:
     """
     Parser específico para o CPMD HP.
@@ -389,18 +385,20 @@ def extract_hp_errors_from_cpmd(text: str) -> dict:
     - Códigos no início de linha: "49.38.07\nDescription..."
     - Códigos no meio de frase: "...text. 50.1X.YZ Fuser Error Low..."
     - Múltiplos códigos: "82.73.46, 82.73.47\nDescription..."
-    - Bullet inline (E52645 CPMD): "● 13.B2.A4\nDescription..."
+    - Subcódigos inline: "● 13.B9.A1\nDescription..." (Lote 1)
     """
     results = defaultdict(list)
 
     # Padrão que captura a PRIMEIRA linha com um ou mais códigos HP
     # Suporta "XX.YY.ZZ", "XX.YY.ZZ, XX.YY.ZZ", "XX.YY.ZZ or XX.YY.ZZ"
-    # Lookbehinds: início de linha, após newline, após ". " ou após "● " (bullet inline)
+    # O delimitador após o código aceita espaço OU ":" colado — alguns blocos
+    # (ex.: base 53 "53.B0.01: Tray 1 feed roller…", 60.xx, 65.80.A0, 80.03.xx)
+    # usam dois-pontos sem espaço, que o padrão antigo (só "\s+") descartava.
     CODE = r'\d{2}(?:\.[0-9A-Z*]{2,3})+'
     MULTI_CODE = rf'({CODE}(?:(?:,\s*|\s+or\s+){CODE})*)'
     SECTION_START = re.compile(
-        rf'(?:^|(?<=\n)|(?<=\. )|(?<=● ))({CODE}(?:(?:,\s*|\s+or\s+){CODE})*)'
-        rf'(?:\s+(?!error messages|errors|\*))',
+        rf'(?:^|(?<=\n)|(?<=\. ))({CODE}(?:(?:,\s*|\s+or\s+){CODE})*)'
+        rf'(?:\s*:|\s+(?!error messages|errors|\*))',
         re.MULTILINE
     )
 
@@ -410,10 +408,24 @@ def extract_hp_errors_from_cpmd(text: str) -> dict:
         start = m.start()
         end = matches[i + 1].start() if i + 1 < len(matches) else start + 5000
         end = min(end, start + 5000)
-        section = text[start:end].strip()
+        section = re.sub(r'\n+●\s*$', '', text[start:end].strip())
 
-        if is_toc_chunk(section) or is_book_index_chunk(section) or len(section) < 80:
+        if is_toc_chunk(section) or is_book_index_chunk(section) or len(section) < 20:
             continue
+
+        # Short section (20-79 chars): description-only line from e62655_cpmd format where
+        # bullet codes appear at line-start and their shared action block sits in a later
+        # section of the same family. Extend section with lookahead action block.
+        if len(section) < 80 and len(raw_codes_str) >= 2:
+            la_text = text[end:min(end + 8000, len(text))]
+            la_action = BULLET_ACTION_RE.search(la_text)
+            if la_action:
+                cross = any(
+                    mm.group(1)[:2] != raw_codes_str[:2]
+                    for mm in SECTION_START.finditer(la_text[:la_action.start()])
+                )
+                if not cross:
+                    section = section + '\n\n' + la_text[la_action.start():la_action.start() + 3000].strip()
 
         # Extrair todos os códigos desta entrada (ex.: "82.73.46, 82.73.47")
         individual_codes = re.findall(rf'{CODE.replace(r"+", r"{1,3}")}', raw_codes_str)
@@ -424,12 +436,59 @@ def extract_hp_errors_from_cpmd(text: str) -> dict:
 
         for code in individual_codes:
             code = code.strip()
+            # Uppercase letter O is not a hex digit in HP codes — common OCR artifact (F0 → FO).
+            # Normalize key only; entry text preserves the original PDF text.
+            code = code.replace('O', '0')
             results[code].append(entry)
             parts = code.split('.')
             if len(parts) >= 3:
                 results['.'.join(parts[:2])].append(entry)
             if len(parts) >= 2:
                 results[parts[0]].append(entry)
+
+        # ── Bullet sub-codes within this section (Lote 1) ──────────────────────
+        # Codes like "● 13.B9.A1\nDesc" are prefixed with "●" so SECTION_START
+        # never sees them at line-start. Extract and index each with its own
+        # description plus the inherited "Recommended action" block.
+        bullet_ms = list(BULLET_CODE_RE.finditer(section))
+        if bullet_ms:
+            # Inherited action block = first "Recommended action" AFTER the last bullet.
+            # Searching from section start risks finding a preceding section's action block
+            # (e.g. section 13.B2.E2 contains 13.B9.* bullets that follow its own action).
+            last_bm = bullet_ms[-1]
+            action_after_last = BULLET_ACTION_RE.search(section, last_bm.start())
+            action_block = section[action_after_last.start():].strip() if action_after_last else ''
+            # Lookahead: if still no action block, search the next 8000 chars in text
+            # as long as we don't cross into a different code family (2-char prefix).
+            if not action_block and len(raw_codes_str) >= 2:
+                la_text = text[end:min(end + 8000, len(text))]
+                la_action = BULLET_ACTION_RE.search(la_text)
+                if la_action:
+                    cross = any(
+                        mm.group(1)[:2] != raw_codes_str[:2]
+                        for mm in SECTION_START.finditer(la_text[:la_action.start()])
+                    )
+                    if not cross:
+                        action_block = la_text[la_action.start():la_action.start() + 3000].strip()
+        for j, bm in enumerate(bullet_ms):
+            sub_code = bm.group(1).upper().replace('O', '0')
+            sub_parts = sub_code.split('.')
+            if len(sub_parts) != 3 or re.search(r'[XYZ*]', sub_code):
+                continue  # skip wildcards
+            next_bullet = bullet_ms[j + 1].start() if j + 1 < len(bullet_ms) else len(section)
+            # Boundary = next bullet OR next action AFTER this bullet (whichever is sooner).
+            # Searching from bm.start() avoids inheriting a preceding action block.
+            action_after_bm = BULLET_ACTION_RE.search(section, bm.start())
+            action_start = action_after_bm.start() if action_after_bm else len(section)
+            boundary = min(next_bullet, action_start)
+            bullet_text = section[bm.start():boundary].strip()
+            if len(bullet_text) < 10:
+                continue
+            full_text = (bullet_text + '\n\n' + action_block) if action_block else bullet_text
+            sub_entry = {'key': 'cpmd', 'text': full_text}
+            results[sub_code].append(sub_entry)
+            results['.'.join(sub_parts[:2])].append(sub_entry)
+            results[sub_parts[0]].append(sub_entry)
 
     return results
 
@@ -443,6 +502,14 @@ def extract_hp_errors_from_cpmd(text: str) -> dict:
 RICOH_SC_RE = re.compile(
     r'(?:^|\n)(SC(\d{3})-?(\d{2}))\s*(?:\n|\()',
     re.MULTILINE
+)
+
+# Limite de fim de seção: início da PRÓXIMA seção quando ela não é um SCxxx-yy
+# normal (que o RICOH_SC_RE já delimita). Cobre cabeçalho curinga "SC816-**" e
+# marcador de capítulo "6.10 SERVICE CALL 816-899" / "SERVICE CALL 700-792".
+SECTION_BOUNDARY_RE = re.compile(
+    r'(?:\n|^)(?:SC\d{3}-?\*\*|\d+(?:\.\d+)+\s+SERVICE\s+CALL\b|SERVICE\s+CALL\s+\d{3}-\d{3}\b)',
+    re.IGNORECASE
 )
 
 # Seções "When SC… is Displayed" — contêm Causa + Solução completas.
@@ -472,7 +539,18 @@ def extract_ricoh_sc_sections(text: str, service_key: str = 'ricoh_imc3000_servi
         start = m.start()
         end = matches[i + 1].start() if i + 1 < len(matches) else start + 3000
         end = min(end, start + 3000)
-        section = text[start:end].strip()
+        section = text[start:end]
+
+        # A próxima seção pode usar cabeçalho curinga (ex.: "SC816-**") ou um
+        # marcador de capítulo ("6.10 SERVICE CALL 816-899") que o RICOH_SC_RE
+        # não reconhece como delimitador — então a seção "vaza" e engole texto
+        # de navegação que parece índice (e seria descartado em finalize, ex.:
+        # SC792-00 do MP C3004). Cortar no primeiro desses marcadores após o
+        # cabeçalho atual mantém só o conteúdo real da seção.
+        cut = SECTION_BOUNDARY_RE.search(section, 40)
+        if cut:
+            section = section[:cut.start()]
+        section = section.strip()
 
         if len(section) < 60:
             continue
@@ -487,6 +565,72 @@ def extract_ricoh_sc_sections(text: str, service_key: str = 'ricoh_imc3000_servi
         # Só adicionar ao grupo se ainda não tiver (primeiro representa o grupo)
         if not results[group]:
             results[group].append(entry)
+
+    return results
+
+# Cabeçalho de seção de solução com curinga: "681**" ou "SC681-**" + tipo A-D.
+# Esses blocos contêm a solução completa (passo a passo) válida para todos os
+# subcódigos da base.
+RICOH_WILDCARD_RE = re.compile(r'(?:^|\n)(?:SC)?(\d{3})-?\*\*\s*\n+\s*[A-D]\b', re.MULTILINE)
+
+# Linha da tabela "Service Call Conditions": código SEM prefixo SC seguido da
+# descrição curta — ex.: "681-12\n\nToner bottle: IDChip Communication error…".
+RICOH_CONDITION_ROW_RE = re.compile(
+    r'(?:^|\n)(\d{3})-(\d{2})\s*\n+\s*([A-Z][^\n]{7,})', re.MULTILINE)
+
+def extract_ricoh_condition_table(text: str, service_key: str = 'ricoh_imc3000_service') -> dict:
+    """
+    Captura a tabela "Service Call Conditions" do service manual Ricoh, onde os
+    subcódigos aparecem SEM o prefixo "SC" (ex.: "681-12" em vez de "SC681-12").
+
+    Necessário porque alguns SC só existem nesse formato: SC681/SC682 (toner /
+    TD sensor ID chip — 32 subcódigos cada) têm a solução num bloco curinga
+    "681**" e a identificação por subcódigo apenas nesta tabela; e SC912
+    (External controller error) aparece só aqui no IM C3000. O RICOH_SC_RE exige
+    "SC" literal e perdia todos esses códigos.
+
+    Cada entry recebe a descrição da linha + (quando existe) o bloco de solução
+    curinga da base, para respostas completas por subcódigo.
+    """
+    results = defaultdict(list)
+
+    # 1. Coletar blocos de solução curinga (SCxxx** … passos), por base.
+    solutions = {}
+    wc_matches = list(RICOH_WILDCARD_RE.finditer(text))
+    for i, m in enumerate(wc_matches):
+        base = m.group(1)
+        start = m.start()
+        end = min(wc_matches[i + 1].start() if i + 1 < len(wc_matches) else start + 2500,
+                  start + 2500)
+        sol = re.sub(r'[ \t]{3,}', '  ', text[start:end].strip())
+        if len(sol) > 80 and base not in solutions:
+            solutions[base] = sol
+
+    # 2. Percorrer a tabela de condições (código sem SC + descrição curta).
+    seen_groups = set()
+    for m in RICOH_CONDITION_ROW_RE.finditer(text):
+        base, suffix, desc = m.group(1), m.group(2), m.group(3).strip()
+        if not (100 <= int(base) <= 999):
+            continue
+        # Filtro anti-ruído: descrição real tem ao menos uma minúscula
+        # (descarta linhas de part number / cabeçalho em CAIXA ALTA).
+        if not any(c.islower() for c in desc):
+            continue
+
+        group  = f'SC{base}'
+        full   = f'{group}{suffix}'   # SC68112
+        hyphen = f'{group}-{suffix}'  # SC681-12
+
+        body = f'{group}-{suffix}\n{desc}'
+        if base in solutions:
+            body += f'\n\n{solutions[base]}'
+        entry = {'key': service_key, 'text': body}
+
+        results[full].append(entry)
+        results[hyphen].append(entry)
+        if group not in seen_groups:
+            results[group].append(entry)
+            seen_groups.add(group)
 
     return results
 
@@ -681,6 +825,14 @@ def build_error_codes_index() -> dict:
                     index[code].append(e)
     unique_sc = len([k for k in ricoh_errors if re.fullmatch(r'SC\d{3}-\d{2}', k)])
     print(f'  → {unique_sc} SC codes completos + {len(sc_groups)} grupos do service Ricoh')
+    ricoh_table = extract_ricoh_condition_table(ricoh_svc_text)
+    table_count = 0
+    for code, entries in ricoh_table.items():
+        for e in entries:
+            if not any(x['key'] == 'ricoh_imc3000_service' and x['text'] == e['text'] for x in index[code]):
+                index[code].append(e)
+                table_count += 1
+    print(f'  → {table_count} entradas da tabela de condições (sem prefixo SC: SC681/682/912 etc) (imc3000)')
     ricoh_detailed = extract_ricoh_sc_detailed_sections(ricoh_svc_text)
     detailed_count = 0
     for code, entries in ricoh_detailed.items():
@@ -703,6 +855,14 @@ def build_error_codes_index() -> dict:
                     index[code].append(e)
     mpc_unique = len([k for k in mpc_errors if re.fullmatch(r'SC\d{3}-\d{2}', k)])
     print(f'  → {mpc_unique} SC codes completos + {len(mpc_groups)} grupos do service MP C3004/3504')
+    mpc_table = extract_ricoh_condition_table(mpc_svc_text, 'ricoh_mpc3004_service')
+    mpc_table_count = 0
+    for code, entries in mpc_table.items():
+        for e in entries:
+            if not any(x['key'] == 'ricoh_mpc3004_service' and x['text'] == e['text'] for x in index[code]):
+                index[code].append(e)
+                mpc_table_count += 1
+    print(f'  → {mpc_table_count} entradas da tabela de condições (sem prefixo SC: SC681/682 etc) (mpc3004)')
     mpc_detailed = extract_ricoh_sc_detailed_sections(mpc_svc_text, 'ricoh_mpc3004_service')
     mpc_detailed_count = 0
     for code, entries in mpc_detailed.items():
@@ -725,7 +885,7 @@ def build_error_codes_index() -> dict:
                 if re.match(rf'^SC{gn}[-\d]', existing_key) and existing_key != code:
                     for e in entries:
                         if not any(x['key'] == svc_key and x['text'] == e['text'] for x in index[existing_key]):
-                            index[existing_key].append(e)
+                            index[existing_key].append(dict(e, src='xref'))
                             xref_count += 1
     if xref_count:
         print(f'  → {xref_count} entradas propagadas de grupos SC para subcódigos')
@@ -838,7 +998,7 @@ def propagate_sibling_descriptions(index: dict) -> int:
 
             own_desc = own_best['text'].rstrip(' ●\n')
             synthetic = own_desc + '\n\n' + action_block
-            new_entry = {'key': own_best['key'], 'text': synthetic}
+            new_entry = {'key': own_best['key'], 'text': synthetic, 'src': 'propagated'}
 
             if not any(e['text'] == synthetic for e in index[key]):
                 index[key].append(new_entry)
@@ -850,47 +1010,6 @@ def propagate_sibling_descriptions(index: dict) -> int:
                 if pfx in index and not any(e['text'] == synthetic for e in index[pfx]):
                     index[pfx].append(new_entry)
                     count += 1
-
-    # ── HP: cross-group (entrada curta menciona código de grupo adjacente) ─────
-    HP_CODE_IN_TEXT_RE = re.compile(r'\b(\d{2}\.[0-9A-F]{1,2}\.[0-9A-F]{2})\b', re.IGNORECASE)
-    for key in list(index.keys()):
-        if not HP_FULL_RE.match(key):
-            continue
-        own_entries = index.get(key, [])
-        if not own_entries:
-            continue
-        own_best = max(own_entries, key=lambda e: len(e['text']))
-        if len(own_best['text']) >= 300:
-            continue
-        if HP_COMPLETE_RE.search(own_best['text']):
-            continue
-        mentioned = HP_CODE_IN_TEXT_RE.findall(own_best['text'])
-        for ref_code in mentioned:
-            ref_key = ref_code if ref_code in index else (ref_code.upper() if ref_code.upper() in index else None)
-            if ref_key is None or ref_key == key:
-                continue
-            ref_entries = index.get(ref_key, [])
-            if not ref_entries:
-                continue
-            ref_best = max(ref_entries, key=lambda e: len(e['text']))
-            if len(ref_best['text']) < 400:
-                continue
-            m = HP_ACTION_RE.search(ref_best['text'])
-            if not m:
-                continue
-            action_block = ref_best['text'][m.start():][:4000]
-            own_desc = own_best['text'].rstrip(' ●\n')
-            synthetic = own_desc + '\n\n' + action_block
-            new_entry = {'key': own_best['key'], 'text': synthetic}
-            if not any(e['text'] == synthetic for e in index[key]):
-                index[key].append(new_entry)
-                count += 1
-            parts = key.split('.')
-            for pfx in ['.'.join(parts[:2]), parts[0]]:
-                if pfx in index and not any(e['text'] == synthetic for e in index[pfx]):
-                    index[pfx].append(new_entry)
-                    count += 1
-            break
 
     # ── Ricoh: grupos SCxxx ───────────────────────────────────────────────────
     RICOH_FULL_RE = re.compile(r'^SC(\d{3})-(\d{2})$')
@@ -919,64 +1038,13 @@ def propagate_sibling_descriptions(index: dict) -> int:
 
             own_line = own_best['text'].rstrip('\n')
             synthetic = own_line + '\n\n' + rich_entry['text']
-            new_entry = {'key': own_best['key'], 'text': synthetic}
+            new_entry = {'key': own_best['key'], 'text': synthetic, 'src': 'propagated'}
 
             if not any(e['text'] == synthetic for e in index[key]):
                 index[key].append(new_entry)
                 count += 1
 
             # Variante sem hífen (SC22001)
-            no_h = key.replace('-', '')
-            if no_h in index and no_h != key:
-                if not any(e['text'] == synthetic for e in index[no_h]):
-                    index[no_h].append(new_entry)
-                    count += 1
-
-    # ── Ricoh: grupos adjacentes (quando grupo não tem irmão rico) ───────────
-    RICOH_ADJ_ACTION_RE = re.compile(
-        r'(Refer to|Turn.*off|Turn.*on|Clean|Replace|Reset|Adjust)',
-        re.IGNORECASE
-    )
-    for group, keys in list(ricoh_groups.items()):
-        group_max = max(
-            (max((len(e['text']) for e in index.get(k, [])), default=0) for k in keys),
-            default=0
-        )
-        if group_max >= 300:
-            continue  # grupo já tem conteúdo suficiente
-        sc_num = int(group[2:])
-        adj_rich_entry = None
-        for delta in [1, -1]:
-            next_group = f'SC{sc_num + delta:03d}'
-            if next_group not in ricoh_groups:
-                continue
-            next_keys = ricoh_groups[next_group]
-            adj_best_key = max(
-                next_keys,
-                key=lambda k: max((len(e['text']) for e in index.get(k, [])), default=0)
-            )
-            adj_candidate = max(index.get(adj_best_key, [{'text': ''}]), key=lambda e: len(e['text']))
-            if len(adj_candidate['text']) < 120:
-                continue
-            if not RICOH_ADJ_ACTION_RE.search(adj_candidate['text']):
-                continue
-            adj_rich_entry = adj_candidate
-            break
-        if not adj_rich_entry:
-            continue
-        for key in keys:
-            own_entries = index.get(key, [])
-            if not own_entries:
-                continue
-            own_best = max(own_entries, key=lambda e: len(e['text']))
-            if len(own_best['text']) >= 120:
-                continue
-            own_line = own_best['text'].rstrip('\n')
-            synthetic = own_line + '\n\n' + adj_rich_entry['text']
-            new_entry = {'key': own_best['key'], 'text': synthetic}
-            if not any(e['text'] == synthetic for e in index[key]):
-                index[key].append(new_entry)
-                count += 1
             no_h = key.replace('-', '')
             if no_h in index and no_h != key:
                 if not any(e['text'] == synthetic for e in index[no_h]):

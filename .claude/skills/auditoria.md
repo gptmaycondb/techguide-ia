@@ -52,14 +52,27 @@ está em `MANUAL_INDEX_MAP`.
 
 ## 4. src/ChatScreen.js — Roteamento data-driven
 
-- [ ] `serviceKey` é derivado via `searchKeys.find(k => k.includes('service')) || primaryKey`
-- [ ] `searchErrorCode` recebe `serviceKey` como segundo argumento
+- [ ] `searchErrorCode` recebe `searchKeys` (array completo) como segundo argumento — **não** `serviceKey`
+- [ ] Não há chamada `.flatMap(k => searchErrorCode(q, k))` (padrão antigo pre-PR-2)
 - [ ] `noChunksMsg` usa `manual.label` (não string hardcoded de modelo específico)
 - [ ] Não há roteamento hardcoded por marca (ex.: `if brand === 'ricoh'`)
 
 ---
 
-## 5. CLAUDE.md — Documentação atualizada
+## 5. Findability test — scripts/test_findability.js
+
+Execute o script de findability e confirme que todos os casos passam:
+
+```bash
+node scripts/test_findability.js
+```
+
+- [ ] 16 testes: 16 passaram, 0 falharam
+- [ ] Se houver ❌: não merge até o índice ou search.js estar correto
+
+---
+
+## 6. CLAUDE.md — Documentação atualizada
 
 - [ ] Tabela "Manuais atuais indexados" lista todos os modelos presentes em `data.js`
 - [ ] Seção "Como adicionar um novo modelo" reflete o fluxo atual
