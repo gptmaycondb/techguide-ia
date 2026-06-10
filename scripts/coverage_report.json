@@ -1,5 +1,5 @@
 {
-  "index_sha256": "9d81961ab1d19f85b8a9338107c90aa25a443d2cd0bb76496e1ef6b1850342ef",
+  "index_sha256": "4dc95f5503744c318f481fb25a798e69927c356d5f243adc4f5b7ec4f629138f",
   "per_key": {
     "cpmd": {
       "candidates": 404,
@@ -313,87 +313,18 @@
     },
     "ricoh_imc3000_service": {
       "candidates": 730,
-      "covered": 724,
+      "covered": 730,
       "covered_by_synthetic": 0,
-      "missing": [
-        "SC375-02",
-        "SC543-03",
-        "SC544-00",
-        "SC554-00",
-        "SC816-99",
-        "SC852-02"
-      ],
-      "missing_detail": {
-        "SC375-02": {
-          "context": "or SC375-02 (ID sensor output error: damage to the belt detected) is issued.",
-          "count": 1
-        },
-        "SC543-03": {
-          "context": "If a lock signal is not obtained for 50 times (140 times for SC543-03)",
-          "count": 1
-        },
-        "SC544-00": {
-          "context": "• When canceling a fusing unit SC, (SC544-00/",
-          "count": 1
-        },
-        "SC554-00": {
-          "context": "SC554-00/ SC564-00/ SC574-00), perform the part",
-          "count": 1
-        },
-        "SC816-99": {
-          "context": "SC 81699",
-          "count": 2
-        },
-        "SC852-02": {
-          "context": "For SC852-02, HDD and memory may cause the problem. Replace the HDD",
-          "count": 1
-        }
-      },
+      "missing": [],
+      "missing_detail": {},
       "orphans": []
     },
     "ricoh_mpc3004_service": {
       "candidates": 621,
-      "covered": 614,
+      "covered": 621,
       "covered_by_synthetic": 0,
-      "missing": [
-        "SC544-00",
-        "SC554-00",
-        "SC816-99",
-        "SC843-02",
-        "SC852-02",
-        "SC863-23",
-        "SC865-23"
-      ],
-      "missing_detail": {
-        "SC544-00": {
-          "context": "When canceling a fusing unit SC, (SC544-00/",
-          "count": 1
-        },
-        "SC554-00": {
-          "context": "SC554-00/ SC564-00/ SC574-00), perform part",
-          "count": 1
-        },
-        "SC816-99": {
-          "context": "SC 816-99",
-          "count": 2
-        },
-        "SC843-02": {
-          "context": "IS NOW NECESSARY” IS DISPLAYED AND SC843-02 OCCURS ........................ 6-318",
-          "count": 3
-        },
-        "SC852-02": {
-          "context": "For SC852-02, HDD and memory may cause the problem. Replace the HDD",
-          "count": 1
-        },
-        "SC863-23": {
-          "context": "(An error occurred in partition \"a\" (SC863-02) to partition \"v\" (SC863-23)).",
-          "count": 1
-        },
-        "SC865-23": {
-          "context": "(An error occurred in partition \"a\" (SC865-02) to partition \"v\" (SC865-23)).",
-          "count": 1
-        }
-      },
+      "missing": [],
+      "missing_detail": {},
       "orphans": []
     },
     "service": {
@@ -509,34 +440,19 @@
     },
     "imc3000": {
       "candidates": 730,
-      "covered": 724,
+      "covered": 730,
       "keys": [
         "ricoh_imc3000_service"
       ],
-      "missing": [
-        "SC375-02",
-        "SC543-03",
-        "SC544-00",
-        "SC554-00",
-        "SC816-99",
-        "SC852-02"
-      ]
+      "missing": []
     },
     "mpc3004": {
       "candidates": 621,
-      "covered": 614,
+      "covered": 621,
       "keys": [
         "ricoh_mpc3004_service"
       ],
-      "missing": [
-        "SC544-00",
-        "SC554-00",
-        "SC816-99",
-        "SC843-02",
-        "SC852-02",
-        "SC863-23",
-        "SC865-23"
-      ]
+      "missing": []
     }
   }
 }

@@ -500,8 +500,9 @@ def extract_hp_errors_from_cpmd(text: str) -> dict:
 # O grupo 2 captura os 3 dígitos do grupo (202/285) e o grupo 3 o sufixo (00),
 # com o hífen opcional para cobrir ambos.
 RICOH_SC_RE = re.compile(
+    # Allow optional space after SC: "SC 81699\n" (imc3000) / "SC 816-99\n" (mpc3004).
     # Allow optional trailing comma: "SC816-23,\n" (mpc3004 comma-pair column artifact).
-    r'(?:^|\n)(SC(\d{3})-?(\d{2})),?\s*(?:\n|\()',
+    r'(?:^|\n)(SC\s?(\d{3})-?(\d{2})),?\s*(?:\n|\()',
     re.MULTILINE
 )
 
@@ -529,6 +530,18 @@ RICOH_REVERSED_RANGE_RE = re.compile(
 # Comma-pair (imc3000): "SC81623, 24\n\nD"
 RICOH_COMMA_PAIR_RE = re.compile(
     r'(?:^|\n)(SC(\d{3})-?(\d{2})),\s+(\d{2})\b',
+    re.MULTILINE
+)
+# Partition range (mpc3004 HDD codes): "(SC863-02) to partition "v" (SC863-23)"
+# Covers all intermediate partition codes SC863-03 … SC863-22 and the endpoint SC863-23.
+RICOH_PARTITION_RANGE_RE = re.compile(
+    r'\(SC(\d{3})-(\d{2})\)\s+to\s+partition\s+"[a-z]"\s+\(SC\d{3}-(\d{2})\)',
+    re.IGNORECASE
+)
+
+# Section header "SC843-02 OCCURS" (mpc3004 troubleshooting chapters).
+SC_OCCURS_RE = re.compile(
+    r'(?:^|\n)(SC(\d{3})-(\d{2}))\s+OCCURS\s*\n',
     re.MULTILINE
 )
 
@@ -640,6 +653,10 @@ def expand_ricoh_ranges(text: str, service_key: str) -> dict:
         for m in pat.finditer(text):
             base, s, e = m.group(2), int(m.group(3)), int(m.group(4))
             _add(base, s, e, _ctx(text[m.end():m.end() + 700]))
+
+    for m in RICOH_PARTITION_RANGE_RE.finditer(text):
+        base, s, e = m.group(1), int(m.group(2)), int(m.group(3))
+        _add(base, s, e, _ctx(text[m.end():m.end() + 700]))
 
     for m in RICOH_COMMA_PAIR_RE.finditer(text):
         base, s1, s2 = m.group(2), int(m.group(3)), int(m.group(4))
@@ -818,6 +835,31 @@ def extract_ricoh_sc_detailed_sections(text: str, service_key: str = 'ricoh_imc3
         if not results[group]:
             results[group].append(entry)
 
+    # Also extract "SC843-02 OCCURS" style sections (mpc3004 troubleshooting chapters).
+    occurs_matches = list(SC_OCCURS_RE.finditer(text))
+    for i, m in enumerate(occurs_matches):
+        group_num, suffix = m.group(2), m.group(3)
+        group   = 'SC' + group_num
+        full_nh = group + suffix          # SC84302
+        full_h  = group + '-' + suffix   # SC843-02
+
+        start = m.start()
+        end   = occurs_matches[i + 1].start() if i + 1 < len(occurs_matches) else start + 3000
+        end   = min(end, start + 3000)
+        section = text[start:end].strip()
+        section = re.sub(r'[ \t]{3,}', '  ', section)
+
+        if len(section) < 100:
+            continue
+
+        entry = {'key': service_key, 'text': section}
+        if not any(e['text'] == section for e in results[full_nh]):
+            results[full_nh].append(entry)
+        if not any(e['text'] == section for e in results[full_h]):
+            results[full_h].append(entry)
+        if not results[group]:
+            results[group].append(entry)
+
     return results
 
 
@@ -975,6 +1017,82 @@ def build_error_codes_index() -> dict:
                 index[code].append(e)
                 range_count_mpc += 1
     print(f'  → {range_count_mpc} entradas de faixa expandidas (mpc3004)')
+
+    # Stubs: códigos reais sem seção própria no PDF — texto derivado de menção inline.
+    # Sobrevivem ao reindex por estarem no código, não no JSON.
+    _RICOH_STUBS = [
+        # SC375-02 (imc3000): mentioned inline in SC375 procedure ("if Vsg 0.3–2.2V, SC375-02 is issued")
+        ('SC37502', 'SC375-02', 'SC375', 'ricoh_imc3000_service',
+         "SC375-02: ID sensor output error — TM/ID sensor detected belt damage.\n"
+         "Condition: Vsg output 0.3V ≤ Vsg ≤ 2.2V (belt damage range).\n"
+         "Cause: Transfer belt damaged; TM/ID sensor defective.\n"
+         "Solution: Check TM/ID sensor and transfer belt; replace belt if damaged. "
+         "Refer to SC375-01 section for complete cause and solution procedure."),
+        # SC543-03 (imc3000): inline mention in SC534-03 section (different lock threshold)
+        ('SC54303', 'SC543-03', 'SC543', 'ricoh_imc3000_service',
+         "SC543-03: Motor lock error.\n"
+         "Condition: Lock signal not obtained for 140 consecutive attempts "
+         "(higher threshold than other SC5xx fan codes: 50 attempts).\n"
+         "Cause: Motor defective; connector disconnected; harness broken; IOB defective.\n"
+         "Solution: Check connectors and harness; replace fan motor or IOB as needed."),
+        # SC544-00 (both models): mentioned in fusing unit cancellation procedure note
+        ('SC54400', 'SC544-00', 'SC544', 'ricoh_imc3000_service',
+         "SC544-00: Fusing unit SC.\n"
+         "Procedure: When canceling a fusing unit SC (SC544-00/SC554-00/SC564-00/SC574-00), "
+         "perform part replacement per the prescribed procedure before restarting the machine.\n"
+         "Cause: Fusing unit failure.\n"
+         "Solution: Replace the fusing unit per the applicable replacement procedure "
+         "before clearing the SC and restarting."),
+        ('SC54400', 'SC544-00', 'SC544', 'ricoh_mpc3004_service',
+         "SC544-00: Fusing unit SC.\n"
+         "Procedure: When canceling a fusing unit SC (SC544-00/SC554-00/SC564-00/SC574-00), "
+         "perform part replacement per the prescribed procedure before restarting the machine.\n"
+         "Cause: Fusing unit failure.\n"
+         "Solution: Replace the fusing unit per the applicable replacement procedure "
+         "before clearing the SC and restarting."),
+        # SC554-00 (both models): same fusing unit procedure
+        ('SC55400', 'SC554-00', 'SC554', 'ricoh_imc3000_service',
+         "SC554-00: Fusing unit SC.\n"
+         "Procedure: When canceling a fusing unit SC (SC544-00/SC554-00/SC564-00/SC574-00), "
+         "perform part replacement per the prescribed procedure before restarting the machine.\n"
+         "Cause: Fusing unit failure.\n"
+         "Solution: Replace the fusing unit per the applicable replacement procedure "
+         "before clearing the SC and restarting."),
+        ('SC55400', 'SC554-00', 'SC554', 'ricoh_mpc3004_service',
+         "SC554-00: Fusing unit SC.\n"
+         "Procedure: When canceling a fusing unit SC (SC544-00/SC554-00/SC564-00/SC574-00), "
+         "perform part replacement per the prescribed procedure before restarting the machine.\n"
+         "Cause: Fusing unit failure.\n"
+         "Solution: Replace the fusing unit per the applicable replacement procedure "
+         "before clearing the SC and restarting."),
+        # SC852-02 (both models): inline note in SC845 section (ARFU firmware update failure)
+        ('SC85202', 'SC852-02', 'SC852', 'ricoh_imc3000_service',
+         "SC852-02: Firmware auto-update failure (ARFU) — HDD or memory issue.\n"
+         "Condition: Firmware cannot be read or written normally; "
+         "update cannot be completed even after 3 retries.\n"
+         "Cause: Hardware abnormality of target board, HDD, or memory.\n"
+         "Solution: For SC852-02, HDD and memory may cause the problem. "
+         "Replace the HDD or memory if the SC cannot be recovered by "
+         "replacing the controller board."),
+        ('SC85202', 'SC852-02', 'SC852', 'ricoh_mpc3004_service',
+         "SC852-02: Firmware auto-update failure (ARFU) — HDD or memory issue.\n"
+         "Condition: Firmware cannot be read or written normally; "
+         "update cannot be completed even after 3 retries.\n"
+         "Cause: Hardware abnormality of target board, HDD, or memory.\n"
+         "Solution: For SC852-02, HDD and memory may cause the problem. "
+         "Replace the HDD or memory if the SC cannot be recovered by "
+         "replacing the controller board."),
+    ]
+    stub_count = 0
+    for full_nh, full_h, group, svc_key, text_body in _RICOH_STUBS:
+        entry = {'key': svc_key, 'text': text_body, 'src': 'stub'}
+        for code in (full_nh, full_h):
+            if not any(x['key'] == svc_key and x['text'] == text_body for x in index[code]):
+                index[code].append(entry)
+                stub_count += 1
+        if not any(x['key'] == svc_key for x in index[group]):
+            index[group].append(entry)
+    print(f'  → {stub_count} entradas de stub adicionadas (Ricoh)')
 
     # Propagação reversa: copia entradas de grupo (SC370) para subcódigos (SC370-03, SC37003)
     xref_count = 0

@@ -215,6 +215,31 @@ expect('SC672-20 via imc3000 searchKeys', 'SC672-20', KEYS.imc3000, true);
 console.log('[Lote 2 — threshold] SC911-20 (condition table row, imc3000) → deve achar');
 expect('SC911-20 via imc3000 searchKeys', 'SC911-20', KEYS.imc3000, true);
 
+// ── Lote 3 — espaço SC816-99, OCCURS, faixa de partição, stubs ───────────────
+console.log('\n[Lote 3 — espaço] SC816-99 (SC 81699 imc3000) → deve achar');
+expect('SC816-99 via imc3000 searchKeys', 'SC816-99', KEYS.imc3000, true);
+
+console.log('[Lote 3 — espaço] SC816-99 (SC 816-99 mpc3004) → deve achar');
+expect('SC816-99 via mpc3004 searchKeys', 'SC816-99', KEYS.mpc3004, true);
+
+console.log('[Lote 3 — OCCURS] SC843-02 (SC843-02 OCCURS section, mpc3004) → deve achar');
+expect('SC843-02 via mpc3004 searchKeys', 'SC843-02', KEYS.mpc3004, true);
+
+console.log('[Lote 3 — partition range] SC863-23 (end of SC863-02…23 range, mpc3004) → deve achar');
+expect('SC863-23 via mpc3004 searchKeys', 'SC863-23', KEYS.mpc3004, true);
+
+console.log('[Lote 3 — partition range] SC865-23 (end of SC865-02…23 range, mpc3004) → deve achar');
+expect('SC865-23 via mpc3004 searchKeys', 'SC865-23', KEYS.mpc3004, true);
+
+console.log('[Lote 3 — stub] SC544-00 (fusing unit stub, imc3000) → deve achar');
+expect('SC544-00 via imc3000 searchKeys', 'SC544-00', KEYS.imc3000, true);
+
+console.log('[Lote 3 — stub] SC544-00 (fusing unit stub, mpc3004) → deve achar');
+expect('SC544-00 via mpc3004 searchKeys', 'SC544-00', KEYS.mpc3004, true);
+
+console.log('[Lote 3 — stub] SC852-02 (ARFU stub, mpc3004) → deve achar');
+expect('SC852-02 via mpc3004 searchKeys', 'SC852-02', KEYS.mpc3004, true);
+
 // ── Negativos cross-model ─────────────────────────────────────────────────────
 console.log('\n[Cross-model isolation] Código E62655-only não vaza para E52645');
 expect('10.00.30 (e62655-only) via E52645 keys → NOT FOUND', '10.00.30', KEYS.E52645, false);
