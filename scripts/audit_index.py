@@ -10,7 +10,10 @@ Testa TODOS os códigos HP e Ricoh sem exceção e classifica cada um:
 
 Uso:
   python3 scripts/audit_index.py              # relatório completo
-  python3 scripts/audit_index.py --fail-short # retorna exit code 1 se houver short/fixable
+  python3 scripts/audit_index.py --fail-short # exit 1 se houver short/fixable
+  python3 scripts/audit_index.py --fail-missing           # gate de cobertura
+  python3 scripts/audit_index.py --fail-short --fail-missing  # ambos
+  python3 scripts/audit_index.py --shrink-baseline        # encolhe baseline após Lote
 """
 
 import hashlib
@@ -71,6 +74,10 @@ def classify(code: str, entries: list, min_len: int, peer_max: int) -> str:
 # ─── Main ─────────────────────────────────────────────────────────────────────
 
 def main():
+    if '--shrink-baseline' in sys.argv:
+        _shrink_baseline()
+        return
+
     fail_mode = '--fail-short' in sys.argv
 
     idx: dict = json.loads(INDEX_PATH.read_text(encoding='utf-8'))
@@ -216,7 +223,9 @@ def _check_coverage() -> None:
         print('   Regenere: python3 scripts/coverage_report.py (requer PDFs em /tmp)')
         sys.exit(1)
 
-    # Load baseline (codes already in canonical form)
+    # Load baseline (codes already in canonical form).
+    # index_sha256 in baseline is audit metadata only — never blocks.
+    # The strict freshness check lives in coverage_report (above), where it belongs.
     baseline: dict[str, set] = {}
     baseline_total = 0
     if baseline_path.exists():
@@ -224,6 +233,10 @@ def _check_coverage() -> None:
         baseline_total = bl.get('total', 0)
         for svc, codes in bl.get('per_key', {}).items():
             baseline[svc] = set(codes)
+        bl_sha = bl.get('index_sha256', '')
+        if bl_sha and bl_sha != current_hash:
+            print('   (info) baseline gerado contra índice anterior'
+                  ' — rode --shrink-baseline após reindexar')
 
     _check_baseline_did_not_grow(baseline_path, baseline_total)
 
@@ -268,6 +281,83 @@ def _check_coverage() -> None:
     else:
         print(f'❌ {total_pending} pendente(s) de triagem (baseline) | {total_new} NOVO(S) — gate falhou.')
         sys.exit(1)
+
+
+def _shrink_baseline() -> None:
+    """Regenera coverage_baseline.json como interseção do baseline existente com
+    os missing atuais do coverage_report.json. Por construção só encolhe (nunca cresce).
+    Atualiza total, generated_from_commit e index_sha256 automaticamente.
+    Requer coverage_report.json fresco (mesma verificação do --fail-missing)."""
+    import subprocess
+
+    report_path   = Path(__file__).parent / 'coverage_report.json'
+    baseline_path = Path(__file__).parent / 'coverage_baseline.json'
+
+    if not report_path.exists():
+        print('❌ coverage_report.json não encontrado.')
+        print('   Execute: python3 scripts/coverage_report.py (requer PDFs em /tmp)')
+        sys.exit(1)
+
+    if not baseline_path.exists():
+        print('ℹ  coverage_baseline.json não existe — nada a encolher.')
+        print('   Sem baseline, --fail-missing já opera em modo estrito.')
+        return
+
+    report = json.loads(report_path.read_text(encoding='utf-8'))
+    stored_hash  = report.get('index_sha256', '')
+    current_hash = hashlib.sha256(INDEX_PATH.read_bytes()).hexdigest()
+    if stored_hash != current_hash:
+        print('❌ coverage_report.json desatualizado — regenere antes de --shrink-baseline.')
+        print('   Execute: python3 scripts/coverage_report.py (requer PDFs em /tmp)')
+        sys.exit(1)
+
+    bl = json.loads(baseline_path.read_text(encoding='utf-8'))
+    old_total   = bl.get('total', 0)
+    old_per_key = bl.get('per_key', {})
+
+    # Interseção: manter só os códigos que AINDA estão no missing atual
+    new_per_key: dict[str, list] = {}
+    for svc, old_codes in sorted(old_per_key.items()):
+        old_set = set(old_codes)  # já em forma canônica
+        curr_missing = {_canon(c) for c in report.get('per_key', {}).get(svc, {}).get('missing', [])}
+        new_per_key[svc] = sorted(old_set & curr_missing)
+
+    new_total = sum(len(v) for v in new_per_key.values())
+
+    # Sanidade: interseção nunca pode crescer — se crescer é bug
+    if new_total > old_total:
+        print(f'❌ Erro interno: shrink resultou em crescimento ({old_total} → {new_total}).')
+        sys.exit(1)
+
+    try:
+        res = subprocess.run(['git', 'rev-parse', '--short', 'HEAD'],
+                             capture_output=True, cwd=str(Path(__file__).parent.parent))
+        commit = res.stdout.decode().strip() if res.returncode == 0 else 'unknown'
+    except Exception:
+        commit = 'unknown'
+
+    new_bl = {
+        'generated_from_commit': commit,
+        'index_sha256': current_hash,
+        'total': new_total,
+        'per_key': new_per_key,
+    }
+    baseline_path.write_text(
+        json.dumps(new_bl, indent=2, ensure_ascii=False, sort_keys=True) + '\n'
+    )
+
+    removed = old_total - new_total
+    print(f'✅ --shrink-baseline: {old_total} → {new_total} entradas ({removed} removida(s)).')
+    if removed > 0:
+        for svc in sorted(old_per_key):
+            rem = sorted(set(old_per_key.get(svc, [])) - set(new_per_key.get(svc, [])))
+            if rem:
+                samp = ', '.join(rem[:5]) + ('…' if len(rem) > 5 else '')
+                print(f'   {svc}: -{len(rem)} ({samp})')
+    if new_total == 0:
+        print()
+        print('   Baseline zerado. Próximo passo: deletar coverage_baseline.json.')
+        print('   Sem o arquivo, --fail-missing opera em modo estrito.')
 
 
 if __name__ == '__main__':
