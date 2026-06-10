@@ -34,7 +34,7 @@ jobs:
           restore-keys: gradle-
 
       - name: Install dependencies
-        run: npm install
+        run: npm ci
 
       - name: Pin onnxruntime-android version
         run: |
