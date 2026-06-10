@@ -401,7 +401,10 @@ configuradas. Apenas `ANTHROPIC_API_KEY` é necessária para o app funcionar nor
 > SSE streaming, `max_tokens: 3072`, `searchErrorCode` contrato multi-key com dedup,
 > `key={chatKey}` no ChatScreen, contrato legado (RAG local no app), AppState listener,
 > retry automático (`startRequest`), fix URLs E52645 invertidos + `localName` `_v2`,
-> normalização `O→0` em extração HP, subcódigos inline `●` (Lote 1).
+> normalização `O→0` em extração HP, subcódigos inline `●` (Lote 1 — famílias 66.80,
+> 13.B9, 33.05, 80.03, 13.B2; +203 códigos HP E52645/E62655; lookahead para ação
+> herdada; sync guard no test_findability.js), gate de cobertura com baseline de
+> dívida (`coverage_baseline.json`) e proteção anti-carpet.
 > `search_index.json` off-bundle continua **deferido** — necessário para modo offline.
 
 ### A) `scripts/sources.json` — configuração de PDFs externalizada
@@ -530,8 +533,20 @@ for k, v in idx.items():
     print(k)
 "
 
-# 4. Commitar os índices gerados
-git add assets/search_index.json assets/error_codes_index.json assets/embeddings/
+# 3b. Regenerar relatório de cobertura (requer PDFs em /tmp)
+python3 scripts/coverage_report.py
+
+# 4. Verificar gate de qualidade + cobertura
+python3 scripts/audit_index.py --fail-short --fail-missing
+# Saída esperada:
+#   "X pendente(s) de triagem (baseline) | 0 novos — gate OK."
+# Se houver códigos NOVOS (regressão), gate sai 1 — corrigir antes de commitar.
+# Para remover um código resolvido do baseline: editar coverage_baseline.json,
+# reduzir 'total' em 1 e remover da lista do service_key. O arquivo só pode encolher.
+
+# 5. Commitar os índices gerados
+git add assets/search_index.json assets/error_codes_index.json assets/embeddings/ \
+        scripts/coverage_report.json scripts/coverage_baseline.json
 git commit -m "chore: reindexar manuais"
 git push
 ```
