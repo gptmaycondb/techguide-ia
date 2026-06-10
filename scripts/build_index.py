@@ -321,6 +321,13 @@ def is_book_index_chunk(text: str) -> bool:
     if len(re.findall(r'remov(?:e|ing) and replac(?:e|ing)\s+\d{3,4}', text, re.IGNORECASE)) >= 2:
         return True
 
+    # TOC-row curta: código HP imediatamente seguido só por número de página na mesma linha.
+    # Ex: "76.00.24 5\nB\nbackup error" (25 chars) — sem descrição na linha do código → ruído de sumário.
+    # Guard de comprimento (< 50) é essencial: seções reais onde o código é seguido de número de página
+    # antes do conteúdo de bullets (ex: "66.00.79 335\n● 66.80.22…") têm texto muito mais longo.
+    if len(text) < 50 and re.match(r'\d{2}\.[0-9A-F]{2,3}\.[0-9A-F]{2}\s+\d{1,4}\s*(?:\n|$)', text, re.IGNORECASE):
+        return True
+
     # Tabela resumo do CPMD: letra de seção + "word error XX.YY error N"
     # Ex: "B backup error 32.WX.YZ error 4 reset error 4..."
     if re.search(r'(?:^|\n)[A-Z]\s+\w+ error \d{2}\.', text):

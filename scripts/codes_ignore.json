@@ -5,7 +5,8 @@
     "760024": "Appears only as a TOC page-number reference ('76.00.24 5') — not a real displayable error code"
   },
   "e62655_cpmd": {
-    "102215": "Appears only as a didactic example in the error code structure explanation — not a real displayable error code"
+    "102215": "Appears only as a didactic example in the error code structure explanation — not a real displayable error code",
+    "760024": "Appears only as a TOC page-number reference ('76.00.24 5') in the e62655 CPMD — not a real displayable error code"
   },
   "service": {
     "102215": "Appears only as a didactic example in the error code structure explanation — not a real displayable error code",
