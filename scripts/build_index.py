@@ -580,7 +580,7 @@ def extract_ricoh_sc_sections(text: str, service_key: str = 'ricoh_imc3000_servi
             section = section[:cut.start()]
         section = section.strip()
 
-        if len(section) < 15:
+        if len(section) < 10:
             continue
 
         # Limpar artefatos de coluna (múltiplos espaços)

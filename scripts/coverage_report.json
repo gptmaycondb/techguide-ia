@@ -1,5 +1,5 @@
 {
-  "index_sha256": "21bef632ea88695445f0fea124b636dde53e722c636e0c0e3fe60fb929a2506e",
+  "index_sha256": "9d81961ab1d19f85b8a9338107c90aa25a443d2cd0bb76496e1ef6b1850342ef",
   "per_key": {
     "cpmd": {
       "candidates": 404,
@@ -313,7 +313,7 @@
     },
     "ricoh_imc3000_service": {
       "candidates": 730,
-      "covered": 714,
+      "covered": 724,
       "covered_by_synthetic": 0,
       "missing": [
         "SC375-02",
@@ -321,17 +321,7 @@
         "SC544-00",
         "SC554-00",
         "SC816-99",
-        "SC852-02",
-        "SC868-00",
-        "SC911-80",
-        "SC911-81",
-        "SC911-82",
-        "SC911-83",
-        "SC911-84",
-        "SC911-85",
-        "SC911-86",
-        "SC911-87",
-        "SC911-88"
+        "SC852-02"
       ],
       "missing_detail": {
         "SC375-02": {
@@ -357,58 +347,17 @@
         "SC852-02": {
           "context": "For SC852-02, HDD and memory may cause the problem. Replace the HDD",
           "count": 1
-        },
-        "SC868-00": {
-          "context": "SC86800",
-          "count": 1
-        },
-        "SC911-80": {
-          "context": "SC911-80",
-          "count": 1
-        },
-        "SC911-81": {
-          "context": "SC911-81",
-          "count": 1
-        },
-        "SC911-82": {
-          "context": "SC911-82",
-          "count": 1
-        },
-        "SC911-83": {
-          "context": "SC911-83",
-          "count": 1
-        },
-        "SC911-84": {
-          "context": "SC911-84",
-          "count": 1
-        },
-        "SC911-85": {
-          "context": "SC911-85",
-          "count": 1
-        },
-        "SC911-86": {
-          "context": "SC911-86",
-          "count": 1
-        },
-        "SC911-87": {
-          "context": "SC911-87",
-          "count": 1
-        },
-        "SC911-88": {
-          "context": "SC911-88",
-          "count": 1
         }
       },
       "orphans": []
     },
     "ricoh_mpc3004_service": {
       "candidates": 621,
-      "covered": 613,
+      "covered": 614,
       "covered_by_synthetic": 0,
       "missing": [
         "SC544-00",
         "SC554-00",
-        "SC816-29",
         "SC816-99",
         "SC843-02",
         "SC852-02",
@@ -422,10 +371,6 @@
         },
         "SC554-00": {
           "context": "SC554-00/ SC564-00/ SC574-00), perform part",
-          "count": 1
-        },
-        "SC816-29": {
-          "context": "SC816-29,",
           "count": 1
         },
         "SC816-99": {
@@ -564,7 +509,7 @@
     },
     "imc3000": {
       "candidates": 730,
-      "covered": 714,
+      "covered": 724,
       "keys": [
         "ricoh_imc3000_service"
       ],
@@ -574,29 +519,18 @@
         "SC544-00",
         "SC554-00",
         "SC816-99",
-        "SC852-02",
-        "SC868-00",
-        "SC911-80",
-        "SC911-81",
-        "SC911-82",
-        "SC911-83",
-        "SC911-84",
-        "SC911-85",
-        "SC911-86",
-        "SC911-87",
-        "SC911-88"
+        "SC852-02"
       ]
     },
     "mpc3004": {
       "candidates": 621,
-      "covered": 613,
+      "covered": 614,
       "keys": [
         "ricoh_mpc3004_service"
       ],
       "missing": [
         "SC544-00",
         "SC554-00",
-        "SC816-29",
         "SC816-99",
         "SC843-02",
         "SC852-02",
