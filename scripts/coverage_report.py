@@ -242,15 +242,26 @@ def main() -> None:
     index_hash = sha256_file(INDEX_PATH)
     ignore     = json.loads(IGNORE_PATH.read_text(encoding='utf-8')) if IGNORE_PATH.exists() else {}
 
+    # Pré-check: falha imediata se qualquer PDF estiver ausente.
+    # Skip silencioso resultaria em candidatos=0 para aquela key → interseção com
+    # vazio no --shrink-baseline → dívida some do baseline sem ter sido paga.
+    missing_pdfs = [
+        (svc, PDF_SOURCES.get(svc, []))
+        for svc in ERROR_KEYS
+        if not any(p.exists() for p in PDF_SOURCES.get(svc, []))
+    ]
+    if missing_pdfs:
+        for svc, paths in missing_pdfs:
+            print(f'❌ {svc}: PDFs não encontrados — {[str(p) for p in paths]}', file=sys.stderr)
+        print('   Providencie todos os PDFs antes de rodar coverage_report.py.', file=sys.stderr)
+        sys.exit(1)
+
     per_key: dict = {}
     raw_cands_by_key: dict = {}  # cands dict por key (para per_model, não vai pro JSON)
 
     for svc in ERROR_KEYS:
         paths     = PDF_SOURCES.get(svc, [])
         available = [p for p in paths if p.exists()]
-        if not available:
-            print(f'  [skip] {svc}: PDFs não encontrados — {[str(p) for p in paths]}')
-            continue
 
         print(f'  [{svc}] carregando {len(available)} PDF(s)…')
         text  = clean_text(''.join(pdf_to_text(p) for p in available))
