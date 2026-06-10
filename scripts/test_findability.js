@@ -187,6 +187,34 @@ expect('80.03.01 via E52645 searchKeys', '80.03.01', KEYS.E52645, true);
 console.log('[Lote 1 — 13.B2] 13.B2.A4 (Registration sensor Tray 4) → deve achar via E52645 cpmd');
 expect('13.B2.A4 via E52645 searchKeys', '13.B2.A4', KEYS.E52645, true);
 
+// ── Lote 2 — faixas expandidas ───────────────────────────────────────────────
+console.log('\n[Lote 2 — range] SC816-11 (intermediário imc3000 SC81610 to 12) → deve achar');
+expect('SC816-11 via imc3000 searchKeys', 'SC816-11', KEYS.imc3000, true);
+
+console.log('[Lote 2 — range] SC816-17 (intermediário SC81615 to 18) → deve achar');
+expect('SC816-17 via imc3000 searchKeys', 'SC816-17', KEYS.imc3000, true);
+
+console.log('[Lote 2 — range] SC874-63 (intermediário SC87461 to -65) → deve achar');
+expect('SC874-63 via imc3000 searchKeys', 'SC874-63', KEYS.imc3000, true);
+
+console.log('[Lote 2 — range] SC865-60 (intermediário SC865-50 to 73, mpc3004) → deve achar');
+expect('SC865-60 via mpc3004 searchKeys', 'SC865-60', KEYS.mpc3004, true);
+
+console.log('[Lote 2 — range] SC864-15 (intermediário SC864-02 to 23, mpc3004) → deve achar');
+expect('SC864-15 via mpc3004 searchKeys', 'SC864-15', KEYS.mpc3004, true);
+
+console.log('[Lote 2 — threshold] SC361-01 (condition table row, mpc3004) → deve achar');
+expect('SC361-01 via mpc3004 searchKeys', 'SC361-01', KEYS.mpc3004, true);
+
+console.log('[Lote 2 — threshold] SC910-01 (condition table row, mpc3004) → deve achar');
+expect('SC910-01 via mpc3004 searchKeys', 'SC910-01', KEYS.mpc3004, true);
+
+console.log('[Lote 2 — threshold] SC672-20 (condition table row, imc3000) → deve achar');
+expect('SC672-20 via imc3000 searchKeys', 'SC672-20', KEYS.imc3000, true);
+
+console.log('[Lote 2 — threshold] SC911-20 (condition table row, imc3000) → deve achar');
+expect('SC911-20 via imc3000 searchKeys', 'SC911-20', KEYS.imc3000, true);
+
 // ── Negativos cross-model ─────────────────────────────────────────────────────
 console.log('\n[Cross-model isolation] Código E62655-only não vaza para E52645');
 expect('10.00.30 (e62655-only) via E52645 keys → NOT FOUND', '10.00.30', KEYS.E52645, false);

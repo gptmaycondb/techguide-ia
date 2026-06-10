@@ -500,7 +500,35 @@ def extract_hp_errors_from_cpmd(text: str) -> dict:
 # O grupo 2 captura os 3 dígitos do grupo (202/285) e o grupo 3 o sufixo (00),
 # com o hífen opcional para cobrir ambos.
 RICOH_SC_RE = re.compile(
-    r'(?:^|\n)(SC(\d{3})-?(\d{2}))\s*(?:\n|\()',
+    # Allow optional trailing comma: "SC816-23,\n" (mpc3004 comma-pair column artifact).
+    r'(?:^|\n)(SC(\d{3})-?(\d{2})),?\s*(?:\n|\()',
+    re.MULTILINE
+)
+
+# Range patterns in Ricoh condition tables (Lote 2).
+# Inline (same line): "SC81610 to 12\n\nD" or "SC87461 to -65\n\nD"
+RICOH_INLINE_RANGE_RE = re.compile(
+    r'(?:^|\n)(SC(\d{3})-?(\d{2}))\s+to\s+[-]?(\d{2})\b',
+    re.MULTILINE
+)
+# Cross-line (end-suffix on next line): "SC865-50 to\n73\n\nD"
+RICOH_XLINE_RANGE_RE = re.compile(
+    r'(?:^|\n)(SC(\d{3})-?(\d{2}))\s+to\s*\n\s*[-]?(\d{2})\b',
+    re.MULTILINE
+)
+# Split-column (Type between "to" and suffix): "SC864-02 to\n\nD\n\n23"
+RICOH_SPLIT_RANGE_RE = re.compile(
+    r'(?:^|\n)(SC(\d{3})-?(\d{2}))\s+to\s*\n+\s*[A-D]\s*\n+\s*(\d{2})\b',
+    re.MULTILINE
+)
+# Reversed (imc3000 partition table): "SC86302\n\nD\n\nto 23"
+RICOH_REVERSED_RANGE_RE = re.compile(
+    r'(?:^|\n)(SC(\d{3})-?(\d{2}))\s*\n+\s*[A-D]\s*\n+\s*to\s+(\d{2})\b',
+    re.MULTILINE
+)
+# Comma-pair (imc3000): "SC81623, 24\n\nD"
+RICOH_COMMA_PAIR_RE = re.compile(
+    r'(?:^|\n)(SC(\d{3})-?(\d{2})),\s+(\d{2})\b',
     re.MULTILINE
 )
 
@@ -552,7 +580,7 @@ def extract_ricoh_sc_sections(text: str, service_key: str = 'ricoh_imc3000_servi
             section = section[:cut.start()]
         section = section.strip()
 
-        if len(section) < 60:
+        if len(section) < 15:
             continue
 
         # Limpar artefatos de coluna (múltiplos espaços)
@@ -565,6 +593,66 @@ def extract_ricoh_sc_sections(text: str, service_key: str = 'ricoh_imc3000_servi
         # Só adicionar ao grupo se ainda não tiver (primeiro representa o grupo)
         if not results[group]:
             results[group].append(entry)
+
+    return results
+
+
+def expand_ricoh_ranges(text: str, service_key: str) -> dict:
+    """
+    Expands range references in Ricoh service manuals into individual code entries.
+    Handles:
+    - Inline:   SC81610 to 12  →  SC816-10, SC816-11, SC816-12
+    - Cross-line: SC865-50 to\\n73  →  SC865-50 … SC865-73
+    - Split-col:  SC864-02 to\\n\\nD\\n\\n23  →  SC864-02 … SC864-23
+    - Reversed:   SC86302\\n\\nD\\n\\nto 23  →  SC863-02 … SC863-23
+    - Comma-pair: SC81623, 24  →  SC816-23, SC816-24
+    All entries are marked src='range'.
+    """
+    results = defaultdict(list)
+    seen: set = set()  # (full_code, service_key) pairs already added
+
+    def _ctx(text_after: str) -> str:
+        m = re.match(r'\s*\n+\s*(?:[A-D]\s*\n+\s*)?(Error Name[^\n]*\n)?(.{10,400})',
+                     text_after[:700], re.DOTALL)
+        return m.group(0).strip()[:400] if m else text_after[:150].strip()
+
+    def _add(base: str, start: int, end: int, body: str) -> None:
+        if end < start or end - start > 100:
+            return
+        group = f'SC{base}'
+        for suf in range(start, end + 1):
+            full   = f'{group}{suf:02d}'
+            hyphen = f'{group}-{suf:02d}'
+            k = (full, service_key)
+            if k in seen:
+                continue
+            seen.add(k)
+            entry = {'key': service_key, 'text': f'{hyphen}\n{body}', 'src': 'range'}
+            results[full].append(entry)
+            results[hyphen].append(entry)
+        if group not in results:
+            results[group].append(
+                {'key': service_key, 'text': f'{group}\n{body[:100]}', 'src': 'range'}
+            )
+
+    for pat in (RICOH_INLINE_RANGE_RE, RICOH_XLINE_RANGE_RE,
+                RICOH_SPLIT_RANGE_RE, RICOH_REVERSED_RANGE_RE):
+        for m in pat.finditer(text):
+            base, s, e = m.group(2), int(m.group(3)), int(m.group(4))
+            _add(base, s, e, _ctx(text[m.end():m.end() + 700]))
+
+    for m in RICOH_COMMA_PAIR_RE.finditer(text):
+        base, s1, s2 = m.group(2), int(m.group(3)), int(m.group(4))
+        ctx = _ctx(text[m.end():m.end() + 700])
+        for suf in (s1, s2):
+            full   = f'SC{base}{suf:02d}'
+            hyphen = f'SC{base}-{suf:02d}'
+            k = (full, service_key)
+            if k not in seen:
+                seen.add(k)
+                entry = {'key': service_key, 'text': f'{hyphen}\n{ctx}', 'src': 'range'}
+                results[full].append(entry)
+                results[hyphen].append(entry)
 
     return results
 
@@ -841,6 +929,14 @@ def build_error_codes_index() -> dict:
                 index[code].append(e)
                 detailed_count += 1
     print(f'  → {detailed_count} entradas detalhadas "When SC" adicionadas (imc3000)')
+    ricoh_ranges = expand_ricoh_ranges(ricoh_svc_text, 'ricoh_imc3000_service')
+    range_count_imc = 0
+    for code, entries in ricoh_ranges.items():
+        for e in entries:
+            if not any(x['key'] == 'ricoh_imc3000_service' and x['text'] == e['text'] for x in index[code]):
+                index[code].append(e)
+                range_count_imc += 1
+    print(f'  → {range_count_imc} entradas de faixa expandidas (imc3000)')
 
     # ── Ricoh MP C3004/3504 Service Manual ────────────────────────────────────
     print('[errors] Ricoh MP C3004/3504 Service Manual')
@@ -871,6 +967,14 @@ def build_error_codes_index() -> dict:
                 index[code].append(e)
                 mpc_detailed_count += 1
     print(f'  → {mpc_detailed_count} entradas detalhadas "When SC" adicionadas (mpc3004)')
+    mpc_ranges = expand_ricoh_ranges(mpc_svc_text, 'ricoh_mpc3004_service')
+    range_count_mpc = 0
+    for code, entries in mpc_ranges.items():
+        for e in entries:
+            if not any(x['key'] == 'ricoh_mpc3004_service' and x['text'] == e['text'] for x in index[code]):
+                index[code].append(e)
+                range_count_mpc += 1
+    print(f'  → {range_count_mpc} entradas de faixa expandidas (mpc3004)')
 
     # Propagação reversa: copia entradas de grupo (SC370) para subcódigos (SC370-03, SC37003)
     xref_count = 0
