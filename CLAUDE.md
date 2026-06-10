@@ -28,6 +28,12 @@ backend/
   workflows/
     sync-backend.yml← push ao main com mudança em backend/ → atualiza manuais-hp via GitHub API
                        Requer secret MANUAIS_HP_TOKEN (fine-grained PAT, write em manuais-hp)
+    build.yml       ← build do APK Android (expo prebuild + gradlew assembleDebug)
+                       Usa `npm ci` (PR #16) — intencional. Se o build falhar com erro de sync
+                       entre package.json e package-lock.json, a correção é sincronizar o lock
+                       (npm install local + commitar o lock junto da mudança que o originou).
+                       NUNCA rebaixar para `npm install` no CI — isso já foi feito (dc47c1a2) e
+                       escondeu uma dívida de lockfile no main por meses.
 scripts/
   build_index.py    ← indexador v2; reprocessa todos os PDFs
 src/

@@ -285,7 +285,7 @@ def main() -> None:
             if any(e['key'] == svc for e in ents)
             and not is_expected_orphan(code)
             and canon(code) not in cands
-            and not all(e.get('src') in ('propagated', 'xref')
+            and not all(e.get('src') in ('propagated', 'xref', 'range', 'stub')
                         for e in ents if e['key'] == svc)
         )
 
