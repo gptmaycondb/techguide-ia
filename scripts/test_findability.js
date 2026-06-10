@@ -103,6 +103,50 @@ function expect(label, query, keys, shouldFind) {
 
 console.log('=== Findability Test Suite ===\n');
 
+// ── Sync guard: verbatim copies must match src/search.js ─────────────────────
+console.log('[Sync guard] Verificando sincronização com src/search.js');
+{
+  const srcSearch = readFileSync(resolve(ROOT, 'src/search.js'), 'utf8');
+  const testSelf  = readFileSync(fileURLToPath(import.meta.url), 'utf8');
+
+  function extractFn(source, fnName) {
+    const rx = new RegExp(`(?:export\\s+)?function\\s+${fnName}\\b`);
+    const start = source.search(rx);
+    if (start === -1) throw new Error(`${fnName} not found in source`);
+    let depth = 0, i = start;
+    while (i < source.length) {
+      if (source[i] === '{') depth++;
+      else if (source[i] === '}') { if (--depth === 0) break; }
+      i++;
+    }
+    return source.slice(start, i + 1);
+  }
+
+  function normalize(code) {
+    return code
+      .replace(/^export\s+/m, '')   // strip 'export' keyword
+      .replace(/\/\/[^\n]*/g, '')   // strip // comments
+      .replace(/\s+/g, ' ')         // collapse all whitespace
+      .trim();
+  }
+
+  for (const fn of ['wildcardMatchHP', 'searchErrorCode']) {
+    const srcNorm  = normalize(extractFn(srcSearch, fn));
+    const testNorm = normalize(extractFn(testSelf,  fn));
+    const ok = srcNorm === testNorm;
+    console.log(`  [${ok ? '✓' : '✗ FAIL'}] ${fn}`);
+    if (ok) {
+      pass++;
+    } else {
+      fail++;
+      const diffAt = [...srcNorm].findIndex((c, i) => c !== testNorm[i]);
+      console.log(`         diverge em posição ${diffAt}`);
+      console.log(`         src: ...${srcNorm.slice(Math.max(0, diffAt - 20), diffAt + 40)}...`);
+      console.log(`         test:...${testNorm.slice(Math.max(0, diffAt - 20), diffAt + 40)}...`);
+    }
+  }
+}
+
 // ── Positivos por modelo ──────────────────────────────────────────────────────
 console.log('[E52645] cpmd-only code (10.00.00) → deve achar via cpmd');
 expect('10.00.00 via E52645 searchKeys', '10.00.00', KEYS.E52645, true);

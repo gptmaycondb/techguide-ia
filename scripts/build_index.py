@@ -413,6 +413,20 @@ def extract_hp_errors_from_cpmd(text: str) -> dict:
         if is_toc_chunk(section) or is_book_index_chunk(section) or len(section) < 20:
             continue
 
+        # Short section (20-79 chars): description-only line from e62655_cpmd format where
+        # bullet codes appear at line-start and their shared action block sits in a later
+        # section of the same family. Extend section with lookahead action block.
+        if len(section) < 80 and len(raw_codes_str) >= 2:
+            la_text = text[end:min(end + 8000, len(text))]
+            la_action = BULLET_ACTION_RE.search(la_text)
+            if la_action:
+                cross = any(
+                    mm.group(1)[:2] != raw_codes_str[:2]
+                    for mm in SECTION_START.finditer(la_text[:la_action.start()])
+                )
+                if not cross:
+                    section = section + '\n\n' + la_text[la_action.start():la_action.start() + 3000].strip()
+
         # Extrair todos os códigos desta entrada (ex.: "82.73.46, 82.73.47")
         individual_codes = re.findall(rf'{CODE.replace(r"+", r"{1,3}")}', raw_codes_str)
         if not individual_codes:
@@ -444,6 +458,18 @@ def extract_hp_errors_from_cpmd(text: str) -> dict:
             last_bm = bullet_ms[-1]
             action_after_last = BULLET_ACTION_RE.search(section, last_bm.start())
             action_block = section[action_after_last.start():].strip() if action_after_last else ''
+            # Lookahead: if still no action block, search the next 8000 chars in text
+            # as long as we don't cross into a different code family (2-char prefix).
+            if not action_block and len(raw_codes_str) >= 2:
+                la_text = text[end:min(end + 8000, len(text))]
+                la_action = BULLET_ACTION_RE.search(la_text)
+                if la_action:
+                    cross = any(
+                        mm.group(1)[:2] != raw_codes_str[:2]
+                        for mm in SECTION_START.finditer(la_text[:la_action.start()])
+                    )
+                    if not cross:
+                        action_block = la_text[la_action.start():la_action.start() + 3000].strip()
         for j, bm in enumerate(bullet_ms):
             sub_code = bm.group(1).upper().replace('O', '0')
             sub_parts = sub_code.split('.')

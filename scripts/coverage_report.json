@@ -1,9 +1,9 @@
 {
-  "index_sha256": "22a1879c76e8bdd3f29ed9df588517ea4b47b846e16b24c8fa74c4b74ead7d1d",
+  "index_sha256": "994c02c6191729050c8c3593a243b33c63710612b8cf1158e6a7268817fec8e0",
   "per_key": {
     "cpmd": {
       "candidates": 404,
-      "covered": 365,
+      "covered": 362,
       "covered_by_synthetic": 0,
       "missing": [
         "10.22.15",
@@ -32,6 +32,8 @@
         "13.B9.D5",
         "13.B9.DD",
         "13.E1.D3",
+        "33.05.51",
+        "33.05.52",
         "50.2F.00",
         "55.01.06",
         "55.02.06",
@@ -39,6 +41,7 @@
         "59.A2.03",
         "59.A2.04",
         "59.A2.05",
+        "60.00.02",
         "60.00.03",
         "60.00.04",
         "60.01.02",
@@ -151,6 +154,14 @@
           "context": "3. Type the error code (for example, 13.E1.D3) in the Error Code Lookup field, and then select the search icon. 1 2 4. The error code",
           "count": 2
         },
+        "33.05.51": {
+          "context": "system memory. ● 33.05.51 Security alert ● 33.05.51 Potential intrusion (Event code) The intrusion detection memory process heartbeat was",
+          "count": 2
+        },
+        "33.05.52": {
+          "context": "not detected. ● 33.05.52 Security alert ● 33.05.52 Cannot scan for potential intrusions (Event code) The intrusion detection memory process",
+          "count": 2
+        },
         "50.2F.00": {
           "context": "50.WX.YZ error messages ... 276 50.* errors ... 276 50.1X.YZ Fuser Error ... 277 50.2X.YZ Fuser Error ... 278 50.2F.00 Fuser Error ... 280",
           "count": 3
@@ -178,6 +189,10 @@
         "59.A2.05": {
           "context": "number 59.A2.03 — Tray 3 59.A2.04 — Tray 4 59.A2.05 — Tray 5",
           "count": 1
+        },
+        "60.00.02": {
+          "context": "60.00.02: Tray 2",
+          "count": 3
         },
         "60.00.03": {
           "context": "60.00.03: Tray 3",
@@ -208,10 +223,11 @@
     },
     "e62655_cpmd": {
       "candidates": 466,
-      "covered": 453,
+      "covered": 455,
       "covered_by_synthetic": 0,
       "missing": [
         "10.22.15",
+        "13.A4.D4",
         "41.03.F0",
         "41.03.F1",
         "41.03.F2",
@@ -220,14 +236,15 @@
         "41.03.F5",
         "48.05.05",
         "54.00.03",
-        "98.00.0C",
-        "99.01.00",
-        "99.01.10",
-        "99.01.20"
+        "98.00.0C"
       ],
       "missing_detail": {
         "10.22.15": {
           "context": "For example, in error code 10.22.15, 10 = Supplies for HP LaserJets.",
+          "count": 1
+        },
+        "13.A4.D4": {
+          "context": "13.A4.D4 Paper did not reach the Tray 4 feed sensor in the designated amount of time when printing",
           "count": 1
         },
         "41.03.F0": {
@@ -265,39 +282,22 @@
         "98.00.0C": {
           "context": "98.00.0c",
           "count": 13
-        },
-        "99.01.00": {
-          "context": "99.01.00",
-          "count": 1
-        },
-        "99.01.10": {
-          "context": "99.01.10",
-          "count": 1
-        },
-        "99.01.20": {
-          "context": "99.01.20",
-          "count": 1
         }
       },
       "orphans": []
     },
     "e62655_service": {
       "candidates": 19,
-      "covered": 15,
+      "covered": 16,
       "covered_by_synthetic": 0,
       "missing": [
         "31.13.01",
-        "66.80.20",
         "99.09.67",
         "99.09.68"
       ],
       "missing_detail": {
         "31.13.01": {
           "context": "To watch a video to help resolve this error, go to: Fixing 31.13.01/.02 ADF Jam Errors | HP PageWide MFP/",
-          "count": 1
-        },
-        "66.80.20": {
-          "context": "66.80.20 Staple jam",
           "count": 1
         },
         "99.09.67": {
@@ -845,7 +845,7 @@
   "per_model": {
     "E52645": {
       "candidates": 405,
-      "covered": 365,
+      "covered": 362,
       "keys": [
         "cpmd",
         "service"
@@ -877,6 +877,8 @@
         "13.B9.D5",
         "13.B9.DD",
         "13.E1.D3",
+        "33.05.51",
+        "33.05.52",
         "50.2F.00",
         "55.01.06",
         "55.02.06",
@@ -884,6 +886,7 @@
         "59.A2.03",
         "59.A2.04",
         "59.A2.05",
+        "60.00.02",
         "60.00.03",
         "60.00.04",
         "60.01.02",
@@ -895,7 +898,7 @@
     },
     "E62655": {
       "candidates": 471,
-      "covered": 457,
+      "covered": 460,
       "keys": [
         "e62655_cpmd",
         "e62655_service"
@@ -911,9 +914,6 @@
         "48.05.05",
         "54.00.03",
         "98.00.0C",
-        "99.01.00",
-        "99.01.10",
-        "99.01.20",
         "99.09.68"
       ]
     },
