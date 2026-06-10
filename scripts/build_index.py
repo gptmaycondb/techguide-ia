@@ -303,13 +303,19 @@ def is_book_index_chunk(text: str) -> bool:
     e tabelas-resumo de erro do CPMD — que não contêm troubleshooting real.
 
     Padrões detectados:
-    - "accessories, FAX remove and replace 1267" → índice alfabético do service manual
+    - "accessories, FAX remove and replace 1267" → índice remissivo do HP service manual
     - "B backup error 32.WX.YZ error 4 reset error 4..." → tabela resumo do CPMD
     - "80.WX.YZ error 136, 270 embedded Multi-Media Card..." → entrada de índice
 
     NÃO deve filtrar:
     - Seções SC do Ricoh que têm "Type" codes (D, D, D) como coluna da tabela
+    - Seções reais de CPMD que têm "Recommended action" e part numbers (alta densidade de
+      números 3-4 dígitos), que seriam erroneamente descartadas pelo check de density
     """
+    # Real troubleshooting sections always contain "Recommended action" — never an index page.
+    if re.search(r'Recommended action\b', text, re.IGNORECASE):
+        return False
+
     # Múltiplas ocorrências de "remove/removing and replace/replacing NNN"
     # → índice remissivo do HP service manual
     if len(re.findall(r'remov(?:e|ing) and replac(?:e|ing)\s+\d{3,4}', text, re.IGNORECASE)) >= 2:
@@ -377,6 +383,9 @@ def extract_hp_error_type_table(text: str) -> dict:
 # Families in cpmd/e62655_cpmd: 13.B2, 13.B9, 33.05, 66.80, 80.03 (Lote 1).
 BULLET_CODE_RE = re.compile(r'●\s*(\d{2}\.[0-9A-Z]{2,3}\.[0-9A-Z]{2})', re.IGNORECASE)
 BULLET_ACTION_RE = re.compile(r'\nRecommended action\b', re.IGNORECASE)
+# Comma-separated additional codes on the same bullet line:
+# "● 13.A3.D3, 13.A3.D4, 13.A3.D5 = Tray 3: Paper did not reach..."
+COMMA_CODE_RE = re.compile(r',\s*(\d{2}\.[0-9A-Z]{2,3}\.[0-9A-Z]{2})', re.IGNORECASE)
 
 def extract_hp_errors_from_cpmd(text: str) -> dict:
     """
@@ -397,9 +406,9 @@ def extract_hp_errors_from_cpmd(text: str) -> dict:
     CODE = r'\d{2}(?:\.[0-9A-Z*]{2,3})+'
     MULTI_CODE = rf'({CODE}(?:(?:,\s*|\s+or\s+){CODE})*)'
     SECTION_START = re.compile(
-        rf'(?:^|(?<=\n)|(?<=\. ))({CODE}(?:(?:,\s*|\s+or\s+){CODE})*)'
+        rf'(?:^|(?<=\n)|(?<=\. ))({CODE}(?:(?:,\s*|\s*/\s*|\s+or\s+){CODE})*)'
         rf'(?:\s*:|\s+(?!error messages|errors|\*))',
-        re.MULTILINE
+        re.MULTILINE | re.IGNORECASE
     )
 
     matches = list(SECTION_START.finditer(text))
@@ -410,12 +419,14 @@ def extract_hp_errors_from_cpmd(text: str) -> dict:
         end = min(end, start + 5000)
         section = re.sub(r'\n+●\s*$', '', text[start:end].strip())
 
-        if is_toc_chunk(section) or is_book_index_chunk(section) or len(section) < 20:
+        if is_toc_chunk(section) or is_book_index_chunk(section):
             continue
 
-        # Short section (20-79 chars): description-only line from e62655_cpmd format where
-        # bullet codes appear at line-start and their shared action block sits in a later
-        # section of the same family. Extend section with lookahead action block.
+        # Short/tiny section (< 80 chars): extend with shared action block from the same
+        # family. Handles both 20-79 char description-only lines and even tiny sub-codes
+        # (< 20 chars like "41.03.F0" or "60.00.02: Tray 2") whose "Recommended action"
+        # lives in a later section of the same family. The length gate moves to AFTER this
+        # lookahead so those sub-codes can still be extended before the discard check.
         if len(section) < 80 and len(raw_codes_str) >= 2:
             la_text = text[end:min(end + 8000, len(text))]
             la_action = BULLET_ACTION_RE.search(la_text)
@@ -427,15 +438,18 @@ def extract_hp_errors_from_cpmd(text: str) -> dict:
                 if not cross:
                     section = section + '\n\n' + la_text[la_action.start():la_action.start() + 3000].strip()
 
+        if len(section) < 20:
+            continue
+
         # Extrair todos os códigos desta entrada (ex.: "82.73.46, 82.73.47")
-        individual_codes = re.findall(rf'{CODE.replace(r"+", r"{1,3}")}', raw_codes_str)
+        individual_codes = re.findall(rf'{CODE.replace(r"+", r"{1,3}")}', raw_codes_str, re.IGNORECASE)
         if not individual_codes:
             individual_codes = [raw_codes_str.split(',')[0].strip()]
 
         entry = {'key': 'cpmd', 'text': section}
 
         for code in individual_codes:
-            code = code.strip()
+            code = code.strip().upper()
             # Uppercase letter O is not a hex digit in HP codes — common OCR artifact (F0 → FO).
             # Normalize key only; entry text preserves the original PDF text.
             code = code.replace('O', '0')
@@ -446,22 +460,62 @@ def extract_hp_errors_from_cpmd(text: str) -> dict:
             if len(parts) >= 2:
                 results[parts[0]].append(entry)
 
-        # ── Bullet sub-codes within this section (Lote 1) ──────────────────────
+        # ── Bullet sub-codes within this section (Lote 1 + Lote 4) ────────────
         # Codes like "● 13.B9.A1\nDesc" are prefixed with "●" so SECTION_START
         # never sees them at line-start. Extract and index each with its own
         # description plus the inherited "Recommended action" block.
-        bullet_ms = list(BULLET_CODE_RE.finditer(section))
+        #
+        # Two independent reasons to search beyond the 5 000-char `section`:
+        # 1. Multi-family sections (13.B2.E2): bullets start beyond 5 000 chars →
+        #    extend raw window up to 50 000 chars from section start.
+        # 2. Short-section lookahead: a short section (< 80 chars) is extended via
+        #    lookahead to include "Recommended action" + bullet codes from a later
+        #    section (e.g. 99.00.xx → 99.01.00/10/20; 13.60 → 66.80.20).
+        #    In that case `section` is already extended — use it directly.
+        bullet_end = matches[i + 1].start() if i + 1 < len(matches) else start + 50000
+        bullet_end = min(bullet_end, start + 50000)
+        raw_window = text[start:bullet_end]
+        # If `section` was extended by the lookahead (longer than the raw next-match
+        # window), bullet codes live in `section`; otherwise use the extended raw window.
+        bullet_section = section if len(section) > len(raw_window) else raw_window
+        bullet_ms = list(BULLET_CODE_RE.finditer(bullet_section))
+
+        # Build per-family action blocks so multi-family sections (e.g. 13.B2.E2
+        # containing A/B/C/D sub-families) each inherit the correct "Recommended
+        # action" — not the last family's block spilling over to earlier ones.
+        # family_action_block[prefix] = action text for that code family.
+        family_action_block: dict = {}
         if bullet_ms:
-            # Inherited action block = first "Recommended action" AFTER the last bullet.
-            # Searching from section start risks finding a preceding section's action block
-            # (e.g. section 13.B2.E2 contains 13.B9.* bullets that follow its own action).
-            last_bm = bullet_ms[-1]
-            action_after_last = BULLET_ACTION_RE.search(section, last_bm.start())
-            action_block = section[action_after_last.start():].strip() if action_after_last else ''
-            # Lookahead: if still no action block, search the next 8000 chars in text
-            # as long as we don't cross into a different code family (2-char prefix).
-            if not action_block and len(raw_codes_str) >= 2:
-                la_text = text[end:min(end + 8000, len(text))]
+            # Group bullets by their family prefix (first two dotted parts, e.g. "13.B9")
+            # and for each group find the "Recommended action" after the group's last bullet.
+            prev_family = None
+            family_start_j = 0
+            for j_scan, bm_scan in enumerate(bullet_ms):
+                sc = bm_scan.group(1).upper().replace('O', '0')
+                parts = sc.split('.')
+                if len(parts) < 3:
+                    continue
+                fam = '.'.join(parts[:2])
+                if fam != prev_family:
+                    prev_family = fam
+                    family_start_j = j_scan
+            # Walk families in order and assign action blocks
+            seen_fam = None
+            last_bm_of_fam = {}
+            for bm_scan in bullet_ms:
+                sc = bm_scan.group(1).upper().replace('O', '0')
+                parts = sc.split('.')
+                if len(parts) < 3:
+                    continue
+                fam = '.'.join(parts[:2])
+                last_bm_of_fam[fam] = bm_scan
+            for fam, last_bm in last_bm_of_fam.items():
+                act = BULLET_ACTION_RE.search(bullet_section, last_bm.start())
+                if act:
+                    family_action_block[fam] = bullet_section[act.start():act.start() + 3000].strip()
+            # Fallback: if still no action blocks found (all families), use lookahead
+            if not family_action_block and len(raw_codes_str) >= 2:
+                la_text = text[bullet_end:min(bullet_end + 8000, len(text))]
                 la_action = BULLET_ACTION_RE.search(la_text)
                 if la_action:
                     cross = any(
@@ -469,26 +523,48 @@ def extract_hp_errors_from_cpmd(text: str) -> dict:
                         for mm in SECTION_START.finditer(la_text[:la_action.start()])
                     )
                     if not cross:
-                        action_block = la_text[la_action.start():la_action.start() + 3000].strip()
+                        fallback_action = la_text[la_action.start():la_action.start() + 3000].strip()
+                        for bm_scan in bullet_ms:
+                            sc = bm_scan.group(1).upper().replace('O', '0')
+                            parts = sc.split('.')
+                            if len(parts) >= 3:
+                                family_action_block.setdefault('.'.join(parts[:2]), fallback_action)
+
         for j, bm in enumerate(bullet_ms):
             sub_code = bm.group(1).upper().replace('O', '0')
             sub_parts = sub_code.split('.')
             if len(sub_parts) != 3 or re.search(r'[XYZ*]', sub_code):
                 continue  # skip wildcards
-            next_bullet = bullet_ms[j + 1].start() if j + 1 < len(bullet_ms) else len(section)
+            fam = '.'.join(sub_parts[:2])
+            next_bullet = bullet_ms[j + 1].start() if j + 1 < len(bullet_ms) else len(bullet_section)
             # Boundary = next bullet OR next action AFTER this bullet (whichever is sooner).
             # Searching from bm.start() avoids inheriting a preceding action block.
-            action_after_bm = BULLET_ACTION_RE.search(section, bm.start())
-            action_start = action_after_bm.start() if action_after_bm else len(section)
+            action_after_bm = BULLET_ACTION_RE.search(bullet_section, bm.start())
+            action_start = action_after_bm.start() if action_after_bm else len(bullet_section)
             boundary = min(next_bullet, action_start)
-            bullet_text = section[bm.start():boundary].strip()
+            bullet_text = bullet_section[bm.start():boundary].strip()
             if len(bullet_text) < 10:
                 continue
-            full_text = (bullet_text + '\n\n' + action_block) if action_block else bullet_text
+            fam_action = family_action_block.get(fam, '')
+            full_text = (bullet_text + '\n\n' + fam_action) if fam_action else bullet_text
             sub_entry = {'key': 'cpmd', 'text': full_text}
             results[sub_code].append(sub_entry)
             results['.'.join(sub_parts[:2])].append(sub_entry)
             results[sub_parts[0]].append(sub_entry)
+
+            # Additional comma-separated codes on the same bullet line:
+            # "● 13.A3.D3, 13.A3.D4, 13.A3.D5 = Tray 3: ..."
+            line_end = bullet_section.find('\n', bm.end())
+            if line_end == -1:
+                line_end = bm.end() + 200
+            for ecm in COMMA_CODE_RE.finditer(bullet_section[bm.end():line_end]):
+                ec = ecm.group(1).upper().replace('O', '0')
+                ec_parts = ec.split('.')
+                if len(ec_parts) != 3 or re.search(r'[XYZ*]', ec):
+                    continue
+                results[ec].append(sub_entry)
+                results['.'.join(ec_parts[:2])].append(sub_entry)
+                results[ec_parts[0]].append(sub_entry)
 
     return results
 
@@ -941,6 +1017,83 @@ def build_error_codes_index() -> dict:
                 index[code].append(ee)
     print(f'  → {len(e62655_svc_errors)} códigos do E62655 service')
 
+    # ── HP stubs: códigos reais sem seção própria no PDF ──────────────────────
+    # Estes códigos aparecem apenas inline (sem cabeçalho próprio de seção) ou
+    # em contextos que os parsers acima não conseguem capturar. O texto deriva da
+    # menção real no manual; sobrevivem ao reindex por estarem no código.
+    _HP_STUBS = [
+        # 13.B2.FF (cpmd): aparece mid-sentence após ")" — SECTION_START não captura.
+        # Contexto: "(J151, J110, J144) 13.B2.FF Jam in top cover Paper residual jam..."
+        ('13.B2.FF', '13.B2', '13', 'cpmd',
+         "13.B2.FF Jam in top cover\n"
+         "Paper residual jam in top cover at image area. Paper present at SR2 at power on or after clearing jam.\n"
+         "Recommended action for customers: Open the top cover and check for paper jammed in feed area. "
+         "Check under the toner cartridge at the transfer area for any paper or obstructions. "
+         "If the error persists, please contact customer support.\n"
+         "Recommended action for onsite technicians: Test the top of page sensor (SR2). "
+         "Check connections J151, J110, J144 on the DC controller PCA."),
+        # 59.A2.03/04/05 (cpmd): inline dentro da seção wildcard 59.A2.0X (não capturada).
+        ('59.A2.03', '59.A2', '59', 'cpmd',
+         "59.A2.03 Tray 3 lifter drive assembly motor failure.\n"
+         "Recommended action: Open the failing tray and remove all paper. Ensure the paper stack "
+         "is below the tray full indicator. If the error persists, check the lifter drive motor "
+         "and connector. Dispatch an onsite CE with a Cassette Tray if needed."),
+        ('59.A2.04', '59.A2', '59', 'cpmd',
+         "59.A2.04 Tray 4 lifter drive assembly motor failure.\n"
+         "Recommended action: Open the failing tray and remove all paper. Ensure the paper stack "
+         "is below the tray full indicator. If the error persists, check the lifter drive motor "
+         "and connector. Dispatch an onsite CE with a Cassette Tray if needed."),
+        ('59.A2.05', '59.A2', '59', 'cpmd',
+         "59.A2.05 Tray 5 lifter drive assembly motor failure.\n"
+         "Recommended action: Open the failing tray and remove all paper. Ensure the paper stack "
+         "is below the tray full indicator. If the error persists, check the lifter drive motor "
+         "and connector. Dispatch an onsite CE with a Cassette Tray if needed."),
+        # 48.05.05 (e62655_cpmd): bullet em seção sem cabeçalho numérico; cross-family
+        # guard impede lookahead (98.03.11 precede "Recommended action" na mesma área).
+        ('48.05.05', '48.05', '48', 'e62655_cpmd',
+         "48.05.05 Printer control panel locked up during Retrieve from Device Memory.\n"
+         "Condition: After selecting print jobs from Device Memory, 'Verifying, Please Wait' "
+         "displays and locks up. Event log may show 48.05.05 after power cycling.\n"
+         "Recommended action: Turn the printer off and then on again. "
+         "Make sure the firmware is the latest revision."),
+        # 31.13.01 (e62655_service): aparece apenas em URL de vídeo dentro da seção wildcard
+        # 31.13.yz — sem cabeçalho numérico próprio.
+        ('31.13.01', '31.13', '31', 'e62655_service',
+         "31.13.01 Jam in Document Feeder (ADF).\n"
+         "Recommended action: Lift the document-feeder latch and open the document-feeder cover. "
+         "Gently remove any jammed paper. Close the document-feeder cover. "
+         "If the error persists, ensure the paper meets the document feeder (ADF) specifications."),
+        # 99.09.67 (e62655_service): aparece em descrição de menu pré-boot — sem seção própria.
+        ('99.09.67', '99.09', '99', 'e62655_service',
+         "99.09.67 Disk is not bootable — firmware download required.\n"
+         "Condition: Occurs after Format Disk or disk replacement. The system is not bootable "
+         "after this action.\n"
+         "Recommended action: A firmware download must be performed to return the system to a "
+         "bootable state. Reload firmware using a USB flash drive via the Pre-boot menu."),
+        # 99.09.68 (e62655_service, service): aparece apenas em descrição de opção de menu
+        # ('grayed out unless the 99.09.68 error is displayed') — sem seção própria.
+        ('99.09.68', '99.09', '99', 'e62655_service',
+         "99.09.68 Secure disk clear required.\n"
+         "Condition: Displayed when a new or replaced secure disk needs to be cleared/unlocked "
+         "for use with this printer.\n"
+         "Recommended action: Open the Pre-boot menu, select Manage Disk, then select "
+         "Clear disk to enable using the device for job storage."),
+        ('99.09.68', '99.09', '99', 'service',
+         "99.09.68 Secure disk clear required.\n"
+         "Condition: Displayed when a new or replaced secure disk needs to be cleared/unlocked "
+         "for use with this printer.\n"
+         "Recommended action: Open the Pre-boot menu, select Manage Disk, then select "
+         "Clear disk to enable using the device for job storage."),
+    ]
+    hp_stub_count = 0
+    for code, family, major, svc_key, text_body in _HP_STUBS:
+        entry = {'key': svc_key, 'text': text_body, 'src': 'stub'}
+        for k in (code, family, major):
+            if not any(x['key'] == svc_key and x['text'] == text_body for x in index[k]):
+                index[k].append(entry)
+                hp_stub_count += 1
+    print(f'  → {hp_stub_count} entradas de stub HP adicionadas')
+
     # ── Ricoh Service Manual ──────────────────────────────────────────────────
     print('[errors] Ricoh Service Manual')
     ricoh_svc_path = PDF_SOURCES['ricoh_imc3000_service'][0]
@@ -1299,7 +1452,17 @@ def finalize_error_index(raw: dict) -> dict:
         if not clean:
             continue
         clean.sort(key=lambda x: -len(x['text']))
-        final[code] = clean[:5]
+        # Per-key coverage: guarantee at least 1 entry per service_key that contributed
+        # entries. This prevents a short-but-unique key entry (e.g. e62655_cpmd/111 chars)
+        # from being cut off when longer entries from other keys fill the top-5 slots.
+        per_key_best = {}
+        for e in clean:
+            if e['key'] not in per_key_best:
+                per_key_best[e['key']] = e
+        coverage = sorted(per_key_best.values(), key=lambda x: -len(x['text']))
+        coverage_ids = {id(e) for e in coverage}
+        extras = [e for e in clean if id(e) not in coverage_ids]
+        final[code] = (coverage + extras)[:5]
     if wildcards:
         print(f'  [finalize] {wildcards} placeholders wildcard removidos')
     if filtered_out:

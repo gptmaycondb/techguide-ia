@@ -1,315 +1,31 @@
 {
-  "index_sha256": "4dc95f5503744c318f481fb25a798e69927c356d5f243adc4f5b7ec4f629138f",
+  "index_sha256": "16183b9b1dd4a2bdb3e44cf27a65ee30c9900e67847cfac0d1baee307a96849c",
   "per_key": {
     "cpmd": {
       "candidates": 404,
-      "covered": 362,
+      "covered": 404,
       "covered_by_synthetic": 0,
-      "missing": [
-        "10.22.15",
-        "13.A3.D4",
-        "13.A3.D5",
-        "13.A4.D5",
-        "13.B2.FF",
-        "13.B9.B1",
-        "13.B9.B2",
-        "13.B9.B3",
-        "13.B9.B4",
-        "13.B9.B5",
-        "13.B9.C1",
-        "13.B9.C2",
-        "13.B9.C3",
-        "13.B9.C4",
-        "13.B9.C5",
-        "13.B9.C6",
-        "13.B9.CB",
-        "13.B9.CC",
-        "13.B9.CD",
-        "13.B9.D1",
-        "13.B9.D2",
-        "13.B9.D3",
-        "13.B9.D4",
-        "13.B9.D5",
-        "13.B9.DD",
-        "13.E1.D3",
-        "33.05.51",
-        "33.05.52",
-        "50.2F.00",
-        "55.01.06",
-        "55.02.06",
-        "59.00.40",
-        "59.A2.03",
-        "59.A2.04",
-        "59.A2.05",
-        "60.00.02",
-        "60.00.03",
-        "60.00.04",
-        "60.01.02",
-        "60.01.03",
-        "60.01.04",
-        "76.00.24"
-      ],
-      "missing_detail": {
-        "10.22.15": {
-          "context": "system component that is causing the error. For example, in error code 10.22.15, 10 = Supplies for HP LaserJets. ● The remaining four",
-          "count": 1
-        },
-        "13.A3.D4": {
-          "context": "where the jam occurred. Z = The tray being used to print the job. ● 13.A3.D3, 13.A3.D4, 13.A3.D5 = Tray 3: Paper did not reach Tray 3 paper",
-          "count": 1
-        },
-        "13.A3.D5": {
-          "context": "where the jam occurred. Z = The tray being used to print the job. ● 13.A3.D3, 13.A3.D4, 13.A3.D5 = Tray 3: Paper did not reach Tray 3 paper",
-          "count": 1
-        },
-        "13.A4.D5": {
-          "context": "Feed Sensor (PS432) when pulling from Tray 3-5 ● 13.A4.D4, 13.A4.D5 = Tray 4: Paper did not reach Tray 4 paper Feed Sensor (PS432)",
-          "count": 1
-        },
-        "13.B2.FF": {
-          "context": "13.B2.Az Jam in top cover ... 53 13.B2.D1 Jam in top cover ... 56 13.B2.Dz Jam in top cover ... 57 13.B2.E2 Jam in top cover ... 67 13.B2.FF",
-          "count": 2
-        },
-        "13.B9.B1": {
-          "context": "● 13.B9.B1",
-          "count": 1
-        },
-        "13.B9.B2": {
-          "context": "● 13.B9.B2",
-          "count": 1
-        },
-        "13.B9.B3": {
-          "context": "● 13.B9.B3",
-          "count": 1
-        },
-        "13.B9.B4": {
-          "context": "● 13.B9.B4",
-          "count": 1
-        },
-        "13.B9.B5": {
-          "context": "● 13.B9.B5",
-          "count": 1
-        },
-        "13.B9.C1": {
-          "context": "roller.) Z = Fuser mode ● 13.B9.C1 (event code) Fuser wrap jam when Auto Sense (Normal). 13.B9.Cz 75",
-          "count": 1
-        },
-        "13.B9.C2": {
-          "context": "● 13.B9.C2 (event code) Fuser wrap jam when Normal. ● 13.B9.C3 (event code) Fuser wrap jam when Light 1 or Light 2 (see event log",
-          "count": 1
-        },
-        "13.B9.C3": {
-          "context": "● 13.B9.C2 (event code) Fuser wrap jam when Normal. ● 13.B9.C3 (event code) Fuser wrap jam when Light 1 or Light 2 (see event log",
-          "count": 1
-        },
-        "13.B9.C4": {
-          "context": "secondary jam information for specific code). ● 13.B9.C4 (event code) Fuser wrap jam when Heavy 1. ● 13.B9.C5 (event code) Fuser wrap",
-          "count": 1
-        },
-        "13.B9.C5": {
-          "context": "secondary jam information for specific code). ● 13.B9.C4 (event code) Fuser wrap jam when Heavy 1. ● 13.B9.C5 (event code) Fuser wrap",
-          "count": 1
-        },
-        "13.B9.C6": {
-          "context": "jam when Heavy 2. ● 13.B9.C6 (event code) Fuser wrap jam when Heavy paper 3. ● 13.B9.CB (event code) Fuser wrap jam when",
-          "count": 1
-        },
-        "13.B9.CB": {
-          "context": "jam when Heavy 2. ● 13.B9.C6 (event code) Fuser wrap jam when Heavy paper 3. ● 13.B9.CB (event code) Fuser wrap jam when",
-          "count": 1
-        },
-        "13.B9.CC": {
-          "context": "Transparency. ● 13.B9.CC (event code) Fuser wrap jam when Label. ● 13.B9.CD (event code) Fuser wrap jam when Envelope 1 or",
-          "count": 1
-        },
-        "13.B9.CD": {
-          "context": "Transparency. ● 13.B9.CC (event code) Fuser wrap jam when Label. ● 13.B9.CD (event code) Fuser wrap jam when Envelope 1 or",
-          "count": 1
-        },
-        "13.B9.D1": {
-          "context": "● 13.B9.D1",
-          "count": 1
-        },
-        "13.B9.D2": {
-          "context": "● 13.B9.D2",
-          "count": 1
-        },
-        "13.B9.D3": {
-          "context": "● 13.B9.D3",
-          "count": 1
-        },
-        "13.B9.D4": {
-          "context": "● 13.B9.D4",
-          "count": 1
-        },
-        "13.B9.D5": {
-          "context": "● 13.B9.D5",
-          "count": 1
-        },
-        "13.B9.DD": {
-          "context": "● 13.B9.DD",
-          "count": 1
-        },
-        "13.E1.D3": {
-          "context": "3. Type the error code (for example, 13.E1.D3) in the Error Code Lookup field, and then select the search icon. 1 2 4. The error code",
-          "count": 2
-        },
-        "33.05.51": {
-          "context": "system memory. ● 33.05.51 Security alert ● 33.05.51 Potential intrusion (Event code) The intrusion detection memory process heartbeat was",
-          "count": 2
-        },
-        "33.05.52": {
-          "context": "not detected. ● 33.05.52 Security alert ● 33.05.52 Cannot scan for potential intrusions (Event code) The intrusion detection memory process",
-          "count": 2
-        },
-        "50.2F.00": {
-          "context": "50.WX.YZ error messages ... 276 50.* errors ... 276 50.1X.YZ Fuser Error ... 277 50.2X.YZ Fuser Error ... 278 50.2F.00 Fuser Error ... 280",
-          "count": 3
-        },
-        "55.01.06": {
-          "context": "For instructions: See the Repair Service Manual for this product. 55.0x.yy to.continue.off.on DC controller PCA error. ● 55.01.06 (event code)",
-          "count": 1
-        },
-        "55.02.06": {
-          "context": "NVRAM memory data error warning. ● 55.02.06 (event code) NVRAM memory access error warning.",
-          "count": 1
-        },
-        "59.00.40": {
-          "context": "59.00.40 — To.continue.off.on ... 322",
-          "count": 2
-        },
-        "59.A2.03": {
-          "context": "number 59.A2.03 — Tray 3 59.A2.04 — Tray 4 59.A2.05 — Tray 5",
-          "count": 1
-        },
-        "59.A2.04": {
-          "context": "number 59.A2.03 — Tray 3 59.A2.04 — Tray 4 59.A2.05 — Tray 5",
-          "count": 1
-        },
-        "59.A2.05": {
-          "context": "number 59.A2.03 — Tray 3 59.A2.04 — Tray 4 59.A2.05 — Tray 5",
-          "count": 1
-        },
-        "60.00.02": {
-          "context": "60.00.02: Tray 2",
-          "count": 3
-        },
-        "60.00.03": {
-          "context": "60.00.03: Tray 3",
-          "count": 3
-        },
-        "60.00.04": {
-          "context": "60.00.04: Tray 4",
-          "count": 1
-        },
-        "60.01.02": {
-          "context": "NOTE: You can determine the tray number from the last digit in the error number. For example: ● 60.00.02 or 60.01.02 = Tray 2 ● 60.00.03",
-          "count": 3
-        },
-        "60.01.03": {
-          "context": "or 60.01.03 = Tray 3",
-          "count": 3
-        },
-        "60.01.04": {
-          "context": "60.01.04: Tray 4",
-          "count": 1
-        },
-        "76.00.24": {
-          "context": "76.00.24 5",
-          "count": 1
-        }
-      },
+      "missing": [],
+      "missing_detail": {},
       "orphans": []
     },
     "e62655_cpmd": {
       "candidates": 466,
-      "covered": 455,
+      "covered": 466,
       "covered_by_synthetic": 0,
-      "missing": [
-        "10.22.15",
-        "13.A4.D4",
-        "41.03.F0",
-        "41.03.F1",
-        "41.03.F2",
-        "41.03.F3",
-        "41.03.F4",
-        "41.03.F5",
-        "48.05.05",
-        "54.00.03",
-        "98.00.0C"
-      ],
-      "missing_detail": {
-        "10.22.15": {
-          "context": "For example, in error code 10.22.15, 10 = Supplies for HP LaserJets.",
-          "count": 1
-        },
-        "13.A4.D4": {
-          "context": "13.A4.D4 Paper did not reach the Tray 4 feed sensor in the designated amount of time when printing",
-          "count": 1
-        },
-        "41.03.F0": {
-          "context": "41.03.F0",
-          "count": 1
-        },
-        "41.03.F1": {
-          "context": "41.03.F1",
-          "count": 1
-        },
-        "41.03.F2": {
-          "context": "41.03.F2",
-          "count": 1
-        },
-        "41.03.F3": {
-          "context": "41.03.F3",
-          "count": 1
-        },
-        "41.03.F4": {
-          "context": "41.03.F4",
-          "count": 1
-        },
-        "41.03.F5": {
-          "context": "41.03.F5",
-          "count": 1
-        },
-        "48.05.05": {
-          "context": "48.05.05",
-          "count": 1
-        },
-        "54.00.03": {
-          "context": "54.00.01 / 54.00.03",
-          "count": 1
-        },
-        "98.00.0C": {
-          "context": "98.00.0c",
-          "count": 13
-        }
-      },
+      "missing": [],
+      "missing_detail": {},
       "orphans": []
     },
     "e62655_service": {
       "candidates": 19,
-      "covered": 16,
+      "covered": 19,
       "covered_by_synthetic": 0,
-      "missing": [
-        "31.13.01",
-        "99.09.67",
-        "99.09.68"
-      ],
-      "missing_detail": {
-        "31.13.01": {
-          "context": "To watch a video to help resolve this error, go to: Fixing 31.13.01/.02 ADF Jam Errors | HP PageWide MFP/",
-          "count": 1
-        },
-        "99.09.67": {
-          "context": "a 99.09.67 error displays on the control panel. A",
-          "count": 3
-        },
-        "99.09.68": {
-          "context": "the 99.09.68 error is displayed.",
-          "count": 1
-        }
-      },
-      "orphans": []
+      "missing": [],
+      "missing_detail": {},
+      "orphans": [
+        "39.8KG"
+      ]
     },
     "ricoh_imc3000_service": {
       "candidates": 730,
@@ -329,114 +45,31 @@
     },
     "service": {
       "candidates": 6,
-      "covered": 1,
+      "covered": 6,
       "covered_by_synthetic": 0,
-      "missing": [
-        "10.22.15",
-        "13.B2.D2",
-        "13.E1.D3",
-        "76.00.24",
-        "99.09.68"
-      ],
-      "missing_detail": {
-        "10.22.15": {
-          "context": "numeric and represent the system component that is causing the error. For example, in error code 10.22.15, 10 = Supplies for HP LaserJets.",
-          "count": 1
-        },
-        "13.B2.D2": {
-          "context": "tool drop-down list M606 4. Type the error code (for example, 13.b2.d2) in the Error Code Lookup keyword field, and then select the search",
-          "count": 1
-        },
-        "13.E1.D3": {
-          "context": "list 3. Type the error code (for example, 13.E1.D3) in the Search keyword field, and then select the search icon. Figure 4-88 WISE Search 1 2",
-          "count": 2
-        },
-        "76.00.24": {
-          "context": "76.00.24 270",
-          "count": 1
-        },
-        "99.09.68": {
-          "context": "enabled only for the Boot device. This will be grayed out unless the 99.09.68 error is displayed. 88 Chapter 4 Solve problems",
-          "count": 1
-        }
-      },
+      "missing": [],
+      "missing_detail": {},
       "orphans": []
     }
   },
   "per_model": {
     "E52645": {
       "candidates": 405,
-      "covered": 362,
+      "covered": 405,
       "keys": [
         "cpmd",
         "service"
       ],
-      "missing": [
-        "10.22.15",
-        "13.A3.D4",
-        "13.A3.D5",
-        "13.A4.D5",
-        "13.B2.FF",
-        "13.B9.B1",
-        "13.B9.B2",
-        "13.B9.B3",
-        "13.B9.B4",
-        "13.B9.B5",
-        "13.B9.C1",
-        "13.B9.C2",
-        "13.B9.C3",
-        "13.B9.C4",
-        "13.B9.C5",
-        "13.B9.C6",
-        "13.B9.CB",
-        "13.B9.CC",
-        "13.B9.CD",
-        "13.B9.D1",
-        "13.B9.D2",
-        "13.B9.D3",
-        "13.B9.D4",
-        "13.B9.D5",
-        "13.B9.DD",
-        "13.E1.D3",
-        "33.05.51",
-        "33.05.52",
-        "50.2F.00",
-        "55.01.06",
-        "55.02.06",
-        "59.00.40",
-        "59.A2.03",
-        "59.A2.04",
-        "59.A2.05",
-        "60.00.02",
-        "60.00.03",
-        "60.00.04",
-        "60.01.02",
-        "60.01.03",
-        "60.01.04",
-        "76.00.24",
-        "99.09.68"
-      ]
+      "missing": []
     },
     "E62655": {
       "candidates": 471,
-      "covered": 460,
+      "covered": 471,
       "keys": [
         "e62655_cpmd",
         "e62655_service"
       ],
-      "missing": [
-        "10.22.15",
-        "41.03.F0",
-        "41.03.F1",
-        "41.03.F2",
-        "41.03.F3",
-        "41.03.F4",
-        "41.03.F5",
-        "48.05.05",
-        "54.00.03",
-        "98.00.0C",
-        "99.09.68"
-      ]
+      "missing": []
     },
     "imc3000": {
       "candidates": 730,
