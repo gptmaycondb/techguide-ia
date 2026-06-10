@@ -172,9 +172,34 @@ def _canon(code: str) -> str:
     return re.sub(r'[\s.\-/]', '', code.upper())
 
 
+def _check_baseline_did_not_grow(baseline_path: Path, current_total: int) -> None:
+    """Fails if coverage_baseline.json has more entries than its committed version.
+    The baseline can only shrink as Lotes 2-4 resolve missing codes."""
+    import subprocess
+    try:
+        rel = str(baseline_path.relative_to(Path(__file__).parent.parent))
+        result = subprocess.run(
+            ['git', 'show', f'HEAD:{rel}'],
+            capture_output=True,
+            cwd=str(Path(__file__).parent.parent),
+        )
+        if result.returncode != 0:
+            return  # file not yet committed (first run) — skip
+        committed = json.loads(result.stdout.decode('utf-8'))
+        committed_total = committed.get('total', 0)
+        if current_total > committed_total:
+            print(f'\n❌ coverage_baseline.json CRESCEU: {committed_total} → {current_total} entradas.')
+            print('   O baseline só pode encolher. Não adicione novos códigos ao baseline')
+            print('   para encobrir regressões — corrija o extrator ou use codes_ignore.json.')
+            sys.exit(1)
+    except Exception:
+        pass  # git indisponível ou outro erro — ignora a proteção
+
+
 def _check_coverage() -> None:
-    report_path = Path(__file__).parent / 'coverage_report.json'
-    ignore_path = Path(__file__).parent / 'codes_ignore.json'
+    report_path   = Path(__file__).parent / 'coverage_report.json'
+    ignore_path   = Path(__file__).parent / 'codes_ignore.json'
+    baseline_path = Path(__file__).parent / 'coverage_baseline.json'
 
     if not report_path.exists():
         print('❌ coverage_report.json não encontrado.')
@@ -191,24 +216,57 @@ def _check_coverage() -> None:
         print('   Regenere: python3 scripts/coverage_report.py (requer PDFs em /tmp)')
         sys.exit(1)
 
+    # Load baseline (codes already in canonical form)
+    baseline: dict[str, set] = {}
+    baseline_total = 0
+    if baseline_path.exists():
+        bl = json.loads(baseline_path.read_text(encoding='utf-8'))
+        baseline_total = bl.get('total', 0)
+        for svc, codes in bl.get('per_key', {}).items():
+            baseline[svc] = set(codes)
+
+    _check_baseline_did_not_grow(baseline_path, baseline_total)
+
     print('\n── Cobertura por service_key ──')
-    total_eff = 0
+    total_new = 0
+    total_pending = 0
+
     for svc, data in sorted(report.get('per_key', {}).items()):
-        ig       = {_canon(k) for k in ignore.get(svc, {})}
-        efetivos = [c for c in data['missing'] if _canon(c) not in ig]
-        ignored  = len(data['missing']) - len(efetivos)
-        total    = data['candidates']
-        covered  = data['covered']
-        print(f'   {svc}: {covered}/{total} cobertos | faltando={len(efetivos)} ignorados={ignored}')
-        if efetivos[:6]:
-            print(f'      → {", ".join(efetivos[:6])}{"…" if len(efetivos) > 6 else ""}')
-        total_eff += len(efetivos)
+        ig     = {_canon(k) for k in ignore.get(svc, {})}
+        bl_svc = baseline.get(svc, set())
+
+        new_missing     = [c for c in data['missing'] if _canon(c) not in bl_svc and _canon(c) not in ig]
+        pending_missing = [c for c in data['missing'] if _canon(c) in bl_svc     and _canon(c) not in ig]
+        ignored_count   = sum(1 for c in data['missing'] if _canon(c) in ig)
+
+        covered = data['covered']
+        cands   = data['candidates']
+
+        parts = []
+        if pending_missing:
+            parts.append(f'{len(pending_missing)} pendente(s) triagem (baseline)')
+        if new_missing:
+            parts.append(f'{len(new_missing)} NOVO(S) ❌')
+        if ignored_count:
+            parts.append(f'{ignored_count} ignorado(s)')
+        status = ' | '.join(parts) if parts else 'cobertura OK ✅'
+
+        print(f'   {svc}: {covered}/{cands} cobertos — {status}')
+        if new_missing:
+            print(f'      → NOVOS: {", ".join(new_missing[:6])}{"…" if len(new_missing) > 6 else ""}')
+        elif pending_missing:
+            print(f'      → pendentes: {", ".join(pending_missing[:6])}{"…" if len(pending_missing) > 6 else ""}')
+
+        total_new     += len(new_missing)
+        total_pending += len(pending_missing)
 
     print()
-    if total_eff == 0:
+    if total_new == 0 and total_pending == 0:
         print('✅ Cobertura OK — todos os candidatos estão indexados.')
+    elif total_new == 0:
+        print(f'✅ {total_pending} pendente(s) de triagem (baseline) | 0 novos — gate OK.')
     else:
-        print(f'❌ {total_eff} candidatos faltando no índice.')
+        print(f'❌ {total_pending} pendente(s) de triagem (baseline) | {total_new} NOVO(S) — gate falhou.')
         sys.exit(1)
 
 
