@@ -65,6 +65,9 @@ def classify(code: str, entries: list, min_len: int, peer_max: int) -> str:
         # Entradas que explicitamente dizem "no action" são completas apesar de curtas
         if NO_ACTION_RE.search(x['text']) and ln > 80:
             return 'OK'
+        # Entradas com ação/solução explícita e texto suficiente são OK mesmo abaixo do limiar
+        if HAS_ACTION_RE.search(x['text']) and ln > 150:
+            return 'OK'
         return 'fixable' if peer_max >= RICH_SIBLING else 'short'
     if not HAS_ACTION_RE.search(x['text']):
         return 'noAction'
