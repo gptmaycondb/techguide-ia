@@ -48,23 +48,30 @@ function searchErrorCode(query, indexKey) {
   const direct = q.toUpperCase().replace(/^(ERRO|ERROR|CODIGO|CODE|FALHA)\s+/i, '').trim();
   const toTry = codes.length > 0 ? codes : [direct];
 
-  const results = [];
+  const raw = [];
   for (const code of toTry) {
     if (errorCodesData[code]) {
       const filtered = errorCodesData[code].filter(matchKey);
-      if (filtered.length) results.push(...filtered.map(e => e.text));
+      if (filtered.length) raw.push(...filtered.map(e => e.text));
     } else {
       for (const [k, entries] of Object.entries(errorCodesData)) {
         if (k.startsWith(code) || (code.length >= 4 && k.includes(code)) || wildcardMatchHP(k, code)) {
           const filtered = entries.filter(matchKey);
-          if (filtered.length) results.push(...filtered.map(e => e.text));
-          if (results.length >= 5) break;
+          if (filtered.length) raw.push(...filtered.map(e => e.text));
+          if (raw.length >= 5) break;
         }
       }
     }
+    if (raw.length >= 5) break;
+  }
+  const seen = new Set();
+  const results = [];
+  for (const t of raw) {
+    const sig = t.slice(0, 80);
+    if (!seen.has(sig)) { seen.add(sig); results.push(t); }
     if (results.length >= 5) break;
   }
-  return results.slice(0, 5);
+  return results;
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -120,6 +127,22 @@ expect('SC285-00 via imc3000 searchKeys', 'SC285-00', KEYS.imc3000, true);
 console.log('[Ricoh mpc3004] SC285-00 → deve achar via ricoh_mpc3004_service');
 expect('SC285-00 via mpc3004 searchKeys', 'SC285-00', KEYS.mpc3004, true);
 
+// ── Lote 1 — subcódigos inline ● (5 famílias) ────────────────────────────────
+console.log('\n[Lote 1 — 66.80] 66.80.01 (Y-align) → deve achar via E52645 cpmd');
+expect('66.80.01 via E52645 searchKeys', '66.80.01', KEYS.E52645, true);
+
+console.log('[Lote 1 — 13.B9] 13.B9.A1 (Fuser jam Tray 1) → deve achar via E52645 cpmd');
+expect('13.B9.A1 via E52645 searchKeys', '13.B9.A1', KEYS.E52645, true);
+
+console.log('[Lote 1 — 33.05] 33.05.01 (Boot code corrupt) → deve achar via E52645 cpmd');
+expect('33.05.01 via E52645 searchKeys', '33.05.01', KEYS.E52645, true);
+
+console.log('[Lote 1 — 80.03] 80.03.01 (No PGP buffers) → deve achar via E52645 cpmd');
+expect('80.03.01 via E52645 searchKeys', '80.03.01', KEYS.E52645, true);
+
+console.log('[Lote 1 — 13.B2] 13.B2.A4 (Registration sensor Tray 4) → deve achar via E52645 cpmd');
+expect('13.B2.A4 via E52645 searchKeys', '13.B2.A4', KEYS.E52645, true);
+
 // ── Negativos cross-model ─────────────────────────────────────────────────────
 console.log('\n[Cross-model isolation] Código E62655-only não vaza para E52645');
 expect('10.00.30 (e62655-only) via E52645 keys → NOT FOUND', '10.00.30', KEYS.E52645, false);
@@ -133,6 +156,20 @@ expect('SC860-03 (imc3000-only) via mpc3004 keys → NOT FOUND', 'SC860-03', KEY
 
 console.log('[Cross-model isolation] SC mpc3004-only não vaza para imc3000');
 expect('SC665-01 (mpc3004-only) via imc3000 keys → NOT FOUND', 'SC665-01', KEYS.imc3000, false);
+
+// ── Dedup interno ─────────────────────────────────────────────────────────────
+// 99.09.67 existe sob 'service' e pode aparecer em múltiplas chaves do E52645;
+// searchErrorCode deve deduplicar e retornar cada texto no máximo uma vez.
+console.log('[Dedup] 99.09.67 via E52645 searchKeys não retorna duplicatas');
+{
+  const results = searchErrorCode('99.09.67', KEYS.E52645);
+  const sigs = results.map(t => t.slice(0, 80));
+  const unique = new Set(sigs);
+  const ok = unique.size === sigs.length;
+  const marker = ok ? '✓' : '✗ FAIL';
+  console.log(`  [${marker}] dedup: ${results.length} resultados, ${unique.size} únicos`);
+  if (ok) pass++; else { fail++; console.log('  DUPLICATAS DETECTADAS'); }
+}
 
 // ── Resumo ────────────────────────────────────────────────────────────────────
 console.log(`\n=== ${pass + fail} testes: ${pass} passaram, ${fail} falharam ===`);

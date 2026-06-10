@@ -278,15 +278,32 @@ def main() -> None:
                         for e in ents if e['key'] == svc)
         )
 
+        # Candidatos cobertos via entrada sintética (src=propagated/xref) — informativo.
+        # Cobertura real = covered − covered_by_synthetic. Cobertura sintética não
+        # substitui extração direta do PDF.
+        # Build canon→index_key map for fast lookup
+        canon_to_key = {}
+        for idx_key, ents in index.items():
+            if any(e['key'] == svc for e in ents):
+                canon_to_key.setdefault(canon(idx_key), idx_key)
+        covered_by_synthetic = sum(
+            1 for c in cands
+            if c in cov
+            and c in canon_to_key
+            and all(e.get('src') in ('propagated', 'xref')
+                    for e in index[canon_to_key[c]] if e['key'] == svc)
+        )
+
         per_key[svc] = {
-            'candidates':     len(cands),
-            'covered':        len(cands) - len(missing),
-            'missing':        sorted(missing),
-            'missing_detail': {k: missing_detail[k] for k in sorted(missing_detail)},
-            'orphans':        orphans,
+            'candidates':          len(cands),
+            'covered':             len(cands) - len(missing),
+            'covered_by_synthetic': covered_by_synthetic,
+            'missing':             sorted(missing),
+            'missing_detail':      {k: missing_detail[k] for k in sorted(missing_detail)},
+            'orphans':             orphans,
         }
         print(f'    cands={len(cands)} covered={len(cands)-len(missing)} '
-              f'missing={len(missing)} orphans={len(orphans)}')
+              f'(synth={covered_by_synthetic}) missing={len(missing)} orphans={len(orphans)}')
 
     # ── Visão per_model ───────────────────────────────────────────────────────
     # Espelha MODEL_SEARCHKEYS (= searchKeys do data.js): um candidato é "covered"

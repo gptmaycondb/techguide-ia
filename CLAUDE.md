@@ -126,11 +126,12 @@ Isso garante que códigos HP indexados sob `cpmd` sejam encontráveis para o E52
 consultas Ricoh não retornem resultados de outro modelo. **Não é necessário editar o ChatScreen**
 para novos modelos — basta declarar `searchKeys` correto no `data.js`.
 
-> **⚠ Não "simplificar" de volta para uma key única.** A derivação antiga
-> `searchKeys.find(k => k.includes('service'))` foi desenhada para Ricoh (SC codes vivem
-> no service manual) e tornava inalcançáveis os 508 códigos HP da key `cpmd` — invisíveis
-> no app. O isolamento cross-model é garantido pelo filtro com as keys **do modelo**, não
-> por uma key única.
+> **⚠ Não "simplificar" de volta para uma key única.** O código do ChatScreen sempre
+> percorreu todas as keys via `flatMap`; a documentação anterior descrevia uma derivação
+> `searchKeys.find(...)` que nunca foi o comportamento real. O fix (PR-2) moveu a semântica
+> multi-key para dentro de `searchErrorCode` (parâmetro `string | string[]`) e a cobriu com
+> testes no `test_findability.js` — agora é a única fonte de verdade. O isolamento
+> cross-model é garantido pelo filtro com as keys **do modelo**, não por key única.
 
 ### 6. Dicas do assistente flutuante em `src/tips.js`
 Adicionar um bloco de dicas **específicas do modelo** com o campo `model` igual ao `id`
@@ -274,11 +275,21 @@ cancelam o timer com `clearTimeout`.
 o componente quando o manual muda, resetando todo o estado local (`loading`, scroll, etc.).
 Sem o `key`, trocar de manual com uma requisição em andamento deixava o input bloqueado.
 
-### searchErrorCode sem fallback cross-manual
+### searchErrorCode — contrato multi-key
 `src/search.js` → `searchErrorCode(query, indexKey: string | string[])`: filtra por todas
 as keys do modelo ativo; sem resultado cross-model (um usuário Ricoh não recebe HP e
-vice-versa). Novo contrato desde PR-2: `indexKey` aceita array — ChatScreen passa
-`searchKeys` completo em vez de uma key única (fix de 508 códigos HP invisíveis).
+vice-versa). O ChatScreen sempre percorreu todas as keys do modelo; o PR-2 consolidou a
+semântica dentro da função (Set-filter por array) e adicionou dedup interno, tornando o
+comportamento testável via `test_findability.js`.
+
+### Regra de processo: ANTES/DEPOIS em checkpoint vem do git, não da documentação
+
+Todo ANTES/DEPOIS apresentado em checkpoint ou revisão de PR deve derivar de
+`git show <hash> -- <arquivo>` ou leitura direta do arquivo com o hash confirmado —
+**nunca da documentação**. O CLAUDE.md é mapa, não território; discrepâncias entre
+o mapa e o código real levam a análises falsas e fixes para problemas inexistentes.
+Esta regra emergiu de um episódio desta sessão em que o CLAUDE.md descrevia uma
+derivação `searchKeys.find(...)` que nunca existiu no código.
 
 ### Skills e Hooks
 `.claude/skills/` — 12 skills invocadas manualmente com `/nome` na sessão do Claude Code.
@@ -387,9 +398,10 @@ configuradas. Apenas `ANTHROPIC_API_KEY` é necessária para o app funcionar nor
 > **Já implementadas nesta sessão** (não repetir aqui): histórico persistente,
 > erros amigáveis, RAG semântico no backend, keepalive `/ping`, telemetria JSON,
 > embeddings `paraphrase-multilingual-MiniLM-L12-v2`, `SEMANTIC_SEARCH` flag,
-> SSE streaming, `max_tokens: 3072`, `searchErrorCode` sem fallback cross-manual,
+> SSE streaming, `max_tokens: 3072`, `searchErrorCode` contrato multi-key com dedup,
 > `key={chatKey}` no ChatScreen, contrato legado (RAG local no app), AppState listener,
-> retry automático (`startRequest`), fix URLs E52645 invertidos + `localName` `_v2`.
+> retry automático (`startRequest`), fix URLs E52645 invertidos + `localName` `_v2`,
+> normalização `O→0` em extração HP, subcódigos inline `●` (Lote 1).
 > `search_index.json` off-bundle continua **deferido** — necessário para modo offline.
 
 ### A) `scripts/sources.json` — configuração de PDFs externalizada

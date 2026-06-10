@@ -372,6 +372,12 @@ def extract_hp_error_type_table(text: str) -> dict:
     return results
 
 
+# Bullet sub-codes "● XX.YY.ZZ" inside HP CPMD parent sections.
+# These codes precede their code with "●" so SECTION_START never captures them.
+# Families in cpmd/e62655_cpmd: 13.B2, 13.B9, 33.05, 66.80, 80.03 (Lote 1).
+BULLET_CODE_RE = re.compile(r'●\s*(\d{2}\.[0-9A-Z]{2,3}\.[0-9A-Z]{2})', re.IGNORECASE)
+BULLET_ACTION_RE = re.compile(r'\nRecommended action\b', re.IGNORECASE)
+
 def extract_hp_errors_from_cpmd(text: str) -> dict:
     """
     Parser específico para o CPMD HP.
@@ -379,6 +385,7 @@ def extract_hp_errors_from_cpmd(text: str) -> dict:
     - Códigos no início de linha: "49.38.07\nDescription..."
     - Códigos no meio de frase: "...text. 50.1X.YZ Fuser Error Low..."
     - Múltiplos códigos: "82.73.46, 82.73.47\nDescription..."
+    - Subcódigos inline: "● 13.B9.A1\nDescription..." (Lote 1)
     """
     results = defaultdict(list)
 
@@ -401,9 +408,9 @@ def extract_hp_errors_from_cpmd(text: str) -> dict:
         start = m.start()
         end = matches[i + 1].start() if i + 1 < len(matches) else start + 5000
         end = min(end, start + 5000)
-        section = text[start:end].strip()
+        section = re.sub(r'\n+●\s*$', '', text[start:end].strip())
 
-        if is_toc_chunk(section) or is_book_index_chunk(section) or len(section) < 80:
+        if is_toc_chunk(section) or is_book_index_chunk(section) or len(section) < 20:
             continue
 
         # Extrair todos os códigos desta entrada (ex.: "82.73.46, 82.73.47")
@@ -424,6 +431,38 @@ def extract_hp_errors_from_cpmd(text: str) -> dict:
                 results['.'.join(parts[:2])].append(entry)
             if len(parts) >= 2:
                 results[parts[0]].append(entry)
+
+        # ── Bullet sub-codes within this section (Lote 1) ──────────────────────
+        # Codes like "● 13.B9.A1\nDesc" are prefixed with "●" so SECTION_START
+        # never sees them at line-start. Extract and index each with its own
+        # description plus the inherited "Recommended action" block.
+        bullet_ms = list(BULLET_CODE_RE.finditer(section))
+        if bullet_ms:
+            # Inherited action block = first "Recommended action" AFTER the last bullet.
+            # Searching from section start risks finding a preceding section's action block
+            # (e.g. section 13.B2.E2 contains 13.B9.* bullets that follow its own action).
+            last_bm = bullet_ms[-1]
+            action_after_last = BULLET_ACTION_RE.search(section, last_bm.start())
+            action_block = section[action_after_last.start():].strip() if action_after_last else ''
+        for j, bm in enumerate(bullet_ms):
+            sub_code = bm.group(1).upper().replace('O', '0')
+            sub_parts = sub_code.split('.')
+            if len(sub_parts) != 3 or re.search(r'[XYZ*]', sub_code):
+                continue  # skip wildcards
+            next_bullet = bullet_ms[j + 1].start() if j + 1 < len(bullet_ms) else len(section)
+            # Boundary = next bullet OR next action AFTER this bullet (whichever is sooner).
+            # Searching from bm.start() avoids inheriting a preceding action block.
+            action_after_bm = BULLET_ACTION_RE.search(section, bm.start())
+            action_start = action_after_bm.start() if action_after_bm else len(section)
+            boundary = min(next_bullet, action_start)
+            bullet_text = section[bm.start():boundary].strip()
+            if len(bullet_text) < 10:
+                continue
+            full_text = (bullet_text + '\n\n' + action_block) if action_block else bullet_text
+            sub_entry = {'key': 'cpmd', 'text': full_text}
+            results[sub_code].append(sub_entry)
+            results['.'.join(sub_parts[:2])].append(sub_entry)
+            results[sub_parts[0]].append(sub_entry)
 
     return results
 
