@@ -259,7 +259,7 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
               } : msg
             ));
           } catch (parseErr) {
-            const preview = xhr.responseText.slice(0, 100).replace(/\n/g, ' ');
+            const preview = xhr.responseText.slice(0, 300).replace(/\n/g, ' ');
             const errMsg = /Unexpected|JSON|token/i.test(parseErr.message)
               ? `Resposta inesperada do servidor: "${preview}"`
               : parseErr.message;
