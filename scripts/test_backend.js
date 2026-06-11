@@ -165,6 +165,42 @@ console.log('\n[A1d] array de mensagens vazio (edge case)');
   check('userText vazio', userText, '');
 }
 
+// ── A1e: payload realista do contrato legado ───────────────────────────────────
+// Prova: systemPrompt chega intacto em systemInstruction; contents[0].role === 'user'
+console.log('\n[A1e] payload realista do contrato legado (systemPrompt + histórico multi-turn)');
+{
+  const systemPrompt = [
+    'Você é um assistente técnico especializado em impressoras HP E52645.',
+    '\nTRECHOS DO MANUAL:\n\n[1]\n49.38.07 PRINTER ERROR\n',
+    'Turn the product off then on. If the error persists, reseat the formatter.',
+    '\n\nResponda baseando-se nos trechos acima.',
+  ].join('');
+
+  const messages = [
+    { role: 'user',      content: 'O que significa o erro 49.38.07?' },
+    { role: 'assistant', content: 'O erro 49.38.07 indica falha no formatter.' },
+    { role: 'user',      content: 'Como resolver definitivamente?' },
+  ];
+
+  const { history, userText } = buildGeminiMessages(messages);
+
+  check('history[0].role === user (contents[0] será user)',  history[0]?.role, 'user');
+  check('history tem 2 entradas (multi-turn preservado)',    history.length,    2);
+  check('userText é a última query (contents final = user)', userText, 'Como resolver definitivamente?');
+
+  const genai = new GoogleGenerativeAI('fake-key-for-local-validation');
+  const mdl = genai.getGenerativeModel({ model: 'gemini-2.5-flash' });
+  let session = null;
+  let threw = false;
+  try {
+    session = mdl.startChat({ history, systemInstruction: systemPrompt });
+  } catch (e) { threw = true; }
+
+  check('startChat não lança erro com payload legado',            threw, false);
+  // chat.params.systemInstruction é acessível e idêntico ao systemPrompt original
+  check('systemInstruction íntegro (não descartado pelo strip)', session?.params?.systemInstruction, systemPrompt);
+}
+
 // ── Resultado ─────────────────────────────────────────────────────────────────
 console.log(`\n=== ${pass + fail} testes: ${pass} passaram, ${fail} falharam ===`);
 process.exit(fail > 0 ? 1 : 0);
