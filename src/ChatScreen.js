@@ -4,7 +4,7 @@ import {
   StyleSheet, ActivityIndicator, SafeAreaView, Keyboard,
   Linking, KeyboardAvoidingView, Platform,
 } from 'react-native';
-import { searchManual, searchErrorCode, hasRelevantContent, MANUAL_INDEX_MAP } from './search';
+import { searchManual, searchErrorCode, hasRelevantContent, computeFoundInManual, MANUAL_INDEX_MAP } from './search';
 import { API_URL, DEFAULT_PROVIDER } from './data';
 import {
   loadModel, loadEmbeddings, unloadEmbeddings,
@@ -105,7 +105,8 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
       seen.add(key);
       return true;
     }).slice(0, 8);
-    const foundInManual = chunks.length > 0 && searchKeys.some(k => hasRelevantContent(q, k));
+    const hasRC = searchKeys.map(k => hasRelevantContent(q, k));
+    const foundInManual = computeFoundInManual(errorChunks, chunks, hasRC);
 
     const noChunksMsg = '\n\nNenhum trecho encontrado nos manuais indexados. Informe ao usuario que a informacao nao foi localizada no indice e sugira consultar o manual fisico ou reformular a busca.';
 
