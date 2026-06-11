@@ -18,6 +18,8 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
 
+const srcChatJs = readFileSync(resolve(ROOT, 'src/ChatScreen.js'), 'utf8');
+
 const errorCodesData = JSON.parse(
   readFileSync(resolve(ROOT, 'assets/error_codes_index.json'), 'utf8')
 );
@@ -80,6 +82,19 @@ function computeFoundInManual(errorChunks, chunks, hasRC) {
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
+// ── parseSseText copiado VERBATIM de src/ChatScreen.js ───────────────────────
+function parseSseText(text) {
+  const events = [];
+  for (const line of text.split('\n')) {
+    if (!line.startsWith('data: ')) continue;
+    const data = line.slice(6).trim();
+    if (!data) continue;
+    try { events.push(JSON.parse(data)); } catch {}
+  }
+  return events;
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
 // searchKeys espelham src/data.js
 const KEYS = {
   E52645:      ['e52645_guia', 'cpmd', 'service'],
@@ -108,8 +123,8 @@ function expect(label, query, keys, shouldFind) {
 
 console.log('=== Findability Test Suite ===\n');
 
-// ── Sync guard: verbatim copies must match src/search.js ─────────────────────
-console.log('[Sync guard] Verificando sincronização com src/search.js');
+// ── Sync guard: verbatim copies must match source files ──────────────────────
+console.log('[Sync guard] Verificando sincronização com src/search.js e src/ChatScreen.js');
 {
   const srcSearch = readFileSync(resolve(ROOT, 'src/search.js'), 'utf8');
   const testSelf  = readFileSync(fileURLToPath(import.meta.url), 'utf8');
@@ -135,9 +150,14 @@ console.log('[Sync guard] Verificando sincronização com src/search.js');
       .trim();
   }
 
-  for (const fn of ['wildcardMatchHP', 'searchErrorCode', 'computeFoundInManual']) {
-    const srcNorm  = normalize(extractFn(srcSearch, fn));
-    const testNorm = normalize(extractFn(testSelf,  fn));
+  for (const [fn, src] of [
+    ['wildcardMatchHP',      srcSearch],
+    ['searchErrorCode',      srcSearch],
+    ['computeFoundInManual', srcSearch],
+    ['parseSseText',         srcChatJs],
+  ]) {
+    const srcNorm  = normalize(extractFn(src,     fn));
+    const testNorm = normalize(extractFn(testSelf, fn));
     const ok = srcNorm === testNorm;
     console.log(`  [${ok ? '✓' : '✗ FAIL'}] ${fn}`);
     if (ok) {
@@ -305,6 +325,50 @@ console.log('\n[computeFoundInManual] gate booleano do selo/offline');
   const ok4 = r4 === true;
   console.log(`  [${ok4 ? '✓' : '✗ FAIL'}] errorChunks=0, chunks=1, hasRC=[f,t,f] → true  (searchManual clássico)`);
   if (ok4) pass++; else fail++;
+}
+
+// ── parseSseText — parser SSE puro e testável ─────────────────────────────────
+// Cobre os 4 cenários do onload/onprogress no ChatScreen (fix Gemini "Unexpected character: d").
+console.log('\n[parseSseText] parser SSE — fix Gemini onload');
+{
+  // (a) stream completo chegando só no onload (onprogress não disparou: lastIndex=0)
+  const full = [
+    'data: {"type":"delta","text":"Olá"}',
+    'data: {"type":"delta","text":" mundo"}',
+    'data: {"type":"done","foundInManual":true}',
+    '',
+  ].join('\n');
+  const evs_a = parseSseText(full);
+  const ok_a  = evs_a.length === 3
+    && evs_a[0].type === 'delta' && evs_a[0].text === 'Olá'
+    && evs_a[1].type === 'delta' && evs_a[1].text === ' mundo'
+    && evs_a[2].type === 'done';
+  console.log(`  [${ok_a ? '✓' : '✗ FAIL'}] (a) stream completo no onload → 3 eventos, sem erro`);
+  if (ok_a) pass++; else fail++;
+
+  // (b) parte via onprogress + resto no onload → sem duplicação (usa offset lastIndex)
+  // onprogress leu 2 eventos; onload recebe responseText.slice(lastIndex) = só o done
+  const part1 = 'data: {"type":"delta","text":"Olá"}\ndata: {"type":"delta","text":" mundo"}\n';
+  const part2 = 'data: {"type":"done","foundInManual":true}\n';
+  const evs_p  = parseSseText(part1);  // simula onprogress
+  const evs_ol = parseSseText(part2);  // simula onload com slice(lastIndex)
+  const ok_b = evs_p.length === 2 && evs_ol.length === 1 && evs_ol[0].type === 'done';
+  console.log(`  [${ok_b ? '✓' : '✗ FAIL'}] (b) onprogress=${evs_p.length} + onload=${evs_ol.length} → total 3 sem duplicação`);
+  if (ok_b) pass++; else fail++;
+
+  // (c) erro SSE (Gemini key inválida) → parseia sem expor "Unexpected character: d"
+  const errSse = 'data: {"type":"error","message":"API_KEY_INVALID"}\n';
+  const evs_c  = parseSseText(errSse);
+  const ok_c   = evs_c.length === 1 && evs_c[0].type === 'error' && evs_c[0].message === 'API_KEY_INVALID';
+  console.log(`  [${ok_c ? '✓' : '✗ FAIL'}] (c) erro SSE → parseia corretamente (sem JSON.parse cru em "data: ...")`);
+  if (ok_c) pass++; else fail++;
+
+  // (d) JSON puro (backend antigo sem SSE): parseSseText retorna [] → fallback JSON fica intacto
+  const jsonOnly = '{"content":[{"text":"resposta"}],"foundInManual":true}';
+  const evs_d   = parseSseText(jsonOnly);
+  const ok_d    = evs_d.length === 0;
+  console.log(`  [${ok_d ? '✓' : '✗ FAIL'}] (d) JSON puro → parseSseText retorna [] (fallback JSON preservado)`);
+  if (ok_d) pass++; else fail++;
 }
 
 // ── Resumo ────────────────────────────────────────────────────────────────────
