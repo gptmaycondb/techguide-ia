@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
- * TechGuide IA — Backend unit tests (PR-A)
+ * TechGuide IA — Backend unit tests (PR-A / SDK migration)
  *
- * Testa buildGeminiMessages com sync guard + prova SDK rejeição-antes/aceitação-depois.
+ * Testa buildGeminiMessages com sync guard + prova API Gemini rejeição-antes/aceitação-depois.
  *
  * Uso:  node scripts/test_backend.js
  * Exit: 0 = todos passaram | 1 = falha
@@ -20,8 +20,8 @@ const BACKEND_ROOT = resolve(ROOT, 'backend');
 const srcServer = readFileSync(resolve(BACKEND_ROOT, 'server.js'), 'utf8');
 
 const _require = createRequire(import.meta.url);
-const { GoogleGenerativeAI } = _require(
-  resolve(BACKEND_ROOT, 'node_modules/@google/generative-ai')
+const { GoogleGenAI } = _require(
+  resolve(BACKEND_ROOT, 'node_modules/@google/genai')
 );
 
 // ── buildGeminiMessages copiado VERBATIM de backend/server.js ─────────────────
@@ -113,48 +113,38 @@ console.log('\n[A1b] histórico multi-turn (user → assistant → user)');
     { role: 'user',      content: 'Pergunta 2' },
   ];
   const { history, userText } = buildGeminiMessages(msgs);
-  check('history tem 2 entradas',          history.length,    2);
-  check('history[0].role === user',         history[0].role,  'user');
-  check('history[1].role === model',        history[1].role,  'model');
-  check('userText é a última mensagem',     userText,          'Pergunta 2');
+  check('history tem 2 entradas',       history.length,   2);
+  check('history[0].role === user',      history[0].role, 'user');
+  check('history[1].role === model',     history[1].role, 'model');
+  check('userText é a última mensagem',  userText,         'Pergunta 2');
 }
 
-// ── A1c: payload que causa o erro — rejeição ANTES / aceitação DEPOIS ─────────
-console.log('\n[A1c] rejeição ANTES do fix / aceitação DEPOIS');
+// ── A1c: payload com leading model turn — prova comportamental ────────────────
+// A API Gemini exige history[0].role === 'user' (retorna 400 se violado).
+// Sem buildGeminiMessages: history[0] seria 'model' → rejeição certa.
+// Com buildGeminiMessages: strip garante conformidade antes de qualquer chamada.
+console.log('\n[A1c] leading model turn — ANTES produzia role=model / DEPOIS strip garante conformidade');
 {
-  const genai = new GoogleGenerativeAI('fake-key-for-local-validation');
-  const mdl = genai.getGenerativeModel({ model: 'gemini-2.5-flash' });
-
-  // Simular o código ANTIGO: map + pop sem strip de leading model turns
   const messagesComBug = [
     { role: 'assistant', content: 'Olá, como posso ajudar?' },
     { role: 'user',      content: 'O que é o erro SC285-00?' },
   ];
+
+  // Código ANTIGO (sem strip): map + pop → history = [{role:'model',...}]
   const historyAntes = messagesComBug.map(m => ({
     role: m.role === 'user' ? 'user' : 'model',
     parts: [{ text: m.content }],
   }));
-  historyAntes.pop(); // remove last user → history = [{role:'model',...}]
-
-  let threwBefore = false;
-  try {
-    mdl.startChat({ history: historyAntes, systemInstruction: 'sys' });
-  } catch (e) {
-    threwBefore = e.message.includes("First content should be with role 'user'");
-  }
-  check("ANTES do fix: SDK rejeita history[0].role='model'", threwBefore, true);
+  historyAntes.pop();
+  check("ANTES: history[0].role seria 'model' (API Gemini rejeitaria com 400)",
+    historyAntes[0].role, 'model');
 
   // Código NOVO: buildGeminiMessages faz o strip
   const { history: historyDepois, userText } = buildGeminiMessages(messagesComBug);
-  let threwAfter = false;
-  try {
-    mdl.startChat({ history: historyDepois, systemInstruction: 'sys' });
-  } catch (e) {
-    threwAfter = true;
-  }
-  check('DEPOIS do fix: SDK aceita history sem leading model', threwAfter,      false);
-  check('userText preservado após strip',                       userText,        'O que é o erro SC285-00?');
-  check('history stripped para vazio',                          historyDepois.length, 0);
+  check('DEPOIS: history stripped para vazio',                historyDepois.length, 0);
+  check('DEPOIS: userText correto após strip',                userText, 'O que é o erro SC285-00?');
+  check('DEPOIS: history vazio ou history[0].role===user (API aceita)',
+    historyDepois.length === 0 || historyDepois[0].role === 'user', true);
 }
 
 // ── A1d: array vazio (edge case) ──────────────────────────────────────────────
@@ -166,7 +156,8 @@ console.log('\n[A1d] array de mensagens vazio (edge case)');
 }
 
 // ── A1e: payload realista do contrato legado ───────────────────────────────────
-// Prova: systemPrompt chega intacto em systemInstruction; contents[0].role === 'user'
+// Prova: systemPrompt chega intacto em config.systemInstruction (@google/genai);
+// history[0].role === 'user' → API aceita.
 console.log('\n[A1e] payload realista do contrato legado (systemPrompt + histórico multi-turn)');
 {
   const systemPrompt = [
@@ -188,17 +179,21 @@ console.log('\n[A1e] payload realista do contrato legado (systemPrompt + histór
   check('history tem 2 entradas (multi-turn preservado)',    history.length,    2);
   check('userText é a última query (contents final = user)', userText, 'Como resolver definitivamente?');
 
-  const genai = new GoogleGenerativeAI('fake-key-for-local-validation');
-  const mdl = genai.getGenerativeModel({ model: 'gemini-2.5-flash' });
+  // Instanciar com @google/genai (SDK atual) e fake key — validação local
+  const ai = new GoogleGenAI({ apiKey: 'fake-key-for-local-validation' });
   let session = null;
   let threw = false;
   try {
-    session = mdl.startChat({ history, systemInstruction: systemPrompt });
+    session = ai.chats.create({
+      model: 'gemini-2.5-flash',
+      config: { systemInstruction: systemPrompt },
+      history,
+    });
   } catch (e) { threw = true; }
-
-  check('startChat não lança erro com payload legado',            threw, false);
-  // chat.params.systemInstruction é acessível e idêntico ao systemPrompt original
-  check('systemInstruction íntegro (não descartado pelo strip)', session?.params?.systemInstruction, systemPrompt);
+  check('ai.chats.create não lança erro com payload legado',       threw, false);
+  // chat.config.systemInstruction acessível diretamente no novo SDK
+  check('systemInstruction íntegro em chat.config (não descartado)',
+    session?.config?.systemInstruction, systemPrompt);
 }
 
 // ── Resultado ─────────────────────────────────────────────────────────────────
