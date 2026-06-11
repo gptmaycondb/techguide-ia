@@ -28,6 +28,36 @@ backend/
   workflows/
     sync-backend.yml← push ao main com mudança em backend/ → atualiza manuais-hp via GitHub API
                        Requer secret MANUAIS_HP_TOKEN (fine-grained PAT, write em manuais-hp)
+    build.yml       ← build do APK Android (expo prebuild + gradlew assembleDebug)
+                       Usa `npm ci` (PR #16) — intencional. Se o build falhar com erro de sync
+                       entre package.json e package-lock.json, a correção é sincronizar o lock
+                       (npm install local + commitar o lock junto da mudança que o originou).
+                       NUNCA rebaixar para `npm install` no CI — isso já foi feito (dc47c1a2) e
+                       escondeu uma dívida de lockfile no main por meses.
+
+### Checklist de release — smoke test obrigatório antes de distribuir o APK
+
+Todo APK gerado deve passar este smoke test **no device** antes de ser distribuído.
+Testes em Node (test_findability.js) não cobrem a experiência real — esta checklist
+pegou um bug de gate booleano (foundInManual=false) que ficou invisível por meses
+(fix: claude/fix-found-in-manual-gate).
+
+**5 buscas padrão — todas devem exibir o selo "● Manual":**
+
+| Query | Modelo | Resultado esperado |
+|---|---|---|
+| `66.80.03` | HP E52645 | Selo "● Manual"; chunk cpmd com "Stapler malfunction" |
+| `13.B9.A1` | HP E52645 | Selo "● Manual"; chunk cpmd com "Fuser jam" |
+| `13.83.F0` | HP E62655 | Selo "● Manual"; chunk e62655_cpmd/service |
+| `SC816-11` | Ricoh (qualquer) | Selo "● Manual"; chunk service com descrição SC816 |
+| `SC544-00` | Ricoh (qualquer) | Selo "● Manual"; chunk service com "fusing unit" |
+
+**1 busca em modo avião (offline):**
+Buscar `66.80.03` no E52645 com Wi-Fi desligado → deve exibir o chunk do cpmd
+diretamente (não "Nenhum resultado encontrado").
+
+Se qualquer item falhar: não distribuir; abrir issue com query, modelo e selo observado.
+
 scripts/
   build_index.py    ← indexador v2; reprocessa todos os PDFs
 src/

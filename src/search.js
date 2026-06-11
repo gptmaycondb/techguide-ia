@@ -193,3 +193,15 @@ export function hasRelevantContent(query, indexKey, minScore = 2) {
   }
   return false;
 }
+
+// Gate booleano para o selo "● Manual" e o modo offline.
+// errorChunks>0 é condição suficiente: a entrada vem do error_codes_index.json,
+// que é construído a partir dos PDFs — logo o conteúdo é "do manual" por definição.
+// hasRelevantContent verifica keywords EC_* no search_index, que não cobre subcódigos
+// bullet nem stubs adicionados fora da extração textual (ex: Lote 1, PR-2).
+// Confirmado via APK diagnóstico (device Hermes): q=66.80.03, errorChunks=1,
+// hasRC=[false,false,false] → resultado correto é true.
+export function computeFoundInManual(errorChunks, chunks, hasRC) {
+  if (errorChunks.length > 0) return true;
+  return chunks.length > 0 && hasRC.some(Boolean);
+}

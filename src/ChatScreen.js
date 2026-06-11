@@ -4,7 +4,7 @@ import {
   StyleSheet, ActivityIndicator, SafeAreaView, Keyboard,
   Linking, KeyboardAvoidingView, Platform,
 } from 'react-native';
-import { searchManual, searchErrorCode, hasRelevantContent, MANUAL_INDEX_MAP } from './search';
+import { searchManual, searchErrorCode, hasRelevantContent, computeFoundInManual, MANUAL_INDEX_MAP } from './search';
 import { API_URL, DEFAULT_PROVIDER } from './data';
 import {
   loadModel, loadEmbeddings, unloadEmbeddings,
@@ -29,6 +29,20 @@ function friendlyError(err) {
   if (msg.includes('Failed to fetch') || msg.includes('Network request failed'))
     return 'Sem conexão com o servidor. Verifique sua internet.';
   return 'Erro: ' + msg;
+}
+
+// Parser SSE puro — extrai eventos de um trecho de texto SSE.
+// Puro (sem side-effects): testável fora do componente e compartilhado entre
+// onprogress e onload para evitar duplicação da lógica de parsing.
+function parseSseText(text) {
+  const events = [];
+  for (const line of text.split('\n')) {
+    if (!line.startsWith('data: ')) continue;
+    const data = line.slice(6).trim();
+    if (!data) continue;
+    try { events.push(JSON.parse(data)); } catch {}
+  }
+  return events;
 }
 
 export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, onQuestionSent, messages, setMessages, provider = DEFAULT_PROVIDER }) {
@@ -105,7 +119,8 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
       seen.add(key);
       return true;
     }).slice(0, 8);
-    const foundInManual = chunks.length > 0 && searchKeys.some(k => hasRelevantContent(q, k));
+    const hasRC = searchKeys.map(k => hasRelevantContent(q, k));
+    const foundInManual = computeFoundInManual(errorChunks, chunks, hasRC);
 
     const noChunksMsg = '\n\nNenhum trecho encontrado nos manuais indexados. Informe ao usuario que a informacao nao foi localizada no indice e sugira consultar o manual fisico ou reformular a busca.';
 
@@ -173,21 +188,45 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
         armTimeout();
         const raw = xhr.responseText.slice(lastIndex);
         lastIndex = xhr.responseText.length;
-        for (const line of raw.split('\n')) {
-          if (!line.startsWith('data: ')) continue;
-          const data = line.slice(6).trim();
-          if (!data) continue;
-          try {
-            const ev = JSON.parse(data);
+        for (const ev of parseSseText(raw)) {
+          if (ev.type === 'delta' && ev.text) {
+            if (firstChunk) { firstChunk = false; setLoading(false); }
+            setMessages(m => m.map(msg =>
+              msg.id === aiMsgId ? { ...msg, text: msg.text + ev.text } : msg
+            ));
+            scrollToBottom();
+          } else if (ev.type === 'done') {
+            doneReceived = true;
+            // foundInManual LOCAL — o backend (contrato legado) não sabe se houve trecho.
+            setMessages(m => m.map(msg =>
+              msg.id === aiMsgId ? {
+                ...msg, streaming: false,
+                source: foundInManual ? `Manual: ${manual.subtitle}` : 'Resposta geral',
+                fromManual: foundInManual,
+              } : msg
+            ));
+          } else if (ev.type === 'error') {
+            setMessages(m => m.map(msg =>
+              msg.id === aiMsgId
+                ? { ...msg, text: friendlyError(new Error(ev.message)), isError: true, streaming: false }
+                : msg
+            ));
+          }
+        }
+      };
+
+      xhr.onload = () => {
+        clearTimeout(timeoutId);
+        if (!doneReceived) {
+          // Processar SSE restante não lido pelo onprogress (offset lastIndex evita duplicação).
+          // Gemini e providers rápidos podem entregar tudo antes do onprogress disparar.
+          for (const ev of parseSseText(xhr.responseText.slice(lastIndex))) {
             if (ev.type === 'delta' && ev.text) {
-              if (firstChunk) { firstChunk = false; setLoading(false); }
               setMessages(m => m.map(msg =>
                 msg.id === aiMsgId ? { ...msg, text: msg.text + ev.text } : msg
               ));
-              scrollToBottom();
             } else if (ev.type === 'done') {
               doneReceived = true;
-              // foundInManual LOCAL — o backend (contrato legado) não sabe se houve trecho.
               setMessages(m => m.map(msg =>
                 msg.id === aiMsgId ? {
                   ...msg, streaming: false,
@@ -196,20 +235,17 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
                 } : msg
               ));
             } else if (ev.type === 'error') {
+              doneReceived = true;
               setMessages(m => m.map(msg =>
                 msg.id === aiMsgId
                   ? { ...msg, text: friendlyError(new Error(ev.message)), isError: true, streaming: false }
                   : msg
               ));
             }
-          } catch {}
+          }
         }
-      };
-
-      xhr.onload = () => {
-        clearTimeout(timeoutId);
         if (!doneReceived) {
-          // Fallback: servidor devolveu JSON puro (sem SSE)
+          // Fallback JSON puro: backend antigo sem SSE ou resposta não-stream.
           try {
             const json = JSON.parse(xhr.responseText);
             if (json.error) throw new Error(typeof json.error === 'string' ? json.error : json.error.message);
@@ -222,9 +258,15 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
                 fromManual: foundInManual,
               } : msg
             ));
-          } catch (err) {
+          } catch (parseErr) {
+            const preview = xhr.responseText.slice(0, 100).replace(/\n/g, ' ');
+            const errMsg = /Unexpected|JSON|token/i.test(parseErr.message)
+              ? `Resposta inesperada do servidor: "${preview}"`
+              : parseErr.message;
             setMessages(m => m.map(msg =>
-              msg.id === aiMsgId ? { ...msg, text: friendlyError(err), isError: true, streaming: false } : msg
+              msg.id === aiMsgId
+                ? { ...msg, text: friendlyError(new Error(errMsg)), isError: true, streaming: false }
+                : msg
             ));
           }
         }

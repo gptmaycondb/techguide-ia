@@ -18,6 +18,8 @@ import { fileURLToPath } from 'url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
 
+const srcChatJs = readFileSync(resolve(ROOT, 'src/ChatScreen.js'), 'utf8');
+
 const errorCodesData = JSON.parse(
   readFileSync(resolve(ROOT, 'assets/error_codes_index.json'), 'utf8')
 );
@@ -73,6 +75,24 @@ function searchErrorCode(query, indexKey) {
   }
   return results;
 }
+
+function computeFoundInManual(errorChunks, chunks, hasRC) {
+  if (errorChunks.length > 0) return true;
+  return chunks.length > 0 && hasRC.some(Boolean);
+}
+// ─────────────────────────────────────────────────────────────────────────────
+
+// ── parseSseText copiado VERBATIM de src/ChatScreen.js ───────────────────────
+function parseSseText(text) {
+  const events = [];
+  for (const line of text.split('\n')) {
+    if (!line.startsWith('data: ')) continue;
+    const data = line.slice(6).trim();
+    if (!data) continue;
+    try { events.push(JSON.parse(data)); } catch {}
+  }
+  return events;
+}
 // ─────────────────────────────────────────────────────────────────────────────
 
 // searchKeys espelham src/data.js
@@ -103,8 +123,8 @@ function expect(label, query, keys, shouldFind) {
 
 console.log('=== Findability Test Suite ===\n');
 
-// ── Sync guard: verbatim copies must match src/search.js ─────────────────────
-console.log('[Sync guard] Verificando sincronização com src/search.js');
+// ── Sync guard: verbatim copies must match source files ──────────────────────
+console.log('[Sync guard] Verificando sincronização com src/search.js e src/ChatScreen.js');
 {
   const srcSearch = readFileSync(resolve(ROOT, 'src/search.js'), 'utf8');
   const testSelf  = readFileSync(fileURLToPath(import.meta.url), 'utf8');
@@ -130,9 +150,14 @@ console.log('[Sync guard] Verificando sincronização com src/search.js');
       .trim();
   }
 
-  for (const fn of ['wildcardMatchHP', 'searchErrorCode']) {
-    const srcNorm  = normalize(extractFn(srcSearch, fn));
-    const testNorm = normalize(extractFn(testSelf,  fn));
+  for (const [fn, src] of [
+    ['wildcardMatchHP',      srcSearch],
+    ['searchErrorCode',      srcSearch],
+    ['computeFoundInManual', srcSearch],
+    ['parseSseText',         srcChatJs],
+  ]) {
+    const srcNorm  = normalize(extractFn(src,     fn));
+    const testNorm = normalize(extractFn(testSelf, fn));
     const ok = srcNorm === testNorm;
     console.log(`  [${ok ? '✓' : '✗ FAIL'}] ${fn}`);
     if (ok) {
@@ -187,6 +212,59 @@ expect('80.03.01 via E52645 searchKeys', '80.03.01', KEYS.E52645, true);
 console.log('[Lote 1 — 13.B2] 13.B2.A4 (Registration sensor Tray 4) → deve achar via E52645 cpmd');
 expect('13.B2.A4 via E52645 searchKeys', '13.B2.A4', KEYS.E52645, true);
 
+// ── Lote 2 — faixas expandidas ───────────────────────────────────────────────
+console.log('\n[Lote 2 — range] SC816-11 (intermediário imc3000 SC81610 to 12) → deve achar');
+expect('SC816-11 via imc3000 searchKeys', 'SC816-11', KEYS.imc3000, true);
+
+console.log('[Lote 2 — range] SC816-17 (intermediário SC81615 to 18) → deve achar');
+expect('SC816-17 via imc3000 searchKeys', 'SC816-17', KEYS.imc3000, true);
+
+console.log('[Lote 2 — range] SC874-63 (intermediário SC87461 to -65) → deve achar');
+expect('SC874-63 via imc3000 searchKeys', 'SC874-63', KEYS.imc3000, true);
+
+console.log('[Lote 2 — range] SC865-60 (intermediário SC865-50 to 73, mpc3004) → deve achar');
+expect('SC865-60 via mpc3004 searchKeys', 'SC865-60', KEYS.mpc3004, true);
+
+console.log('[Lote 2 — range] SC864-15 (intermediário SC864-02 to 23, mpc3004) → deve achar');
+expect('SC864-15 via mpc3004 searchKeys', 'SC864-15', KEYS.mpc3004, true);
+
+console.log('[Lote 2 — threshold] SC361-01 (condition table row, mpc3004) → deve achar');
+expect('SC361-01 via mpc3004 searchKeys', 'SC361-01', KEYS.mpc3004, true);
+
+console.log('[Lote 2 — threshold] SC910-01 (condition table row, mpc3004) → deve achar');
+expect('SC910-01 via mpc3004 searchKeys', 'SC910-01', KEYS.mpc3004, true);
+
+console.log('[Lote 2 — threshold] SC672-20 (condition table row, imc3000) → deve achar');
+expect('SC672-20 via imc3000 searchKeys', 'SC672-20', KEYS.imc3000, true);
+
+console.log('[Lote 2 — threshold] SC911-20 (condition table row, imc3000) → deve achar');
+expect('SC911-20 via imc3000 searchKeys', 'SC911-20', KEYS.imc3000, true);
+
+// ── Lote 3 — espaço SC816-99, OCCURS, faixa de partição, stubs ───────────────
+console.log('\n[Lote 3 — espaço] SC816-99 (SC 81699 imc3000) → deve achar');
+expect('SC816-99 via imc3000 searchKeys', 'SC816-99', KEYS.imc3000, true);
+
+console.log('[Lote 3 — espaço] SC816-99 (SC 816-99 mpc3004) → deve achar');
+expect('SC816-99 via mpc3004 searchKeys', 'SC816-99', KEYS.mpc3004, true);
+
+console.log('[Lote 3 — OCCURS] SC843-02 (SC843-02 OCCURS section, mpc3004) → deve achar');
+expect('SC843-02 via mpc3004 searchKeys', 'SC843-02', KEYS.mpc3004, true);
+
+console.log('[Lote 3 — partition range] SC863-23 (end of SC863-02…23 range, mpc3004) → deve achar');
+expect('SC863-23 via mpc3004 searchKeys', 'SC863-23', KEYS.mpc3004, true);
+
+console.log('[Lote 3 — partition range] SC865-23 (end of SC865-02…23 range, mpc3004) → deve achar');
+expect('SC865-23 via mpc3004 searchKeys', 'SC865-23', KEYS.mpc3004, true);
+
+console.log('[Lote 3 — stub] SC544-00 (fusing unit stub, imc3000) → deve achar');
+expect('SC544-00 via imc3000 searchKeys', 'SC544-00', KEYS.imc3000, true);
+
+console.log('[Lote 3 — stub] SC544-00 (fusing unit stub, mpc3004) → deve achar');
+expect('SC544-00 via mpc3004 searchKeys', 'SC544-00', KEYS.mpc3004, true);
+
+console.log('[Lote 3 — stub] SC852-02 (ARFU stub, mpc3004) → deve achar');
+expect('SC852-02 via mpc3004 searchKeys', 'SC852-02', KEYS.mpc3004, true);
+
 // ── Negativos cross-model ─────────────────────────────────────────────────────
 console.log('\n[Cross-model isolation] Código E62655-only não vaza para E52645');
 expect('10.00.30 (e62655-only) via E52645 keys → NOT FOUND', '10.00.30', KEYS.E52645, false);
@@ -213,6 +291,112 @@ console.log('[Dedup] 99.09.67 via E52645 searchKeys não retorna duplicatas');
   const marker = ok ? '✓' : '✗ FAIL';
   console.log(`  [${marker}] dedup: ${results.length} resultados, ${unique.size} únicos`);
   if (ok) pass++; else { fail++; console.log('  DUPLICATAS DETECTADAS'); }
+}
+
+// ── computeFoundInManual — gate booleano (bug confirmado em device Hermes) ────
+// Valores reais observados no APK diagnóstico (run #109, branch diag):
+//   q=66.80.03 | errorChunks=1 | manualChunks=1 | hasRC=[false,false,false]
+// Lógica antiga: chunks.length>0 && hasRC.some(Boolean) = true && false = false ← BUG
+// Fix:  computeFoundInManual(errorChunks, chunks, hasRC) → true quando errorChunks>0
+console.log('\n[computeFoundInManual] gate booleano do selo/offline');
+{
+  const FAKE = 'stapler malfunction 66.80.03 — Recommended action: turn off printer';
+
+  // Caso real do bug (E52645, 66.80.03): errorChunks=1, hasRC todos false → deve ser true
+  const r1 = computeFoundInManual([FAKE], [FAKE], [false, false, false]);
+  const ok1 = r1 === true;
+  console.log(`  [${ok1 ? '✓' : '✗ FAIL'}] errorChunks=1, hasRC=all-false → true  (fix bug 66.80.03 E52645)`);
+  if (ok1) pass++; else fail++;
+
+  // Prova que a lógica antiga retornava false (regressão documentada):
+  const oldLogic = [FAKE].length > 0 && [false, false, false].some(Boolean);
+  const ok2 = oldLogic === false;
+  console.log(`  [${ok2 ? '✓' : '✗ FAIL'}] lógica antiga: errorChunks=1, hasRC=all-false → false  (documenta bug pré-fix)`);
+  if (ok2) pass++; else fail++;
+
+  // Caso negativo: código inexistente, sem chunks, sem hasRC → false
+  const r3 = computeFoundInManual([], [], [false, false, false]);
+  const ok3 = r3 === false;
+  console.log(`  [${ok3 ? '✓' : '✗ FAIL'}] errorChunks=0, chunks=0, hasRC=all-false → false  (código inexistente)`);
+  if (ok3) pass++; else fail++;
+
+  // Caminho clássico preservado: manualChunks com hasRC=true → true
+  const r4 = computeFoundInManual([], [FAKE], [false, true, false]);
+  const ok4 = r4 === true;
+  console.log(`  [${ok4 ? '✓' : '✗ FAIL'}] errorChunks=0, chunks=1, hasRC=[f,t,f] → true  (searchManual clássico)`);
+  if (ok4) pass++; else fail++;
+}
+
+// ── parseSseText — parser SSE puro e testável ─────────────────────────────────
+// Cobre os 4 cenários do onload/onprogress no ChatScreen (fix Gemini "Unexpected character: d").
+console.log('\n[parseSseText] parser SSE — fix Gemini onload');
+{
+  // (a) stream completo chegando só no onload (onprogress não disparou: lastIndex=0)
+  const full = [
+    'data: {"type":"delta","text":"Olá"}',
+    'data: {"type":"delta","text":" mundo"}',
+    'data: {"type":"done","foundInManual":true}',
+    '',
+  ].join('\n');
+  const evs_a = parseSseText(full);
+  const ok_a  = evs_a.length === 3
+    && evs_a[0].type === 'delta' && evs_a[0].text === 'Olá'
+    && evs_a[1].type === 'delta' && evs_a[1].text === ' mundo'
+    && evs_a[2].type === 'done';
+  console.log(`  [${ok_a ? '✓' : '✗ FAIL'}] (a) stream completo no onload → 3 eventos, sem erro`);
+  if (ok_a) pass++; else fail++;
+
+  // (b) parte via onprogress + resto no onload → sem duplicação (usa offset lastIndex)
+  // onprogress leu 2 eventos; onload recebe responseText.slice(lastIndex) = só o done
+  const part1 = 'data: {"type":"delta","text":"Olá"}\ndata: {"type":"delta","text":" mundo"}\n';
+  const part2 = 'data: {"type":"done","foundInManual":true}\n';
+  const evs_p  = parseSseText(part1);  // simula onprogress
+  const evs_ol = parseSseText(part2);  // simula onload com slice(lastIndex)
+  const ok_b = evs_p.length === 2 && evs_ol.length === 1 && evs_ol[0].type === 'done';
+  console.log(`  [${ok_b ? '✓' : '✗ FAIL'}] (b) onprogress=${evs_p.length} + onload=${evs_ol.length} → total 3 sem duplicação`);
+  if (ok_b) pass++; else fail++;
+
+  // (c) erro SSE (Gemini key inválida) → parseia sem expor "Unexpected character: d"
+  const errSse = 'data: {"type":"error","message":"API_KEY_INVALID"}\n';
+  const evs_c  = parseSseText(errSse);
+  const ok_c   = evs_c.length === 1 && evs_c[0].type === 'error' && evs_c[0].message === 'API_KEY_INVALID';
+  console.log(`  [${ok_c ? '✓' : '✗ FAIL'}] (c) erro SSE → parseia corretamente (sem JSON.parse cru em "data: ...")`);
+  if (ok_c) pass++; else fail++;
+
+  // (d) JSON puro (backend antigo sem SSE): parseSseText retorna [] → fallback JSON fica intacto
+  const jsonOnly = '{"content":[{"text":"resposta"}],"foundInManual":true}';
+  const evs_d   = parseSseText(jsonOnly);
+  const ok_d    = evs_d.length === 0;
+  console.log(`  [${ok_d ? '✓' : '✗ FAIL'}] (d) JSON puro → parseSseText retorna [] (fallback JSON preservado)`);
+  if (ok_d) pass++; else fail++;
+
+  // (e) stream totalmente consumido via onprogress (múltiplos chunks, lastIndex=responseText.length)
+  // → onload processa slice(lastIndex) = '' → zero eventos, nenhuma duplicação
+  const fullResponse = [
+    'data: {"type":"delta","text":"chunk1"}',
+    'data: {"type":"delta","text":"chunk2"}',
+    'data: {"type":"done","foundInManual":true}',
+    '',
+  ].join('\n');
+  // Simula onprogress lendo o body inteiro incrementalmente
+  let lastIdx = 0;
+  let totalEvents = 0;
+  let doneSeenInProgress = false;
+  // chunk 1: primeiros 2 eventos
+  const chunk1 = fullResponse.slice(0, fullResponse.indexOf('data: {"type":"done"'));
+  const p1 = parseSseText(fullResponse.slice(lastIdx, chunk1.length));
+  lastIdx = chunk1.length;
+  totalEvents += p1.length;
+  // chunk 2: evento done
+  const p2 = parseSseText(fullResponse.slice(lastIdx));
+  lastIdx = fullResponse.length;
+  totalEvents += p2.length;
+  doneSeenInProgress = p2.some(ev => ev.type === 'done');
+  // onload: slice(lastIndex) = '' → zero eventos
+  const onloadEvs = parseSseText(fullResponse.slice(lastIdx));
+  const ok_e = totalEvents === 3 && doneSeenInProgress && onloadEvs.length === 0;
+  console.log(`  [${ok_e ? '✓' : '✗ FAIL'}] (e) stream incremental via onprogress (${totalEvents} eventos) → onload produz ${onloadEvs.length} eventos (sem duplicação)`);
+  if (ok_e) pass++; else fail++;
 }
 
 // ── Resumo ────────────────────────────────────────────────────────────────────
