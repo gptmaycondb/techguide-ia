@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
   StyleSheet, ActivityIndicator, SafeAreaView, Keyboard,
-  Linking, KeyboardAvoidingView, Platform,
+  Linking, KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
 import { searchManual, searchErrorCode, hasRelevantContent, MANUAL_INDEX_MAP } from './search';
 import { API_URL, DEFAULT_PROVIDER } from './data';
@@ -91,8 +91,16 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
     const capMan = c => c.length > 2400 ? c.substring(0, 2400) + '…' : c;
     // searchErrorCode recebe todas as keys do modelo para cobrir cpmd + service + guia.
     // Isolamento cross-model preservado: filtro por keys do modelo, não por key única.
-    const errorChunks = searchErrorCode(q, searchKeys)
-      .slice(0, 4).map(capErr);
+    let errorChunks = [];
+    try {
+      const _ecRaw = searchErrorCode(q, searchKeys);
+      console.warn('[DIAG] searchErrorCode ok | q=' + q + ' | keys=' + JSON.stringify(searchKeys) + ' | count=' + _ecRaw.length + ' | first80=' + (_ecRaw[0] || '').slice(0, 80));
+      errorChunks = _ecRaw.slice(0, 4).map(capErr);
+    } catch (_ecErr) {
+      const _msg = (_ecErr && _ecErr.message) ? _ecErr.message : String(_ecErr);
+      console.warn('[DIAG] searchErrorCode THREW | q=' + q + ' | err=' + _msg);
+      Alert.alert('[DIAG] searchErrorCode erro', 'query: ' + q + '\nkeys: ' + JSON.stringify(searchKeys) + '\nerro: ' + _msg);
+    }
     // Busca semântica on-device quando modelo está pronto; fallback keyword se ainda não carregou
     const rawManualChunks = isModelReady()
       ? await semanticSearchManual(q, searchKeys, 5)
@@ -105,7 +113,12 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
       seen.add(key);
       return true;
     }).slice(0, 8);
-    const foundInManual = chunks.length > 0 && searchKeys.some(k => hasRelevantContent(q, k));
+    const _hasRC = searchKeys.map(k => hasRelevantContent(q, k));
+    const foundInManual = chunks.length > 0 && _hasRC.some(Boolean);
+    console.warn('[DIAG] foundInManual=' + foundInManual + ' | errorChunks=' + errorChunks.length + ' | manualChunks=' + manualChunks.length + ' | chunks=' + chunks.length + ' | hasRC=' + JSON.stringify(_hasRC));
+    if (errorChunks.length > 0 && !foundInManual) {
+      Alert.alert('[DIAG] foundInManual=false mas errorChunks>0', 'q=' + q + '\nerrorChunks=' + errorChunks.length + '\nmanualChunks=' + manualChunks.length + '\nhasRC=' + JSON.stringify(_hasRC.map((v,i)=>searchKeys[i]+'='+v)));
+    }
 
     const noChunksMsg = '\n\nNenhum trecho encontrado nos manuais indexados. Informe ao usuario que a informacao nao foi localizada no indice e sugira consultar o manual fisico ou reformular a busca.';
 
