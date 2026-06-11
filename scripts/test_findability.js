@@ -73,6 +73,11 @@ function searchErrorCode(query, indexKey) {
   }
   return results;
 }
+
+function computeFoundInManual(errorChunks, chunks, hasRC) {
+  if (errorChunks.length > 0) return true;
+  return chunks.length > 0 && hasRC.some(Boolean);
+}
 // ─────────────────────────────────────────────────────────────────────────────
 
 // searchKeys espelham src/data.js
@@ -130,7 +135,7 @@ console.log('[Sync guard] Verificando sincronização com src/search.js');
       .trim();
   }
 
-  for (const fn of ['wildcardMatchHP', 'searchErrorCode']) {
+  for (const fn of ['wildcardMatchHP', 'searchErrorCode', 'computeFoundInManual']) {
     const srcNorm  = normalize(extractFn(srcSearch, fn));
     const testNorm = normalize(extractFn(testSelf,  fn));
     const ok = srcNorm === testNorm;
@@ -266,6 +271,40 @@ console.log('[Dedup] 99.09.67 via E52645 searchKeys não retorna duplicatas');
   const marker = ok ? '✓' : '✗ FAIL';
   console.log(`  [${marker}] dedup: ${results.length} resultados, ${unique.size} únicos`);
   if (ok) pass++; else { fail++; console.log('  DUPLICATAS DETECTADAS'); }
+}
+
+// ── computeFoundInManual — gate booleano (bug confirmado em device Hermes) ────
+// Valores reais observados no APK diagnóstico (run #109, branch diag):
+//   q=66.80.03 | errorChunks=1 | manualChunks=1 | hasRC=[false,false,false]
+// Lógica antiga: chunks.length>0 && hasRC.some(Boolean) = true && false = false ← BUG
+// Fix:  computeFoundInManual(errorChunks, chunks, hasRC) → true quando errorChunks>0
+console.log('\n[computeFoundInManual] gate booleano do selo/offline');
+{
+  const FAKE = 'stapler malfunction 66.80.03 — Recommended action: turn off printer';
+
+  // Caso real do bug (E52645, 66.80.03): errorChunks=1, hasRC todos false → deve ser true
+  const r1 = computeFoundInManual([FAKE], [FAKE], [false, false, false]);
+  const ok1 = r1 === true;
+  console.log(`  [${ok1 ? '✓' : '✗ FAIL'}] errorChunks=1, hasRC=all-false → true  (fix bug 66.80.03 E52645)`);
+  if (ok1) pass++; else fail++;
+
+  // Prova que a lógica antiga retornava false (regressão documentada):
+  const oldLogic = [FAKE].length > 0 && [false, false, false].some(Boolean);
+  const ok2 = oldLogic === false;
+  console.log(`  [${ok2 ? '✓' : '✗ FAIL'}] lógica antiga: errorChunks=1, hasRC=all-false → false  (documenta bug pré-fix)`);
+  if (ok2) pass++; else fail++;
+
+  // Caso negativo: código inexistente, sem chunks, sem hasRC → false
+  const r3 = computeFoundInManual([], [], [false, false, false]);
+  const ok3 = r3 === false;
+  console.log(`  [${ok3 ? '✓' : '✗ FAIL'}] errorChunks=0, chunks=0, hasRC=all-false → false  (código inexistente)`);
+  if (ok3) pass++; else fail++;
+
+  // Caminho clássico preservado: manualChunks com hasRC=true → true
+  const r4 = computeFoundInManual([], [FAKE], [false, true, false]);
+  const ok4 = r4 === true;
+  console.log(`  [${ok4 ? '✓' : '✗ FAIL'}] errorChunks=0, chunks=1, hasRC=[f,t,f] → true  (searchManual clássico)`);
+  if (ok4) pass++; else fail++;
 }
 
 // ── Resumo ────────────────────────────────────────────────────────────────────
