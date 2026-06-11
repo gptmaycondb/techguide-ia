@@ -47,6 +47,29 @@ const BRANDS = [...new Map(
   }])
 ).values()];
 
+const PROVIDERS_URL = 'https://manuais-hp.onrender.com/providers';
+const KNOWN_PROVIDER_IDS = AI_PROVIDERS.map(p => p.id); // ['gemini', 'claude']
+
+// Pure function: filters apiList by known provider IDs (in display order) and
+// picks the default — saved provider if still valid, otherwise first in list.
+// Returns { visible: string[], selected: string | null }
+export function resolveProviders(apiList, knownIds, savedId) {
+  const visible = knownIds.filter(id => apiList.includes(id));
+  if (visible.length === 0) return { visible: [], selected: null };
+  const selected = visible.includes(savedId) ? savedId : visible[0];
+  return { visible, selected };
+}
+
+async function fetchProviders() {
+  try {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 5000);
+    const res = await fetch(PROVIDERS_URL, { signal: controller.signal });
+    clearTimeout(timer);
+    return res.ok ? await res.json() : null;
+  } catch { return null; }
+}
+
 export default function App() {
   const [authStatus, setAuthStatus] = useState('loading'); // 'loading'|'guest'|'authed'
   const [authEmail, setAuthEmail]   = useState(null);
@@ -66,6 +89,7 @@ export default function App() {
   const [tutorialSeen, setTutorialSeen] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [provider, setProvider] = useState(DEFAULT_PROVIDER);
+  const [visibleProviders, setVisibleProviders] = useState(AI_PROVIDERS); // fallback = todos
 
   const drawerAnim = useRef(new Animated.Value(-DRAWER_W)).current;
   const saveTimeoutRef = useRef(null);
@@ -98,13 +122,27 @@ export default function App() {
   useEffect(() => {
     async function init() {
       try {
-        const [session, seen, savedProvider] = await Promise.all([
+        const [session, seen, savedProvider, providersData] = await Promise.all([
           restoreSession(),
           AsyncStorage.getItem('tg_tutorial_seen'),
           AsyncStorage.getItem('tg_provider'),
+          fetchProviders(),
         ]);
         if (seen) setTutorialSeen(true);
-        if (savedProvider && AI_PROVIDERS.some(p => p.id === savedProvider)) setProvider(savedProvider);
+        // Resolve visible providers: fallback to all known if endpoint failed/timeout
+        const apiList = providersData?.providers || KNOWN_PROVIDER_IDS;
+        const { visible, selected } = resolveProviders(apiList, KNOWN_PROVIDER_IDS, savedProvider);
+        const filtered = visible.length > 0
+          ? AI_PROVIDERS.filter(p => visible.includes(p.id))
+          : AI_PROVIDERS; // fallback: show all (endpoint informativo não trava o app)
+        setVisibleProviders(filtered);
+        if (selected) {
+          setProvider(selected);
+          // Migrar preferência salva obsoleta ('claude-opus','openai','gpt-4o' → provider válido)
+          if (selected !== savedProvider) {
+            try { await AsyncStorage.setItem('tg_provider', selected); } catch {}
+          }
+        }
         if (session) {
           setAuthEmail(session.email);
           setAuthStatus('authed');
@@ -395,6 +433,7 @@ export default function App() {
               showAssistant={showAssistant}
               onOpenAssistant={() => { closeDrawer(); setShowAssistant(true); }}
               provider={provider}
+              visibleProviders={visibleProviders}
               onChangeProvider={handleChangeProvider}
             />
           </SafeAreaView>
