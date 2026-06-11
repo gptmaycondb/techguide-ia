@@ -369,6 +369,34 @@ console.log('\n[parseSseText] parser SSE — fix Gemini onload');
   const ok_d    = evs_d.length === 0;
   console.log(`  [${ok_d ? '✓' : '✗ FAIL'}] (d) JSON puro → parseSseText retorna [] (fallback JSON preservado)`);
   if (ok_d) pass++; else fail++;
+
+  // (e) stream totalmente consumido via onprogress (múltiplos chunks, lastIndex=responseText.length)
+  // → onload processa slice(lastIndex) = '' → zero eventos, nenhuma duplicação
+  const fullResponse = [
+    'data: {"type":"delta","text":"chunk1"}',
+    'data: {"type":"delta","text":"chunk2"}',
+    'data: {"type":"done","foundInManual":true}',
+    '',
+  ].join('\n');
+  // Simula onprogress lendo o body inteiro incrementalmente
+  let lastIdx = 0;
+  let totalEvents = 0;
+  let doneSeenInProgress = false;
+  // chunk 1: primeiros 2 eventos
+  const chunk1 = fullResponse.slice(0, fullResponse.indexOf('data: {"type":"done"'));
+  const p1 = parseSseText(fullResponse.slice(lastIdx, chunk1.length));
+  lastIdx = chunk1.length;
+  totalEvents += p1.length;
+  // chunk 2: evento done
+  const p2 = parseSseText(fullResponse.slice(lastIdx));
+  lastIdx = fullResponse.length;
+  totalEvents += p2.length;
+  doneSeenInProgress = p2.some(ev => ev.type === 'done');
+  // onload: slice(lastIndex) = '' → zero eventos
+  const onloadEvs = parseSseText(fullResponse.slice(lastIdx));
+  const ok_e = totalEvents === 3 && doneSeenInProgress && onloadEvs.length === 0;
+  console.log(`  [${ok_e ? '✓' : '✗ FAIL'}] (e) stream incremental via onprogress (${totalEvents} eventos) → onload produz ${onloadEvs.length} eventos (sem duplicação)`);
+  if (ok_e) pass++; else fail++;
 }
 
 // ── Resumo ────────────────────────────────────────────────────────────────────
