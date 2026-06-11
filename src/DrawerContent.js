@@ -1,18 +1,17 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Modal, StyleSheet } from 'react-native';
-import { AI_PROVIDERS } from './data';
 
 const C = {
   surface: '#161920', surface2: '#1e2230', border: '#2a2f3e',
   accent: '#0096ff', text: '#e4e8f0', dim: '#7a8299', muted: '#4a5168',
 };
 
-export default function DrawerContent({ manual, mode, onQuestion, onLogout, showAssistant, onOpenAssistant, provider, onChangeProvider }) {
+export default function DrawerContent({ manual, mode, onQuestion, onLogout, showAssistant, onOpenAssistant, provider, visibleProviders = [], onChangeProvider }) {
   const [providerModalOpen, setProviderModalOpen] = useState(false);
 
   if (!manual) return null;
   const topics = manual.topics[mode] || manual.topics.user;
-  const activeProvider = AI_PROVIDERS.find(p => p.id === provider) || AI_PROVIDERS[0];
+  const activeProvider = visibleProviders.find(p => p.id === provider) || visibleProviders[0];
 
   return (
     <View style={styles.container}>
@@ -62,14 +61,24 @@ export default function DrawerContent({ manual, mode, onQuestion, onLogout, show
         </TouchableOpacity>
 
         {onChangeProvider && (
-          <TouchableOpacity style={styles.iaBtn} onPress={() => setProviderModalOpen(true)} activeOpacity={0.75}>
-            <Text style={styles.iaIcon}>🧠</Text>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.iaText}>Modelo de IA</Text>
-              <Text style={styles.iaSub} numberOfLines={1}>{activeProvider.label}</Text>
+          visibleProviders.length === 0 ? (
+            <View style={[styles.iaBtn, { opacity: 0.5 }]}>
+              <Text style={styles.iaIcon}>🧠</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.iaText}>Modelo de IA</Text>
+                <Text style={styles.iaSub}>Nenhum provedor de IA configurado</Text>
+              </View>
             </View>
-            <Text style={styles.iaChevron}>▾</Text>
-          </TouchableOpacity>
+          ) : (
+            <TouchableOpacity style={styles.iaBtn} onPress={() => setProviderModalOpen(true)} activeOpacity={0.75}>
+              <Text style={styles.iaIcon}>🧠</Text>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.iaText}>Modelo de IA</Text>
+                <Text style={styles.iaSub} numberOfLines={1}>{activeProvider?.label ?? '—'}</Text>
+              </View>
+              <Text style={styles.iaChevron}>▾</Text>
+            </TouchableOpacity>
+          )
         )}
 
         <TouchableOpacity style={styles.logoutBtn} onPress={onLogout} activeOpacity={0.75}>
@@ -82,7 +91,7 @@ export default function DrawerContent({ manual, mode, onQuestion, onLogout, show
         <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={() => setProviderModalOpen(false)} />
         <View style={styles.modalCard}>
           <Text style={styles.modalTitle}>Modelo de IA</Text>
-          {AI_PROVIDERS.map(p => (
+          {visibleProviders.map(p => (
             <TouchableOpacity
               key={p.id}
               style={[styles.iaOption, p.id === provider && styles.iaOptionActive]}

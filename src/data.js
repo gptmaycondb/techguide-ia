@@ -1,12 +1,10 @@
 export const API_URL = 'https://manuais-hp.onrender.com/chat';
 
 export const AI_PROVIDERS = [
-  { id: 'claude',       label: 'Claude Sonnet', sub: 'Anthropic · rápido e equilibrado' },
-  { id: 'claude-opus',  label: 'Claude Opus',   sub: 'Anthropic · mais capaz' },
-  { id: 'openai',       label: 'OpenAI GPT-4o', sub: 'OpenAI · gpt-4o' },
-  { id: 'gemini',       label: 'Google Gemini', sub: 'Google · gemini-1.5-pro' },
+  { id: 'gemini', label: 'Gemini (Google)',    sub: 'Google · Gemini' },
+  { id: 'claude', label: 'Claude (Anthropic)', sub: 'Anthropic · Claude' },
 ];
-export const DEFAULT_PROVIDER = 'claude';
+export const DEFAULT_PROVIDER = 'gemini';
 
 export const USER_MODES = {
   user: {
