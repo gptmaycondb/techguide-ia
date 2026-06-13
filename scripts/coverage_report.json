@@ -36,10 +36,12 @@
       "orphans": []
     },
     "ricoh_mpc3004_service": {
-      "candidates": 621,
+      "candidates": 622,
       "covered": 621,
       "covered_by_synthetic": 0,
-      "missing": [],
+      "missing": [
+        "SC999-99"
+      ],
       "missing_detail": {},
       "orphans": []
     },
