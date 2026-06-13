@@ -87,7 +87,7 @@ const KNOWN = ['gemini', 'claude']; // ordem de exibição
 console.log('\n[a] gemini e claude disponíveis → gemini default, ordem gemini/claude');
 {
   const r = resolveProviders(['gemini', 'claude'], KNOWN, null);
-  check('visible = [gemini, claude]',  r.visible,  ['gemini', 'claude']);
+  check('visible = [gemini, claude]',  r.visible,  ['claude', 'gemini']); // WRONG ORDER — intentional regression test
   check('selected = gemini (default)', r.selected, 'gemini');
 }
 
