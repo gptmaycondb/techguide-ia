@@ -1,0 +1,55 @@
+name: Quality Gate
+
+# Roda em todo PR para main e bloqueia merge se houver regressão.
+# Ver AGENTS.md → "Gate de CI — Resumo Técnico" para detalhes de cada condição.
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  test-and-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Setup Python 3
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install app dependencies
+        run: npm ci
+
+      - name: Install backend dependencies
+        run: cd backend && npm ci
+
+      - name: test_findability (searchErrorCode multi-key + isolamento cross-model)
+        run: node scripts/test_findability.js
+
+      - name: test_providers (resolveProviders + migração de preferências)
+        run: node scripts/test_providers.js
+
+      - name: test_backend (buildGeminiMessages + sync guard + SDK)
+        run: node scripts/test_backend.js
+
+      - name: Auditoria de qualidade + gate de cobertura
+        run: python3 scripts/audit_index.py --fail-short --fail-missing
+        # Falha se:
+        #   fixable > 0               → regressão no build do índice
+        #   missing novo fora baseline → código no PDF ausente do índice
+        #   coverage_report.json velho → índice mudou, regenerar com coverage_report.py
+
+      - name: Gate summary
+        if: always()
+        run: |
+          echo "### Quality Gate" >> $GITHUB_STEP_SUMMARY
+          echo "Resultado de cada step acima — verde = merge liberado, vermelho = bloqueado." >> $GITHUB_STEP_SUMMARY

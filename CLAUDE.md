@@ -1,5 +1,7 @@
 # TechGuide IA — Projeto
 
+> **Regras de processo e portabilidade entre executores:** ver `AGENTS.md`.
+
 App React Native (Expo) de suporte técnico para impressoras HP e Ricoh.
 Backend em `https://manuais-hp.onrender.com` — código em `backend/server.js` **neste repo**,
 sincronizado automaticamente para `gptmaycondb/manuais-hp` via GitHub Action no push ao `main`.
