@@ -4,11 +4,10 @@ import {
   StyleSheet, ActivityIndicator, SafeAreaView, Keyboard,
   Linking, KeyboardAvoidingView, Platform,
 } from 'react-native';
-import { searchManual, searchErrorCode, hasRelevantContent, computeFoundInManual, MANUAL_INDEX_MAP } from './search';
+import { searchErrorCode, hasRelevantContent, computeFoundInManual, MANUAL_INDEX_MAP } from './search';
 import { API_URL, DEFAULT_PROVIDER } from './data';
 import {
-  loadModel, loadEmbeddings, unloadEmbeddings,
-  isModelReady, semanticSearchManual,
+  prepareSemanticSearch, releaseSemanticSearch, semanticSearchManual,
 } from './semanticSearch';
 
 const C = {
@@ -48,6 +47,7 @@ function parseSseText(text) {
 export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, onQuestionSent, messages, setMessages, provider = DEFAULT_PROVIDER }) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [searchStatus, setSearchStatus] = useState('preparing');
   const listRef = useRef(null);
   const inputRef = useRef(null);
 
@@ -56,15 +56,25 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
   const searchKeys = (manual.searchKeys?.length ? manual.searchKeys : [primaryKey])
     .filter((v, i, a) => a.indexOf(v) === i);
 
-  // Inicia download do modelo em background no 1º render (falha silenciosa → fallback keyword)
+  // Prepara modelo e vetores em background; a busca keyword continua disponível.
   useEffect(() => {
-    loadModel().catch(() => {});
-  }, []);
-
-  // Pré-carrega embeddings do manual atual; libera ao desmontar (manual trocado via key={})
-  useEffect(() => {
-    searchKeys.forEach(k => loadEmbeddings(k).catch(() => {}));
-    return () => searchKeys.forEach(unloadEmbeddings);
+    let active = true;
+    setSearchStatus('preparing');
+    prepareSemanticSearch(searchKeys)
+      .then(ready => {
+        if (active) {
+          setSearchStatus(ready ? 'ready' : 'keyword');
+        } else {
+          releaseSemanticSearch(searchKeys);
+        }
+      })
+      .catch(() => {
+        if (active) setSearchStatus('keyword');
+      });
+    return () => {
+      active = false;
+      releaseSemanticSearch(searchKeys);
+    };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
@@ -107,10 +117,7 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
     // Isolamento cross-model preservado: filtro por keys do modelo, não por key única.
     const errorChunks = searchErrorCode(q, searchKeys)
       .slice(0, 4).map(capErr);
-    // Busca semântica on-device quando modelo está pronto; fallback keyword se ainda não carregou
-    const rawManualChunks = isModelReady()
-      ? await semanticSearchManual(q, searchKeys, 5)
-      : searchKeys.flatMap(k => searchManual(q, k, 3));
+    const rawManualChunks = await semanticSearchManual(q, searchKeys, 5);
     const manualChunks = rawManualChunks.slice(0, 5).map(capMan);
     const seen = new Set();
     const chunks = [...errorChunks, ...manualChunks].filter(c => {
@@ -393,6 +400,13 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
           <View style={styles.typingRow}>
             <ActivityIndicator size="small" color={C.accent2} />
             <Text style={[styles.typingText, { color: C.accent2 }]}>Consultando manual...</Text>
+          </View>
+        )}
+
+        {!loading && searchStatus === 'preparing' && (
+          <View style={styles.typingRow}>
+            <ActivityIndicator size="small" color={C.dim} />
+            <Text style={[styles.typingText, { color: C.dim }]}>Preparando busca…</Text>
           </View>
         )}
 

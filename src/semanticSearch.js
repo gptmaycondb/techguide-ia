@@ -1,5 +1,6 @@
 import * as FileSystem from 'expo-file-system';
 
+import { searchManual } from './search';
 import {
   MODEL_PATH,
   ensureModelAsset,
@@ -13,6 +14,7 @@ import {
   createTokenizer,
   encodeQuery,
   rankEmbeddingAssets,
+  searchWithFallback,
 } from './semanticSearchCore';
 
 let session = null;
@@ -113,31 +115,37 @@ export async function embedQuery(text) {
   return Float32Array.from(output.data);
 }
 
-export async function loadEmbeddings(searchKey) {
+async function loadEmbeddings(searchKey) {
   const asset = await loadEmbeddingAsset(searchKey);
   embeddingCache.set(searchKey, asset);
   return asset;
 }
 
-export function unloadEmbeddings(searchKey) {
+function unloadEmbeddings(searchKey) {
   embeddingCache.delete(searchKey);
   unloadEmbeddingAsset(searchKey);
 }
 
-export function isModelReady() {
-  return !!(session && tokenizer);
+export async function prepareSemanticSearch(searchKeys) {
+  const [modelReady] = await Promise.all([
+    loadModel(),
+    Promise.all(searchKeys.map(loadEmbeddings)),
+  ]);
+  return modelReady;
+}
+
+export function releaseSemanticSearch(searchKeys) {
+  searchKeys.forEach(unloadEmbeddings);
 }
 
 export { cosine };
 
-export async function semanticSearchManual(query, searchKeys, topN = 5) {
+async function runSemanticSearchManual(query, searchKeys, topN) {
   if (!session || !tokenizer) return [];
 
   const missingKeys = searchKeys.filter(key => !embeddingCache.has(key));
   if (missingKeys.length) {
-    await Promise.all(
-      missingKeys.map(key => loadEmbeddings(key).catch(() => null))
-    );
+    await Promise.all(missingKeys.map(loadEmbeddings));
   }
 
   const queryVector = await embedQuery(query);
@@ -145,4 +153,19 @@ export async function semanticSearchManual(query, searchKeys, topN = 5) {
     .map(key => embeddingCache.get(key))
     .filter(Boolean);
   return rankEmbeddingAssets(queryVector, assets, topN);
+}
+
+export async function semanticSearchManual(
+  query,
+  searchKeys,
+  topN = 5
+) {
+  const { results } = await searchWithFallback({
+    query,
+    searchKeys,
+    semanticSearch: runSemanticSearchManual,
+    keywordSearch: searchManual,
+    topN,
+  });
+  return results;
 }

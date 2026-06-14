@@ -79,3 +79,21 @@ export function rankEmbeddingAssets(queryVector, assets, topN = 5) {
   );
   return scored.slice(0, topN).map(result => result.text);
 }
+
+export async function searchWithFallback({
+  query,
+  searchKeys,
+  semanticSearch,
+  keywordSearch,
+  topN = 5,
+}) {
+  try {
+    const results = await semanticSearch(query, searchKeys, topN);
+    if (results.length) return { results, mode: 'semantic' };
+  } catch {}
+
+  return {
+    results: searchKeys.flatMap(key => keywordSearch(query, key, 3)),
+    mode: 'keyword',
+  };
+}

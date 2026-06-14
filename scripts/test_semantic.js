@@ -8,6 +8,7 @@ import {
   createTokenizer,
   encodeQuery,
   rankEmbeddingAssets,
+  searchWithFallback,
 } from '../src/semanticSearchCore.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -27,7 +28,7 @@ function readJson(fileName) {
   );
 }
 
-function main() {
+async function main() {
   console.log('=== Semantic Search Tests ===');
 
   assert.equal(cosine([1, 0], [1, 0]), 1);
@@ -78,10 +79,49 @@ function main() {
   assert.deepEqual(longEncoding.attentionMask, [1, 1, 1, 1]);
   console.log('  [OK] truncamento preserva o token final especial');
 
-  console.log('=== 4 testes: 4 passaram, 0 falharam ===');
+  const semantic = await searchWithFallback({
+    query: 'fusor',
+    searchKeys: ['manual'],
+    semanticSearch: async () => ['resultado semantico'],
+    keywordSearch: () => ['resultado keyword'],
+  });
+  assert.deepEqual(semantic, {
+    results: ['resultado semantico'],
+    mode: 'semantic',
+  });
+
+  const notReady = await searchWithFallback({
+    query: 'fusor',
+    searchKeys: ['manual'],
+    semanticSearch: async () => [],
+    keywordSearch: () => ['fallback vazio'],
+  });
+  assert.deepEqual(notReady, {
+    results: ['fallback vazio'],
+    mode: 'keyword',
+  });
+
+  const failed = await searchWithFallback({
+    query: 'fusor',
+    searchKeys: ['manual'],
+    semanticSearch: async () => {
+      throw new Error('sessao falhou');
+    },
+    keywordSearch: () => ['fallback erro'],
+  });
+  assert.deepEqual(failed, {
+    results: ['fallback erro'],
+    mode: 'keyword',
+  });
+  console.log('  [OK] fallback keyword: modelo pendente ou sessao com erro');
+
+  console.log('=== 5 testes: 5 passaram, 0 falharam ===');
   console.log(
     'Nota: inferencia ONNX completa exige onnxruntime-react-native no device (checkpoint 1C).'
   );
 }
 
-main();
+main().catch(error => {
+  console.error(error);
+  process.exit(1);
+});
