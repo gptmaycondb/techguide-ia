@@ -187,19 +187,21 @@ jobs:
           print(f"model_fp32.onnx: {target.stat().st_size} bytes")
           PYEOF
 
-      - name: Quantizar modelo final para int8
+      - name: Converter modelo final para FP16
         run: |
           python <<'PYEOF'
           from pathlib import Path
-          from onnxruntime.quantization import QuantType, quantize_dynamic
+          import onnx
+          from onnxruntime.transformers.float16 import convert_float_to_float16
 
           source = Path("model_cache/model_fp32.onnx")
           target = Path("model_cache/model.onnx")
-          quantize_dynamic(
-              str(source),
-              str(target),
-              weight_type=QuantType.QInt8,
+          model = convert_float_to_float16(
+              onnx.load(source),
+              keep_io_types=True,
           )
+          onnx.checker.check_model(model)
+          onnx.save(model, target)
           print(f"model.onnx: {target.stat().st_size} bytes")
           PYEOF
 
@@ -227,7 +229,7 @@ jobs:
                   str(cache / "model_fp32.onnx"),
                   providers=["CPUExecutionProvider"],
               ),
-              "int8": ort.InferenceSession(
+              "fp16": ort.InferenceSession(
                   str(cache / "model.onnx"),
                   providers=["CPUExecutionProvider"],
               ),
@@ -354,13 +356,13 @@ jobs:
           TAG="onnx-model-$(date -u +%Y%m%d-%H%M%S)"
           MODEL_SIZE=$(stat --printf="%s" release_assets/model.onnx)
           MODEL_SHA=$(cut -d' ' -f1 release_assets/model.onnx.sha256)
-          MIN_PHRASE=$(python -c "import json; r=json.load(open('model_cache/alignment_report.json')); print(f\"{min(r['phrases']['int8']):.6f}\")")
-          MIN_STORED=$(python -c "import json; r=json.load(open('model_cache/alignment_report.json')); print(f\"{min(r['stored_chunks']['int8']):.6f}\")")
+          MIN_PHRASE=$(python -c "import json; r=json.load(open('model_cache/alignment_report.json')); print(f\"{min(r['phrases']['fp16']):.6f}\")")
+          MIN_STORED=$(python -c "import json; r=json.load(open('model_cache/alignment_report.json')); print(f\"{min(r['stored_chunks']['fp16']):.6f}\")")
 
           cat > release_notes.md <<NOTES
           ## ONNX model - paraphrase-multilingual-MiniLM-L12-v2
 
-          Modelo int8 com mean pooling por attention mask e normalizacao L2
+          Modelo FP16 com mean pooling por attention mask e normalizacao L2
           embutidos no grafo. Tokenizacao usa os assets do modelo original
           sentence-transformers (abordagem B).
 
