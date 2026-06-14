@@ -83,6 +83,16 @@ jobs:
           target = Path("model_cache/model_fp32.onnx")
           model = onnx.load(source)
           graph = model.graph
+          standard_opset = next(
+              item.version
+              for item in model.opset_import
+              if item.domain in ("", "ai.onnx")
+          )
+          print(f"Base model: ir_version={model.ir_version}, opset={standard_opset}")
+          if standard_opset != 11:
+              raise RuntimeError(
+                  f"Expected ai.onnx opset 11, found {standard_opset}"
+              )
 
           hidden = next(
               output for output in graph.output
@@ -93,8 +103,6 @@ jobs:
               raise RuntimeError("attention_mask not found in model inputs")
 
           graph.initializer.extend([
-              numpy_helper.from_array(np.array([2], dtype=np.int64), "axes_unsqueeze"),
-              numpy_helper.from_array(np.array([1], dtype=np.int64), "axes_reduce"),
               numpy_helper.from_array(np.array([1e-12], dtype=np.float32), "epsilon"),
           ])
           graph.node.extend([
@@ -104,8 +112,9 @@ jobs:
               ),
               helper.make_node(
                   "Unsqueeze",
-                  ["attention_mask_float", "axes_unsqueeze"],
+                  ["attention_mask_float"],
                   ["attention_mask_3d"],
+                  axes=[2],
               ),
               helper.make_node(
                   "Mul",
@@ -114,14 +123,16 @@ jobs:
               ),
               helper.make_node(
                   "ReduceSum",
-                  ["masked_tokens", "axes_reduce"],
+                  ["masked_tokens"],
                   ["token_sum"],
+                  axes=[1],
                   keepdims=0,
               ),
               helper.make_node(
                   "ReduceSum",
-                  ["attention_mask_3d", "axes_reduce"],
+                  ["attention_mask_3d"],
                   ["mask_sum"],
+                  axes=[1],
                   keepdims=0,
               ),
               helper.make_node(
@@ -141,8 +152,9 @@ jobs:
               ),
               helper.make_node(
                   "ReduceSum",
-                  ["embedding_squared", "axes_reduce"],
+                  ["embedding_squared"],
                   ["embedding_square_sum"],
+                  axes=[1],
                   keepdims=1,
               ),
               helper.make_node(
