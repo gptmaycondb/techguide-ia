@@ -36,6 +36,12 @@ PDF_SOURCES = {
     'ricoh_imc3000_parts':   [Path('/tmp/ricoh_parts.pdf')],
     'ricoh_mpc3004_guia':    [Path('/tmp/ricoh_mpc3004_guia.pdf')],
     'ricoh_mpc3004_service': [Path('/tmp/ricoh_mpc3004_service.pdf')],
+    # gdown "https://drive.google.com/uc?id=1Iu_GneoZmhtSf-v9P3pQpsafJm2tVks1" -O /tmp/sp3710_guia.pdf
+    # gdown "https://drive.google.com/uc?id=1aNq74FQyNCwiHEUhi_Io45Dbdf8UsNpQ" -O /tmp/sp3710_service.pdf
+    # gdown "https://drive.google.com/uc?id=1JSD6dOuxOkXfdwe-N-RCctHkUU9FMWLD" -O /tmp/sp3710_psg.pdf
+    'ricoh_sp3710_guia':     [Path('/tmp/sp3710_guia.pdf')],
+    'ricoh_sp3710_service':  [Path('/tmp/sp3710_service.pdf')],
+    'ricoh_sp3710_psg':      [Path('/tmp/sp3710_psg.pdf')],
     'e62655_guia':           [Path('/tmp/e62655_guia.pdf')],
     'e62655_cpmd':           [Path('/tmp/e62655_cpmd.pdf')],
     'e62655_service':        [Path('/tmp/e62655_service.pdf')],
