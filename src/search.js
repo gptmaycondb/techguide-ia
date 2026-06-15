@@ -43,6 +43,11 @@ export const MANUAL_INDEX_MAP = {
   'ricoh_mpc3004':         'ricoh_mpc3004_guia',
   'ricoh_mpc3004_guia':    'ricoh_mpc3004_guia',
   'ricoh_mpc3004_service': 'ricoh_mpc3004_service',
+  // Ricoh SP 3710DN/SF
+  'ricoh_sp3710':         'ricoh_sp3710_guia',
+  'ricoh_sp3710_guia':    'ricoh_sp3710_guia',
+  'ricoh_sp3710_service': 'ricoh_sp3710_service',
+  'ricoh_sp3710_psg':     'ricoh_sp3710_psg',
 };
 
 const STOPWORDS = new Set([
