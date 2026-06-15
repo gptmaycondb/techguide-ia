@@ -94,6 +94,10 @@ Antes de fazer qualquer alteração que possa introduzir regressão (mudar o for
 
 **Não improvise em território desconhecido.** Apresente o checkpoint e espere confirmação.
 
+### 9. PRs prontos para revisão
+
+PRs são abertos prontos para revisão (NÃO em draft). A revisão acontece via checkpoint na conversa antes do merge; o merge é feito manualmente pelo Maycon pelo painel. Motivo: PRs em draft não podem ser mergeados e já causaram PRs presos sem perceber.
+
 ---
 
 ## Comandos Canônicos
