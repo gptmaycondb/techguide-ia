@@ -3,7 +3,8 @@
 Gera dicas para um modelo consultando os chunks reais do search_index.
 Use ao adicionar novo modelo ou para enriquecer dicas existentes.
 
-**Nunca inventar part numbers ou SC codes — apenas o que estiver nos chunks.**
+**Dicas nunca citam part numbers específicos. Códigos específicos só podem ser
+usados após validação no `error_codes_index.json` para o modelo correto.**
 
 ## Passo 1 — Identificar as chaves do modelo
 
@@ -22,7 +23,7 @@ Para cada chave em `searchKeys`, extrair amostras temáticas via jq:
 # Chunks de erros/SC codes (buscar por padrão SC ou erro)
 jq --arg k "<service_key>" '.[$k] | map(select(.k | test("SC|erro|fault|fuser|fusao|tambor|drum|laser";"i"))) | .[0:8] | .[].t' assets/search_index.json
 
-# Chunks de suprimentos/part numbers
+# Chunks de suprimentos
 jq --arg k "<service_key>" '.[$k] | map(select(.k | test("part|peca|toner|cartucho|kit|roller|rolo";"i"))) | .[0:6] | .[].t' assets/search_index.json
 
 # Chunks do guia (atolamentos, operação)
@@ -41,16 +42,27 @@ Com base nos chunks extraídos, gerar 6–10 dicas seguindo estas regras:
 
 - `{ brand: '<brand>', model: '<model-id>', text: '...' }`
 - Cobrir: atolamentos, toner/suprimentos, erros críticos, qualidade de impressão
-- Part numbers: copiar exatamente como aparecem nos chunks (nunca reescrever)
-- SC codes Ricoh: usar o formato do modelo (IM C3000 = `SC543`, MP C3004 = `SC541-00`)
+- Part numbers específicos são proibidos; orientar a consulta ao Parts Catalog do modelo
+- Famílias genéricas (`13.xx`, `50.x`, `SC5xx`) são permitidas
+- Código específico usado como exemplo ou afirmação precisa existir no
+  `assets/error_codes_index.json` sob uma `service_key` do modelo
+- SC codes Ricoh: usar o formato encontrado no índice para o modelo
 - Dicas genéricas da marca (sem `model`) só se válidas para TODOS os modelos da marca
 - Máximo 160 caracteres por dica (exibição na bolha flutuante)
 
 ## Passo 5 — Validar antes de propor
 
 Checar cada dica gerada:
-- [ ] Part number aparece literalmente em algum chunk extraído?
-- [ ] SC code aparece literalmente em algum chunk?
+- [ ] A dica não contém part number específico?
+- [ ] Todo código específico existe no `error_codes_index.json` para o modelo?
+- [ ] A descrição do código é coerente com a entrada do índice?
 - [ ] A dica não cita outro modelo por engano?
+
+O hook `.claude/hooks/check-tips.sh` executa essas verificações e falha em caso
+de violação. Rode-o diretamente antes de propor alterações:
+
+```bash
+bash .claude/hooks/check-tips.sh src/tips.js
+```
 
 Apresentar o rascunho e aguardar aprovação antes de editar `src/tips.js`.
