@@ -101,6 +101,7 @@ const KEYS = {
   E62655:      ['e62655_guia', 'e62655_service', 'e62655_cpmd'],
   imc3000:     ['ricoh_imc3000_service', 'ricoh_imc3000_guia', 'ricoh_imc3000_parts'],
   mpc3004:     ['ricoh_mpc3004_service', 'ricoh_mpc3004_guia'],
+  sp3710:      ['ricoh_sp3710_service', 'ricoh_sp3710_guia', 'ricoh_sp3710_psg'],
 };
 
 let pass = 0, fail = 0;
@@ -115,6 +116,25 @@ function expect(label, query, keys, shouldFind) {
   if (!ok) {
     console.log(`         query="${query}" keys=${JSON.stringify(keys)}`);
     console.log(`         expected=${shouldFind} got=${found} preview=${preview}`);
+    fail++;
+  } else {
+    pass++;
+  }
+}
+
+function expectContains(label, query, keys, includes, excludes = []) {
+  const results = searchErrorCode(query, keys);
+  const joined = results.join('\n');
+  const ok = results.length > 0
+    && includes.every(s => joined.includes(s))
+    && excludes.every(s => !joined.includes(s));
+  const marker = ok ? '✓' : '✗ FAIL';
+  const preview = results[0]?.substring(0, 120).replace(/\n/g, '↵') || '—';
+  console.log(`  [${marker}] ${label}`);
+  if (!ok) {
+    console.log(`         query="${query}" keys=${JSON.stringify(keys)}`);
+    console.log(`         includes=${JSON.stringify(includes)} excludes=${JSON.stringify(excludes)}`);
+    console.log(`         preview=${preview}`);
     fail++;
   } else {
     pass++;
@@ -195,6 +215,11 @@ expect('SC285-00 via imc3000 searchKeys', 'SC285-00', KEYS.imc3000, true);
 
 console.log('[Ricoh mpc3004] SC285-00 → deve achar via ricoh_mpc3004_service');
 expect('SC285-00 via mpc3004 searchKeys', 'SC285-00', KEYS.mpc3004, true);
+
+console.log('[Ricoh SP 3710] códigos SC### e SC542-## → devem achar via ricoh_sp3710_service');
+for (const code of ['SC202', 'SC541', 'SC543', 'SC688', 'SC542-01']) {
+  expect(`${code} via sp3710 searchKeys`, code, KEYS.sp3710, true);
+}
 
 // ── Lote 1 — subcódigos inline ● (5 famílias) ────────────────────────────────
 console.log('\n[Lote 1 — 66.80] 66.80.01 (Y-align) → deve achar via E52645 cpmd');
@@ -278,6 +303,52 @@ expect('SC860-03 (imc3000-only) via mpc3004 keys → NOT FOUND', 'SC860-03', KEY
 
 console.log('[Cross-model isolation] SC mpc3004-only não vaza para imc3000');
 expect('SC665-01 (mpc3004-only) via imc3000 keys → NOT FOUND', 'SC665-01', KEYS.imc3000, false);
+
+console.log('[Cross-model isolation] SP 3710 colidindo com IM C3000/MP C3004 não cruza descrições');
+expectContains(
+  'SC541 via SP 3710 → fusing thermistor do 3710, não thermopile dos coloridos',
+  'SC541',
+  KEYS.sp3710,
+  ['Fusing thermistor (TH1) error'],
+  ['Thermopile']
+);
+expectContains(
+  'SC541 via IM C3000 → thermopile da IM, não fusing thermistor TH1 do 3710',
+  'SC541',
+  KEYS.imc3000,
+  ['Thermopile'],
+  ['Fusing thermistor (TH1) error']
+);
+expectContains(
+  'SC543 via SP 3710 → high temperature do 3710, não thermopile dos coloridos',
+  'SC543',
+  KEYS.sp3710,
+  ['High temperature error (soft)', '235'],
+  ['Thermopile']
+);
+expectContains(
+  'SC543 via IM C3000 → thermopile da IM, não texto do 3710',
+  'SC543',
+  KEYS.imc3000,
+  ['Thermopile'],
+  ['235']
+);
+expectContains(
+  'SC202 via SP 3710 → polygon mirror motor M4 do 3710',
+  'SC202',
+  KEYS.sp3710,
+  ['Polygon mirror motor (M4) on timeout error'],
+  ['Polygon Motor: ON Timeout Error']
+);
+expectContains(
+  'SC202 via IM C3000 → polygon motor da IM, não M4 do 3710',
+  'SC202',
+  KEYS.imc3000,
+  ['Polygon Motor: ON Timeout Error'],
+  ['Polygon mirror motor (M4) on timeout error']
+);
+expect('SC688 (3710-only) via imc3000 keys → NOT FOUND', 'SC688', KEYS.imc3000, false);
+expect('SC688 (3710-only) via mpc3004 keys → NOT FOUND', 'SC688', KEYS.mpc3004, false);
 
 // ── Dedup interno ─────────────────────────────────────────────────────────────
 // 99.09.67 existe sob 'service' e pode aparecer em múltiplas chaves do E52645;

@@ -27,6 +27,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 from build_index import (
     PDF_SOURCES, pdf_to_text, clean_text,
     is_toc_chunk, is_book_index_chunk,
+    extract_sp3710_service_call_text,
 )
 
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -38,7 +39,7 @@ IGNORE_PATH  = Path(__file__).parent / 'codes_ignore.json'
 ERROR_KEYS = [
     'cpmd', 'service',
     'e62655_cpmd', 'e62655_service',
-    'ricoh_imc3000_service', 'ricoh_mpc3004_service',
+    'ricoh_imc3000_service', 'ricoh_mpc3004_service', 'ricoh_sp3710_service',
 ]
 
 # Grupos de equivalência por modelo — espelham os searchKeys de src/data.js.
@@ -49,6 +50,7 @@ MODEL_SEARCHKEYS: dict[str, list[str]] = {
     'E62655':   ['e62655_cpmd', 'e62655_service'],
     'imc3000':  ['ricoh_imc3000_service'],
     'mpc3004':  ['ricoh_mpc3004_service'],
+    'sp3710':   ['ricoh_sp3710_service'],
 }
 
 # Detectores permissivos por família
@@ -60,6 +62,8 @@ RICOH_TABLE_RE    = re.compile(r'^(\d{3}-\d{2})(?=[ \t])', re.MULTILINE)
 # Mirrors RICOH_CONDITION_ROW_RE in build_index.py: code on its own line, description on next.
 # Covers SC681/682 subcodes and SC215/SC533 that appear as "681-01\n\nToner bottle…"
 RICOH_TABLE_NL_RE = re.compile(r'(?:^|\n)(\d{3}-\d{2})\s*\n+\s*([A-Z][^\n]{7,})', re.MULTILINE)
+SP3710_SC_RE = re.compile(r'(?m)^SC\s?(\d{3}(?:-\d{2})?)\s+(?:[A-D]\b|$)')
+SP3710_SERVICE_KEY = 'ricoh_sp3710_service'
 
 # Padrões de orphans esperados (não gateiam)
 PSEUDO_RE      = re.compile(r'^(PCU-YIELD|PM-PARTS|VIDA-UTIL)')
@@ -98,9 +102,11 @@ def covered_canons(index: dict, service_key: str) -> set:
             if any(e['key'] == service_key for e in ents)}
 
 
-def is_expected_orphan(code: str) -> bool:
+def is_expected_orphan(code: str, service_key: str = '') -> bool:
     """Orphan esperado: pseudo-código, grupo SC, prefixo HP, ou código HP com wildcard."""
-    if PSEUDO_RE.match(code) or RICOH_GROUP_RE.match(code) or HP_PREFIX_RE.match(code):
+    if PSEUDO_RE.match(code) or HP_PREFIX_RE.match(code):
+        return True
+    if RICOH_GROUP_RE.match(code) and service_key != SP3710_SERVICE_KEY:
         return True
     # HP partial/wildcard entries (50.2X, 82.0X, 33.05.0X, 13.B2.DX, 41.03.FZ …)
     # are prefix-matchers in searchErrorCode, not codes that literally appear in PDFs.
@@ -233,6 +239,21 @@ def extract_ricoh(text: str) -> dict:
     return result
 
 
+def extract_sp3710(text: str) -> dict:
+    """Candidates for SP 3710 where SC### is a full service-call code."""
+    section = extract_sp3710_service_call_text(text)
+    result: dict = {}
+    for m in SP3710_SC_RE.finditer(section):
+        code = ('SC' + m.group(1).replace(' ', '')).upper()
+        c = canon(code)
+        if c not in result:
+            result[c] = {'original': code, 'count': 0, 'context': '', 'toc_only': False}
+        result[c]['count'] += 1
+        if not result[c]['context']:
+            result[c]['context'] = _ctx(section, m.start(), m.end())
+    return result
+
+
 def main() -> None:
     if not INDEX_PATH.exists():
         print(f'ERRO: {INDEX_PATH} não encontrado.', file=sys.stderr)
@@ -268,7 +289,12 @@ def main() -> None:
         cov   = covered_canons(index, svc)
         ig    = {canon(k) for k in ignore.get(svc, {})}
         hp    = svc in ('cpmd', 'service', 'e62655_cpmd', 'e62655_service')
-        cands = extract_hp(text) if hp else extract_ricoh(text)
+        if hp:
+            cands = extract_hp(text)
+        elif svc == SP3710_SERVICE_KEY:
+            cands = extract_sp3710(text)
+        else:
+            cands = extract_ricoh(text)
         raw_cands_by_key[svc] = cands
 
         missing: list        = []
@@ -283,7 +309,7 @@ def main() -> None:
         orphans = sorted(
             code for code, ents in index.items()
             if any(e['key'] == svc for e in ents)
-            and not is_expected_orphan(code)
+            and not is_expected_orphan(code, svc)
             and canon(code) not in cands
             and not all(e.get('src') in ('propagated', 'xref', 'range', 'stub')
                         for e in ents if e['key'] == svc)

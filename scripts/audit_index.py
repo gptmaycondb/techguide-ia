@@ -30,6 +30,7 @@ INDEX_PATH = Path(__file__).parent.parent / 'assets' / 'error_codes_index.json'
 HP_MIN_LEN   = 200   # chars mínimos para um código HP real ser "OK"
 RICOH_MIN_LEN = 120  # chars mínimos para um código Ricoh ser "OK"
 RICH_SIBLING  = 400  # tamanho que define "irmão rico" (fixable se curto tiver um)
+SP3710_SERVICE_KEY = 'ricoh_sp3710_service'
 
 HAS_ACTION_RE = re.compile(
     r'(solution|cause|recommended action|troubleshoot|replace|check |execute|'
@@ -130,6 +131,26 @@ def main():
             cls = classify(code, ricoh_hyphen[code], RICOH_MIN_LEN, peer_max)
             ricoh_stats[cls].append(code)
 
+    # ── Ricoh SP 3710: SC### is a complete code for this service_key ──
+    sp3710_codes: dict[str, list] = {}
+    for code, entries in ricoh.items():
+        if not re.match(r'^SC\d{3}(?:-\d{2})?$', code):
+            continue
+        sp_entries = [e for e in entries if e.get('key') == SP3710_SERVICE_KEY]
+        if sp_entries:
+            sp3710_codes[code] = sp_entries
+
+    sp3710_groups: dict[str, list[str]] = defaultdict(list)
+    for code in sp3710_codes:
+        sp3710_groups[code.split('-', 1)[0]].append(code)
+
+    sp3710_stats = defaultdict(list)
+    for group, siblings in sp3710_groups.items():
+        peer_max = max(max(len(e['text']) for e in sp3710_codes[k]) for k in siblings)
+        for code in siblings:
+            cls = classify(code, sp3710_codes[code], RICOH_MIN_LEN, peer_max)
+            sp3710_stats[cls].append(code)
+
     # ── Relatório ──
     print('=' * 60)
     print('AUDITORIA  error_codes_index.json')
@@ -137,6 +158,7 @@ def main():
     print(f'Total chaves: {len(idx)}')
     print(f'HP (XX.YY.ZZ): {len(hp_full)}  |  prefixos HP: {len(hp_prefix)}')
     print(f'Ricoh (SC-com-hífen): {len(ricoh_hyphen)} de {len(ricoh)} SC totais')
+    print(f'Ricoh SP 3710: {len(sp3710_codes)} SC completos/subcódigos')
     print()
 
     def report(label, stats, show_limit=20):
@@ -161,10 +183,11 @@ def main():
 
     report('HP (XX.YY.ZZ)', hp_stats)
     report('Ricoh SC (com hífen)', ricoh_stats)
+    report('Ricoh SP 3710 SC', sp3710_stats)
 
     # ── Resultado ──
-    fixable = len(hp_stats['fixable']) + len(ricoh_stats['fixable'])
-    shorts  = len(hp_stats['short'])   + len(ricoh_stats['short'])
+    fixable = len(hp_stats['fixable']) + len(ricoh_stats['fixable']) + len(sp3710_stats['fixable'])
+    shorts  = len(hp_stats['short'])   + len(ricoh_stats['short'])   + len(sp3710_stats['short'])
 
     if fixable == 0 and shorts <= 2:
         print('✅ Qualidade OK — sem regressões detectadas.')
