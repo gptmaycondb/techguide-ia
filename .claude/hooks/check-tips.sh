@@ -26,6 +26,7 @@ const modelKeys = {
   mfpe62655: ['e62655_cpmd', 'e62655_service'],
   ricoh_imc3000: ['ricoh_imc3000_service'],
   ricoh_mpc3004: ['ricoh_mpc3004_service'],
+  ricoh_sp3710: ['ricoh_sp3710_service'],
 };
 
 const canon = value => value.toUpperCase().replace(/[\s.\-/]/g, '');

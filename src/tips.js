@@ -90,6 +90,15 @@ export const ASSISTANT_TIPS = [
   { brand: 'ricoh', model: 'ricoh_imc3000', text: 'Toner Ricoh IM C3000/3500 por cor: anote a sigla (K/C/M/Y) exibida no painel ao trocar.' },
   { brand: 'ricoh', text: 'SC codes da série 400 na Ricoh referem-se à área do tambor (PCDU). Verifique a unidade de imagem correspondente.' },
 
+  // ─── RICOH SP 3710DN/SF ───────────────────────────────────────────────────
+  { brand: 'ricoh', model: 'ricoh_sp3710', text: 'No SP 3710, anote o SC completo antes de reiniciar; SC### eh o codigo completo nesse modelo.' },
+  { brand: 'ricoh', model: 'ricoh_sp3710', text: 'SC541 e SC543 no SP 3710 apontam falha de fusao/temperatura; verifique fusor, termistores, chicotes e PSU.' },
+  { brand: 'ricoh', model: 'ricoh_sp3710', text: 'SC542-01 no SP 3710 eh fuser reload; apos corrigir a causa, use Fuser SC Reset no modo de manutencao.' },
+  { brand: 'ricoh', model: 'ricoh_sp3710', text: 'SC202 no SP 3710 envolve motor poligonal/laser; verifique chicotes, laser unit e placa principal.' },
+  { brand: 'ricoh', model: 'ricoh_sp3710', text: 'SP 3710SF digitaliza para e-mail ou pasta de rede; valide IP, SMTP/SMB e credenciais antes de testar.' },
+  { brand: 'ricoh', model: 'ricoh_sp3710', text: 'Atolamento no SP 3710? Remova o papel no sentido do percurso e confira bandeja, duplex e saida antes de religar.' },
+  { brand: 'ricoh', model: 'ricoh_sp3710', text: 'Para pecas do SP 3710, consulte o Parts Catalog na tela de Consulta; nao use part number de memoria.' },
+
   // ─── GENERAL ─────────────────────────────────────────────────────────────
   { brand: 'general', text: 'Sempre anote o código de erro completo antes de reiniciar o equipamento — ele é a chave do diagnóstico.' },
   { brand: 'general', text: 'Antes de abrir a impressora, desligue e aguarde alguns minutos: o fusor opera em alta temperatura.' },
