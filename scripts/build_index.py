@@ -650,6 +650,16 @@ WHEN_SC_RE = re.compile(
     re.MULTILINE | re.IGNORECASE
 )
 
+SP3710_SERVICE_KEY = 'ricoh_sp3710_service'
+SP3710_CODES = [
+    'SC202', 'SC203', 'SC204', 'SC220', 'SC268', 'SC491', 'SC520', 'SC530',
+    'SC541', 'SC542-01', 'SC542-02', 'SC542-03', 'SC543', 'SC544', 'SC545',
+    'SC546', 'SC547', 'SC551', 'SC552', 'SC553', 'SC554', 'SC557', 'SC559',
+    'SC580', 'SC688',
+]
+SP3710_HEADER_RE = re.compile(r'(?m)^SC\s?(\d{3}(?:-\d{2})?)\s+(?:[A-D]\b|$)')
+PROPAGATION_EXCLUDED_SERVICE_KEYS = {SP3710_SERVICE_KEY}
+
 def extract_ricoh_sc_sections(text: str, service_key: str = 'ricoh_imc3000_service') -> dict:
     """
     Extrai seções SC do service manual Ricoh.
@@ -952,6 +962,111 @@ def extract_ricoh_sc_detailed_sections(text: str, service_key: str = 'ricoh_imc3
     return results
 
 
+def extract_sp3710_service_call_text(text: str) -> str:
+    """Return only the real SP 3710 section 6.2 Service Call body."""
+    start = re.search(r'(?:^|\n)6\.2 SERVICE CALL\s*\n+\s*6\.2\.1 SC 2XX', text)
+    if not start:
+        return ''
+    end = re.search(
+        r'(?:^|\n)6\.2\.5 SERVICE CALL CONDITIONS\b|(?:^|\n)6\.3 ERROR MESSAGES\b|(?:^|\n)Error Messages\b',
+        text[start.start():],
+        re.IGNORECASE
+    )
+    if not end:
+        return text[start.start():]
+    return text[start.start():start.start() + end.start()]
+
+
+def clean_sp3710_sc_section(section: str) -> str:
+    """Remove page headers/footers without changing the SC diagnostic content."""
+    keep = []
+    for raw in section.splitlines():
+        line = raw.strip()
+        if not line:
+            continue
+        if re.match(r'^(M0C3|M0EV|SM|Troubleshooting|Service Call|No\.|Type)$', line):
+            continue
+        if re.match(r'^\d+-\d+$', line):
+            continue
+        keep.append(line)
+    return '\n'.join(keep).strip()
+
+
+def extract_sp3710_sc_sections(text: str, service_key: str = SP3710_SERVICE_KEY) -> dict:
+    """
+    Extract SP 3710 service-call codes.
+
+    In this model, SC### is a complete code. Only SC542 has subcodes. This extractor
+    is intentionally separate from RICOH_SC_RE because IM/MP models use SC### as a
+    group for SC###-##.
+    """
+    results = defaultdict(list)
+    service_call = extract_sp3710_service_call_text(text)
+    if not service_call:
+        return results
+
+    matches = list(SP3710_HEADER_RE.finditer(service_call))
+    for i, m in enumerate(matches):
+        code = 'SC' + m.group(1).replace(' ', '').upper()
+        if code.startswith('SC542-'):
+            continue
+        start = m.start()
+        end = matches[i + 1].start() if i + 1 < len(matches) else len(service_call)
+        section = clean_sp3710_sc_section(service_call[start:end])
+        if len(section) < 80:
+            continue
+        results[code].append({'key': service_key, 'text': section})
+
+    # The SC542 table is split by PDF column extraction. Recompose the three real
+    # subcodes explicitly from section 6.2; do not index a partial row.
+    sc542_solution = (
+        "Solution:\n"
+        "1. Reset the SC.\n"
+        "2. Replace the fusing unit.\n"
+        "3. Replace the drawer harness.\n"
+        "4. Replace the PSU (PCB3)."
+    )
+    sc542_rows = {
+        'SC542-01': (
+            "SC542-01\n"
+            "Type A\n"
+            "Error Name/Error Condition/Major Cause/Solution\n"
+            "Fuser reload error\n"
+            "The fusing temperature rises 6C or less in 1.5 seconds; and this continues 5 times consecutively.\n"
+            "Major cause:\n"
+            "- Defective or deformed thermistor\n"
+            "- Incorrect power supply input at the main power socket\n"
+            f"{sc542_solution}"
+        ),
+        'SC542-02': (
+            "SC542-02\n"
+            "Type A\n"
+            "Error Name/Error Condition/Major Cause/Solution\n"
+            "Fuser reload error\n"
+            "The fusing temperature has not reached 45C within 9 seconds after the fusing lamp comes ON while the machine is warming-up.\n"
+            "Major cause:\n"
+            "- Defective or deformed thermistor\n"
+            "- Incorrect power supply input at the main power socket\n"
+            f"{sc542_solution}"
+        ),
+        'SC542-03': (
+            "SC542-03\n"
+            "Type A\n"
+            "Error Name/Error Condition/Major Cause/Solution\n"
+            "Fuser reload error\n"
+            "The fusing unit does not attain reload temperature within a predetermined time after the fusing temperature control starts.\n"
+            "Major cause:\n"
+            "- Defective fusing lamp (H1)\n"
+            "- The overheat protection mechanism started working\n"
+            f"{sc542_solution}"
+        ),
+    }
+    for code, body in sc542_rows.items():
+        results[code].append({'key': service_key, 'text': body, 'src': 'sp3710_recomposed'})
+
+    return results
+
+
 # ─── Construção do error_codes_index ─────────────────────────────────────────
 
 def build_error_codes_index() -> dict:
@@ -1184,6 +1299,19 @@ def build_error_codes_index() -> dict:
                 range_count_mpc += 1
     print(f'  → {range_count_mpc} entradas de faixa expandidas (mpc3004)')
 
+    # ── Ricoh SP 3710DN/SF Service Manual ─────────────────────────────────────
+    print('[errors] Ricoh SP 3710DN/SF Service Manual')
+    sp3710_svc_path = PDF_SOURCES['ricoh_sp3710_service'][0]
+    sp3710_svc_text = clean_text(pdf_to_text(sp3710_svc_path))
+    sp3710_errors = extract_sp3710_sc_sections(sp3710_svc_text, SP3710_SERVICE_KEY)
+    sp3710_count = 0
+    for code, entries in sp3710_errors.items():
+        for e in entries:
+            if not any(x['key'] == SP3710_SERVICE_KEY and x['text'] == e['text'] for x in index[code]):
+                index[code].append(e)
+                sp3710_count += 1
+    print(f'  → {sp3710_count} SC codes do SP 3710 adicionados')
+
     # Stubs: códigos reais sem seção própria no PDF — texto derivado de menção inline.
     # Sobrevivem ao reindex por estarem no código, não no JSON.
     _RICOH_STUBS = [
@@ -1408,8 +1536,15 @@ def propagate_sibling_descriptions(index: dict) -> int:
             ricoh_groups['SC' + m.group(1)].append(key)
 
     for group, keys in ricoh_groups.items():
-        rich_key = max(keys, key=lambda k: max((len(e['text']) for e in index.get(k, [])), default=0))
-        rich_entries = index.get(rich_key, [])
+        rich_key = max(
+            keys,
+            key=lambda k: max((len(e['text']) for e in index.get(k, [])
+                               if e.get('key') not in PROPAGATION_EXCLUDED_SERVICE_KEYS), default=0)
+        )
+        rich_entries = [
+            e for e in index.get(rich_key, [])
+            if e.get('key') not in PROPAGATION_EXCLUDED_SERVICE_KEYS
+        ]
         if not rich_entries:
             continue
         rich_entry = max(rich_entries, key=lambda e: len(e['text']))
@@ -1417,7 +1552,10 @@ def propagate_sibling_descriptions(index: dict) -> int:
             continue
 
         for key in keys:
-            own_entries = index.get(key, [])
+            own_entries = [
+                e for e in index.get(key, [])
+                if e.get('key') not in PROPAGATION_EXCLUDED_SERVICE_KEYS
+            ]
             if not own_entries:
                 continue
             own_best = max(own_entries, key=lambda e: len(e['text']))
