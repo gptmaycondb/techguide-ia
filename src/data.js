@@ -170,6 +170,81 @@ export const MANUALS = [
 ];
 
 // ─── RICOH ────────────────────────────────────────────────────────────────────
+// HP E826 Series
+export const MANUALS_E826 = [
+  {
+    id: 'hp_e826',
+    brand: 'hp',
+    label: 'E826 Series',
+    subtitle: 'HP LaserJet Managed MFP A3',
+    color: '#0096ff',
+    indexKey: 'hp_e826_guia',
+    searchKeys: ['hp_e826_guia', 'hp_e826_service'],
+    tags: ['E82650', 'E82660', 'E82670', 'A3', 'Mono', 'MFP', 'FutureSmart'],
+    topics: {
+      user: {
+        'Uso Diario': [
+          'Como colocar papel na E826?',
+          'Como imprimir frente e verso?',
+          'Como digitalizar um documento?',
+          'O papel atolou, o que faco?',
+          'Como trocar o toner?',
+          'Impressao saindo clara ou manchada',
+        ],
+        'Suprimentos': [
+          'Como substituir o cartucho de toner?',
+          'A impressora diz que o toner esta baixo',
+          'Como trocar o TCU?',
+          'Qual suprimento usar na E826?',
+        ],
+        'Conexao': [
+          'Como acessar o EWS?',
+          'Como configurar scan to email?',
+          'Como configurar pasta de rede?',
+          'Como definir IP estatico?',
+        ],
+        'Manutencao': [
+          'Como limpar atolamento na porta direita?',
+          'Como substituir o fusor?',
+          'Como trocar rolos de bandeja?',
+          'Onde consultar pecas da E826?',
+        ],
+      },
+      tech: {
+        'Operacao': [
+          'Configurar bandejas A3 e A4',
+          'Impressao duplex',
+          'Digitalizar para email',
+          'Digitalizar para pasta SMB',
+        ],
+        'Suprimentos': [
+          'Substituir toner preto',
+          'Substituir unidade de imagem',
+          'Substituir TCU',
+          'Consultar part numbers no parts catalog',
+        ],
+        'Rede': [
+          'Acessar EWS Servidor Web Incorporado',
+          'Configurar endereco IP estatico',
+          'Configurar SMTP',
+          'Configurar LDAP autenticacao',
+        ],
+        'Service': [
+          'Procedimento de troca de fusor',
+          'Limpar atolamento na area do fusor',
+          'Substituir rolos de alimentacao',
+          'Diagnostico de motores e sensores',
+        ],
+      },
+    },
+    prompts: {
+      user: 'Voce e um assistente de suporte para usuarios da serie HP LaserJet Managed MFP E82650/E82660/E82670. Baseie a resposta nos TRECHOS DO MANUAL fornecidos, de forma clara e completa o suficiente para o usuario resolver o problema passo a passo. Apresente o defeito, as causas e a solucao quando os trechos trouxerem. Nao invente informacoes. Pode acrescentar orientacoes gerais verdadeiras marcando como (Complemento). Se o manual nao tiver a resposta, informe isso. Portugues Brasileiro.',
+      tech: 'Voce e um tecnico especialista na serie HP LaserJet Managed MFP E82650/E82660/E82670, A3 monocromatica FutureSmart. Baseie sua resposta nos TRECHOS DO MANUAL fornecidos e apresente TODAS as informacoes relevantes deles - nao resuma demais. Organize o diagnostico em: Defeito ou condicao, Possiveis causas, Solucao passo a passo e Pecas/part numbers quando houver. Pode acrescentar conhecimento tecnico adicional APENAS se for verdadeiro e diretamente relacionado, marcando como (Complemento). NUNCA invente codigos, part numbers, valores ou procedimentos que nao estejam nos trechos. Se os trechos nao trouxerem a solucao completa, apresente o que existe e informe que o restante deve ser consultado no service manual fisico. Portugues Brasileiro.',
+    },
+  },
+];
+
+// Ricoh
 export const MANUALS_RICOH = [
   {
     id: 'ricoh_imc3000',
@@ -384,7 +459,7 @@ export const MANUALS_RICOH = [
 ];
 
 // Todos os manuais juntos (para busca geral)
-export const ALL_MANUALS = [...MANUALS, ...MANUALS_RICOH];
+export const ALL_MANUALS = [...MANUALS, ...MANUALS_E826, ...MANUALS_RICOH];
 
 // ─── MODEL_GROUPS (tela de Manuais) ───────────────────────────────────────────
 
@@ -483,6 +558,51 @@ export const BRAND_GROUPS = [
             url: 'https://drive.usercontent.google.com/download?id=1hg-Ji4DNHCQXu2y1w5pO9cOj3oD-NsaJ&export=download&confirm=t',
             localName: 'tg_service_e62655.pdf',
             size: '71 MB',
+          },
+        ],
+      },
+      {
+        id: 'hp_e826_group',
+        label: 'E826 Series',
+        subtitle: 'HP LaserJet Managed MFP E82650 / E82660 / E82670',
+        color: '#0096ff',
+        icon: 'ðŸ–¨ï¸',
+        manuals: [
+          {
+            id: 'hp_e826_guia',
+            title: 'Guia do Usuario',
+            subtitle: 'Manual de operacao E826 Series',
+            desc: 'Operacao, configuracao e solucao de problemas',
+            color: '#00d4aa',
+            icon: 'ðŸ“—',
+            tags: ['E82650', 'E82660', 'E82670', '8.3 MB'],
+            url: 'https://drive.usercontent.google.com/download?id=1T6jWaRzZ2c-Rqxwl0naHSPXG-u27y_aj&export=download&confirm=t',
+            localName: 'tg_guia_hp_e826.pdf',
+            size: '8.3 MB',
+          },
+          {
+            id: 'hp_e826_service',
+            title: 'Service Manual + Parts Catalog',
+            subtitle: 'Manual de servico e catalogo de pecas E826 Series',
+            desc: 'Pecas, troubleshooting e procedimentos de reparo',
+            color: '#0096ff',
+            icon: 'ðŸ”§',
+            tags: ['Service', 'Parts Catalog', 'E826', '140 MB'],
+            url: 'https://drive.usercontent.google.com/download?id=1hMzpRhjfF8Omei0gLZTFujwpoOW6LLAJ&export=download&confirm=t',
+            localName: 'tg_service_parts_hp_e826.pdf',
+            size: '140 MB',
+          },
+          {
+            id: 'hp_e826_cpmd',
+            title: 'Codigos de Erro (CPMD)',
+            subtitle: 'Control Panel Messages Document E826 Series',
+            desc: 'Codigos de erro e procedimentos de solucao - sera indexado na Camada 2',
+            color: '#a855f7',
+            icon: 'âš ï¸',
+            tags: ['CPMD', 'E826', '43 MB'],
+            url: 'https://drive.usercontent.google.com/download?id=1zvkbys7ZODegZhkUkJmSwobfUUwIMP_Y&export=download&confirm=t',
+            localName: 'tg_cpmd_hp_e826.pdf',
+            size: '43 MB',
           },
         ],
       },
