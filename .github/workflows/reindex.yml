@@ -1,0 +1,160 @@
+name: Reindex Search Index
+
+on:
+  workflow_dispatch:
+    inputs:
+      target_ref:
+        description: 'Branch, tag, or commit to checkout and reindex'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+jobs:
+  reindex:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.target_ref || github.ref }}
+
+      - name: Setup Python 3
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      - name: Install Poppler and gdown
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y poppler-utils
+          python3 -m pip install --upgrade pip
+          python3 -m pip install gdown
+
+      - name: Verify canonical pdftotext
+        run: |
+          pdftotext -v 2>&1 | tee pdftotext-version.txt
+          grep -qi poppler pdftotext-version.txt
+
+      - name: Download Drive PDFs used by build_index.py
+        run: |
+          gdown "https://drive.google.com/uc?id=11O2zD-BCQq71GgJ85qtwLGV-39ryoBfk" -O /tmp/ricoh_guia.pdf
+          gdown "https://drive.google.com/uc?id=1Lhct-qSmKYMV6wneIr6MW3bP8v5TMAwE" -O /tmp/ricoh_service.pdf
+          gdown "https://drive.google.com/uc?id=128-etdw8eLoJkaV-dSzA8QHFibJ0zp1b" -O /tmp/ricoh_parts.pdf
+          gdown "https://drive.google.com/uc?id=1NbV4S5IIX5e8wX4spY2TciXzfhdYy-rC" -O /tmp/ricoh_mpc3004_guia.pdf
+          gdown "https://drive.google.com/uc?id=1ylExuQ9rQJsi25u4VEhnSb1BG05l05QA" -O /tmp/ricoh_mpc3004_service.pdf
+          gdown "https://drive.google.com/uc?id=1Iu_GneoZmhtSf-v9P3pQpsafJm2tVks1" -O /tmp/sp3710_guia.pdf
+          gdown "https://drive.google.com/uc?id=1aNq74FQyNCwiHEUhi_Io45Dbdf8UsNpQ" -O /tmp/sp3710_service.pdf
+          gdown "https://drive.google.com/uc?id=1JSD6dOuxOkXfdwe-N-RCctHkUU9FMWLD" -O /tmp/sp3710_psg.pdf
+          gdown "https://drive.google.com/uc?id=1nReLfTlkWvTXU8JEdUNnkqrYZ_kNEdG8" -O /tmp/e62655_guia.pdf
+          gdown "https://drive.google.com/uc?id=1PKE-eD_-Ixk5vfC9ANb45nyDlHiJbcDf" -O /tmp/e62655_cpmd.pdf
+          gdown "https://drive.google.com/uc?id=1hg-Ji4DNHCQXu2y1w5pO9cOj3oD-NsaJ" -O /tmp/e62655_service.pdf
+          gdown "https://drive.google.com/uc?id=1T6jWaRzZ2c-Rqxwl0naHSPXG-u27y_aj" -O /tmp/e826_guia.pdf
+          gdown "https://drive.google.com/uc?id=1hMzpRhjfF8Omei0gLZTFujwpoOW6LLAJ" -O /tmp/e826_service.pdf
+
+      - name: Reindex with Poppler
+        run: |
+          mkdir -p reindex-artifacts
+          cp assets/search_index.json reindex-artifacts/search_index.committed.json
+          python3 scripts/build_index.py
+          cp assets/search_index.json reindex-artifacts/search_index.regenerated.json
+
+      - name: Compare regenerated index
+        run: |
+          python3 - <<'PY'
+          import hashlib
+          import json
+          import re
+          from pathlib import Path
+
+          artifacts = Path('reindex-artifacts')
+          committed = json.loads((artifacts / 'search_index.committed.json').read_text(encoding='utf-8'))
+          regenerated = json.loads((artifacts / 'search_index.regenerated.json').read_text(encoding='utf-8'))
+
+          def canonical_json_sha(data):
+              raw = json.dumps(data, ensure_ascii=False, separators=(',', ':')).encode('utf-8')
+              return hashlib.sha256(raw).hexdigest()
+
+          def norm(text):
+              return re.sub(r'\s+', ' ', text or '').strip()
+
+          def joined_text(entries):
+              return '\n\n'.join((entry.get('t', '') for entry in entries))
+
+          def paragraphs(entries):
+              text = '\n\n'.join(entry.get('t', '') for entry in entries)
+              return [norm(p) for p in re.split(r'\n\n+', text) if len(norm(p)) >= 80]
+
+          def classify(old_entries, new_entries):
+              old_text = norm(joined_text(old_entries))
+              new_text = norm(joined_text(new_entries))
+              old_paras = paragraphs(old_entries)
+              new_paras = paragraphs(new_entries)
+              old_in_new = sum(1 for p in old_paras if p in new_text)
+              new_in_old = sum(1 for p in new_paras if p in old_text)
+              old_ratio = old_in_new / max(len(old_paras), 1)
+              new_ratio = new_in_old / max(len(new_paras), 1)
+              if old_ratio >= 0.98 and new_ratio >= 0.98:
+                  label = 'REFATIAMENTO_PROVAVEL'
+              elif new_ratio < old_ratio:
+                  label = 'CONTEUDO_GANHO_OU_REORDENADO'
+              elif old_ratio < new_ratio:
+                  label = 'CONTEUDO_PERDIDO_OU_REORDENADO'
+              else:
+                  label = 'CONTEUDO_DIVERGENTE'
+              return label, old_in_new, len(old_paras), new_in_old, len(new_paras)
+
+          lines = []
+          lines.append('# Reindex Search Index Report')
+          lines.append('')
+          lines.append(f'target_ref: {json.dumps("${{ inputs.target_ref || github.ref }}")}')
+          lines.append('')
+          lines.append('pdftotext:')
+          lines.extend('  ' + line for line in Path('pdftotext-version.txt').read_text(encoding='utf-8').splitlines())
+          lines.append('')
+          lines.append(f'committed_sha:   {canonical_json_sha(committed)}')
+          lines.append(f'regenerated_sha: {canonical_json_sha(regenerated)}')
+          lines.append('')
+          lines.append('| key | status | committed chunks | regenerated chunks | classification | old paragraphs in regenerated | regenerated paragraphs in committed |')
+          lines.append('|---|---:|---:|---:|---|---:|---:|')
+
+          changed = []
+          all_keys = sorted(set(committed) | set(regenerated))
+          for key in all_keys:
+              old_entries = committed.get(key, [])
+              new_entries = regenerated.get(key, [])
+              status = 'OK' if old_entries == new_entries else 'CHANGED'
+              if status == 'OK':
+                  classification = '-'
+                  old_cov = '-'
+                  new_cov = '-'
+              else:
+                  changed.append(key)
+                  classification, old_hit, old_total, new_hit, new_total = classify(old_entries, new_entries)
+                  old_cov = f'{old_hit}/{old_total}'
+                  new_cov = f'{new_hit}/{new_total}'
+              lines.append(
+                  f'| {key} | {status} | {len(old_entries)} | {len(new_entries)} | '
+                  f'{classification} | {old_cov} | {new_cov} |'
+              )
+
+          lines.append('')
+          lines.append(f'changed_count: {len(changed)}')
+          lines.append('changed_keys: ' + (', '.join(changed) if changed else '(none)'))
+
+          report = '\n'.join(lines) + '\n'
+          (artifacts / 'reindex-diff-report.md').write_text(report, encoding='utf-8')
+          print(report)
+          PY
+
+      - name: Upload regenerated index and diff report
+        uses: actions/upload-artifact@v4
+        with:
+          name: reindex-search-index-${{ github.run_number }}
+          path: |
+            reindex-artifacts/search_index.committed.json
+            reindex-artifacts/search_index.regenerated.json
+            reindex-artifacts/reindex-diff-report.md
+            pdftotext-version.txt
+          retention-days: 14
