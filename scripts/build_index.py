@@ -45,6 +45,11 @@ PDF_SOURCES = {
     'e62655_guia':           [Path('/tmp/e62655_guia.pdf')],
     'e62655_cpmd':           [Path('/tmp/e62655_cpmd.pdf')],
     'e62655_service':        [Path('/tmp/e62655_service.pdf')],
+    # gdown "https://drive.google.com/uc?id=1T6jWaRzZ2c-Rqxwl0naHSPXG-u27y_aj" -O /tmp/e826_guia.pdf
+    # gdown "https://drive.google.com/uc?id=1hMzpRhjfF8Omei0gLZTFujwpoOW6LLAJ" -O /tmp/e826_service.pdf
+    # CPMD E826 fica para Camada 2: 1zvkbys7ZODegZhkUkJmSwobfUUwIMP_Y
+    'hp_e826_guia':          [Path('/tmp/e826_guia.pdf')],
+    'hp_e826_service':       [Path('/tmp/e826_service.pdf')],
 }
 
 OUT_SEARCH = PROJECT_ROOT / 'assets/search_index.json'
@@ -187,7 +192,7 @@ ALWAYS_KW = re.compile(
     r'\d{2}\.\d{2}(?:\.\d{2}(?:\.\d{2})?)?|'   # HP error codes
     r'[A-Z]{1,3}\d{3,}[A-Z]?(?:-\d+(?:CN)?)?|'  # Part numbers
     r'PCU|PCDU|ITB|ADF|EWS|BICU|PSU|FRU|'
-    r'E52645|E52545|M527|M528|M506|M507|M501|'
+    r'E82650|E82660|E82670|E826|E52645|E52545|M527|M528|M506|M507|M501|'
     r'IM.C3[0-9]00|IM.C[0-9]000|D0B[A-Z])\b'
 )
 
