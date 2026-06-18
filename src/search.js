@@ -34,6 +34,10 @@ export const MANUAL_INDEX_MAP = {
   'e62655_guia':    'e62655_guia',
   'e62655_cpmd':    'e62655_cpmd',
   'e62655_service': 'e62655_service',
+  // HP E826 Series
+  'hp_e826':         'hp_e826_guia',
+  'hp_e826_guia':    'hp_e826_guia',
+  'hp_e826_service': 'hp_e826_service',
   // Ricoh IM C3000/3500
   'ricoh_imc3000':         'ricoh_imc3000_guia',
   'ricoh_imc3000_guia':    'ricoh_imc3000_guia',
