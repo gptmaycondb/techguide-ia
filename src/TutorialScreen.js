@@ -3,14 +3,9 @@ import {
   View, Text, TouchableOpacity, StyleSheet, SafeAreaView,
   StatusBar, FlatList, Dimensions,
 } from 'react-native';
+import { colors as C, radius, spacing } from './theme';
 
 const { width: SW } = Dimensions.get('window');
-
-const C = {
-  bg: '#0d0f14', surface: '#161920', surface2: '#1e2230',
-  border: '#2a2f3e', accent: '#0096ff',
-  text: '#e4e8f0', dim: '#7a8299', muted: '#4a5168',
-};
 
 const SLIDES = [
   {
@@ -121,7 +116,7 @@ const styles = StyleSheet.create({
   },
 
   iconWrap: {
-    width: 100, height: 100, borderRadius: 28,
+    width: 100, height: 100, borderRadius: radius.lg,
     backgroundColor: C.surface2, borderWidth: 1, borderColor: C.border,
     alignItems: 'center', justifyContent: 'center', marginBottom: 8,
   },
@@ -131,7 +126,7 @@ const styles = StyleSheet.create({
   desc:  { color: C.dim, fontSize: 15, textAlign: 'center', lineHeight: 24 },
 
   footer: {
-    paddingHorizontal: 28, paddingBottom: 24, paddingTop: 16,
+    paddingHorizontal: 28, paddingBottom: spacing.xl, paddingTop: spacing.lg,
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
   },
 
@@ -142,8 +137,8 @@ const styles = StyleSheet.create({
   dotActive: { backgroundColor: C.accent, width: 20 },
 
   nextBtn: {
-    backgroundColor: C.accent, borderRadius: 12,
+    backgroundColor: C.accent, borderRadius: radius.md,
     paddingHorizontal: 28, paddingVertical: 14,
   },
-  nextText: { color: '#fff', fontSize: 15, fontWeight: '800' },
+  nextText: { color: C.white, fontSize: 15, fontWeight: '800' },
 });

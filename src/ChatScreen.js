@@ -10,13 +10,7 @@ import {
   loadModel, loadEmbeddings, unloadEmbeddings,
   isModelReady, semanticSearchManual,
 } from './semanticSearch';
-
-const C = {
-  bg: '#0d0f14', surface: '#161920', surface2: '#1e2230',
-  border: '#2a2f3e', accent: '#0096ff', accent2: '#00d4aa',
-  text: '#e4e8f0', dim: '#7a8299', muted: '#4a5168',
-  userBubble: '#1a2744', aiBubble: '#131a28', error: '#ff4d6d',
-};
+import { colors as C, radius } from './theme';
 
 function friendlyError(err) {
   if (err.name === 'AbortError') return 'Tempo limite excedido. Servidor iniciando — tente novamente em 30s.';
@@ -321,8 +315,8 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
         <View style={{ flex: 1 }}>
           <View style={[styles.bubble,
             isUser ? styles.bubbleUser : styles.bubbleAi,
-            item.isError && { backgroundColor: '#1a0a10', borderColor: '#4a1020' },
-            item.offline && { backgroundColor: '#1a0d2a', borderColor: '#6b21a8' },
+            item.isError && { backgroundColor: C.dangerSurface, borderColor: C.dangerBorder },
+            item.offline && { backgroundColor: C.offlineSurface, borderColor: C.offlineBorder },
           ]}>
             <Text
               selectable
@@ -337,7 +331,7 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
             ))}
           </View>
           {item.source && (
-            <Text style={[styles.source, !item.fromManual && { color: '#f59e0b' }]}>
+            <Text style={[styles.source, !item.fromManual && { color: C.alert }]}>
               {item.fromManual ? '● ' : '⚠ '}{item.source}
             </Text>
           )}
@@ -430,7 +424,7 @@ const styles = StyleSheet.create({
   list: { flex: 1 },
   welcome: { padding: 20, alignItems: 'center', gap: 10, marginTop: 16 },
   welcomeIcon: { width: 56, height: 56, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
-  welcomeIconText: { color: '#fff', fontWeight: '800', fontSize: 18 },
+  welcomeIconText: { color: C.white, fontWeight: '800', fontSize: 18 },
   welcomeTitle: { color: C.text, fontSize: 17, fontWeight: '700', textAlign: 'center' },
   welcomeSub: { color: C.dim, fontSize: 12, textAlign: 'center' },
   welcomeHint: { color: C.muted, fontSize: 11, marginTop: 6 },
@@ -440,17 +434,17 @@ const styles = StyleSheet.create({
   msgRowUser: { alignSelf: 'flex-end', flexDirection: 'row-reverse' },
   msgRowAi: { alignSelf: 'flex-start' },
   avatar: { width: 28, height: 28, borderRadius: 7, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  avatarUser: { backgroundColor: C.userBubble, borderWidth: 1, borderColor: '#2040a0' },
+  avatarUser: { backgroundColor: C.userBubble, borderWidth: 1, borderColor: C.accent + '80' },
   avatarAi: { backgroundColor: C.surface2, borderWidth: 1, borderColor: C.border },
   avatarText: { fontSize: 10, fontWeight: '700' },
   bubble: { padding: 10, borderRadius: 14 },
-  bubbleUser: { backgroundColor: C.userBubble, borderWidth: 1, borderColor: '#2040a0', borderTopRightRadius: 4 },
+  bubbleUser: { backgroundColor: C.userBubble, borderWidth: 1, borderColor: C.accent + '80', borderTopRightRadius: radius.sm / 2 },
   bubbleAi: { backgroundColor: C.aiBubble, borderWidth: 1, borderColor: C.border, borderTopLeftRadius: 4 },
   bubbleText: {
-    color: '#ffffff', fontSize: 13, lineHeight: 20,
+    color: C.white, fontSize: 13, lineHeight: 20,
     padding: 0, borderWidth: 0, backgroundColor: 'transparent',
   },
-  linkBtn: { marginTop: 6, backgroundColor: '#0d1f3a', borderRadius: 8, borderWidth: 1, borderColor: C.accent + '50', paddingHorizontal: 10, paddingVertical: 6 },
+  linkBtn: { marginTop: 6, backgroundColor: C.infoSurface, borderRadius: radius.sm, borderWidth: 1, borderColor: C.accent + '50', paddingHorizontal: 10, paddingVertical: 6 },
   linkBtnText: { color: C.accent, fontSize: 11, fontWeight: '600' },
   source: { color: C.muted, fontSize: 10, marginTop: 4, marginLeft: 2 },
   typingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 10, paddingLeft: 16 },
@@ -463,8 +457,8 @@ const styles = StyleSheet.create({
   input: {
     flex: 1, backgroundColor: C.surface2, borderWidth: 1, borderColor: C.border,
     borderRadius: 14, paddingHorizontal: 16, paddingVertical: 12,
-    color: '#ffffff', fontSize: 15, height: 50,
+    color: C.white, fontSize: 15, height: 50,
   },
   sendBtn: { width: 50, height: 50, borderRadius: 12, alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
-  sendIcon: { color: '#fff', fontSize: 18 },
+  sendIcon: { color: C.white, fontSize: 18 },
 });

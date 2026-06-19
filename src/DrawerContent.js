@@ -1,10 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Modal, StyleSheet } from 'react-native';
-
-const C = {
-  surface: '#161920', surface2: '#1e2230', border: '#2a2f3e',
-  accent: '#0096ff', text: '#e4e8f0', dim: '#7a8299', muted: '#4a5168',
-};
+import { colors as C, radius } from './theme';
 
 export default function DrawerContent({ manual, mode, onQuestion, onLogout, showAssistant, onOpenAssistant, provider, visibleProviders = [], onChangeProvider }) {
   const [providerModalOpen, setProviderModalOpen] = useState(false);
@@ -129,23 +125,23 @@ const styles = StyleSheet.create({
   chipText: { color: C.dim, fontSize: 13, lineHeight: 18 },
 
   logoutSection: { paddingHorizontal: 12, paddingVertical: 16, borderTopWidth: 1, borderTopColor: C.border, backgroundColor: C.surface, gap: 8 },
-  assistantBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, paddingHorizontal: 10, borderRadius: 10, borderWidth: 1, borderColor: '#0a2040', backgroundColor: '#0a1628' },
-  assistantBtnActive: { borderColor: '#0050aa', backgroundColor: '#071020' },
+  assistantBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, paddingHorizontal: 10, borderRadius: radius.md, borderWidth: 1, borderColor: C.accent + '60', backgroundColor: C.infoSurface },
+  assistantBtnActive: { borderColor: C.accent, backgroundColor: C.cardActive },
   assistantIcon: { fontSize: 16 },
   assistantText: { color: C.dim, fontSize: 13, fontWeight: '600' },
-  assistantTextActive: { color: '#4db8ff' },
+  assistantTextActive: { color: C.accent },
   assistantSub: { color: C.muted, fontSize: 10, marginTop: 2 },
   activeDot: { width: 7, height: 7, borderRadius: 4, backgroundColor: C.accent },
 
-  iaBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, paddingHorizontal: 10, borderRadius: 10, borderWidth: 1, borderColor: '#1a1a2e', backgroundColor: '#0d0d1f' },
+  iaBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, paddingHorizontal: 10, borderRadius: radius.md, borderWidth: 1, borderColor: C.border, backgroundColor: C.surface2 },
   iaIcon: { fontSize: 16 },
   iaText: { color: C.dim, fontSize: 13, fontWeight: '600' },
   iaSub: { color: C.muted, fontSize: 10, marginTop: 2 },
   iaChevron: { color: C.muted, fontSize: 14 },
 
-  logoutBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, paddingHorizontal: 10, borderRadius: 10, borderWidth: 1, borderColor: '#4a1020', backgroundColor: '#1a0a10' },
+  logoutBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 12, paddingHorizontal: 10, borderRadius: radius.md, borderWidth: 1, borderColor: C.dangerBorder, backgroundColor: C.dangerSurface },
   logoutIcon: { fontSize: 16 },
-  logoutText: { color: '#ff6b8a', fontSize: 14, fontWeight: '600' },
+  logoutText: { color: C.danger, fontSize: 14, fontWeight: '600' },
 
   overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.65)' },
   modalCard: {

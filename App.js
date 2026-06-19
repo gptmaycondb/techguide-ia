@@ -16,15 +16,10 @@ import ChatScreen from './src/ChatScreen';
 import DrawerContent from './src/DrawerContent';
 import ManualsScreen from './src/ManualsScreen';
 import AssistantBubble from './src/AssistantBubble';
+import { colors as C, radius, spacing } from './src/theme';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const DRAWER_W = Math.min(SCREEN_W * 0.82, 300);
-
-const C = {
-  bg: '#0d0f14', surface: '#161920', surface2: '#1e2230',
-  border: '#2a2f3e', accent: '#0096ff', accent2: '#00d4aa',
-  text: '#e4e8f0', dim: '#7a8299', muted: '#4a5168',
-};
 
 const BOTTOM_TABS = [
   { id: 'chat', label: 'Consulta', icon: '💬' },
@@ -273,10 +268,10 @@ export default function App() {
 
           {/* Online indicator */}
           <TouchableOpacity
-            style={[styles.onlineDot, { backgroundColor: isOnline ? '#00d4aa22' : '#6b21a822', borderColor: isOnline ? '#00d4aa' : '#6b21a8' }]}
+            style={[styles.onlineDot, { backgroundColor: isOnline ? C.offline + '22' : C.alert + '22', borderColor: isOnline ? C.offline : C.alert }]}
             onPress={() => { wakeUpServer(); checkOnline(); }}
           >
-            <Text style={{ color: isOnline ? '#00d4aa' : '#a855f7', fontSize: 8, fontWeight: '700' }}>{isOnline ? 'ON' : 'OFF'}</Text>
+            <Text style={{ color: isOnline ? C.offline : C.alert, fontSize: 8, fontWeight: '700' }}>{isOnline ? 'ON' : 'OFF'}</Text>
           </TouchableOpacity>
 
           {activeTab === 'chat' && (
@@ -446,14 +441,14 @@ export default function App() {
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: C.bg },
   headerSafe: { backgroundColor: C.surface, borderBottomWidth: 1, borderBottomColor: C.border },
-  header: { height: 56, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 12, gap: 8 },
-  headerLogo: { width: 30, height: 30, borderRadius: 7, backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center' },
-  headerLogoText: { color: '#fff', fontWeight: '800', fontSize: 11 },
+  header: { height: 56, flexDirection: 'row', alignItems: 'center', paddingHorizontal: spacing.md, gap: spacing.sm },
+  headerLogo: { width: 30, height: 30, borderRadius: radius.sm, backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center' },
+  headerLogoText: { color: C.white, fontWeight: '800', fontSize: 11 },
   headerInfo: { flex: 1 },
   headerTitle: { color: C.text, fontSize: 13, fontWeight: '700' },
   headerSub: { color: C.dim, fontSize: 10, marginTop: 1 },
   onlineDot: { width: 32, height: 22, borderRadius: 11, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  menuBtn: { width: 34, height: 34, borderRadius: 7, backgroundColor: C.surface2, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
+  menuBtn: { width: 34, height: 34, borderRadius: radius.sm, backgroundColor: C.surface2, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
   menuBtnText: { color: C.dim, fontSize: 17 },
 
   // Equipment selector strip
@@ -463,12 +458,12 @@ const styles = StyleSheet.create({
     borderTopWidth: 1, borderTopColor: C.border,
     borderLeftWidth: 3, backgroundColor: C.surface2,
   },
-  equipBrandTag: { borderWidth: 1, borderRadius: 6, paddingHorizontal: 8, paddingVertical: 3 },
+  equipBrandTag: { borderWidth: 1, borderRadius: radius.sm, paddingHorizontal: 8, paddingVertical: 3 },
   equipBrandText: { fontSize: 10, fontWeight: '800' },
   equipModelText: { color: C.text, fontSize: 12, fontWeight: '700' },
   equipSubText: { color: C.dim, fontSize: 10, marginTop: 1 },
   equipChangeBtn: {
-    backgroundColor: C.surface, borderRadius: 8, borderWidth: 1, borderColor: C.border,
+    backgroundColor: C.surface, borderRadius: radius.sm, borderWidth: 1, borderColor: C.border,
     paddingHorizontal: 10, paddingVertical: 5,
   },
   equipChangeTxt: { color: C.accent, fontSize: 10, fontWeight: '700' },

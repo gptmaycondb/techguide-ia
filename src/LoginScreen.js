@@ -5,13 +5,7 @@ import {
   KeyboardAvoidingView, ScrollView, Platform,
 } from 'react-native';
 import { login, getRememberPreference, saveRecentEmail, getRecentEmails } from './auth';
-
-const C = {
-  bg: '#0d0f14', surface: '#161920', surface2: '#1e2230',
-  border: '#2a2f3e', accent: '#0096ff', accent2: '#00d4aa',
-  text: '#e4e8f0', dim: '#7a8299', muted: '#4a5168',
-  error: '#ff4d6d',
-};
+import { colors as C, radius, spacing } from './theme';
 
 export default function LoginScreen({ onLoginSuccess }) {
   const [email, setEmail]           = useState('');
@@ -169,7 +163,7 @@ export default function LoginScreen({ onLoginSuccess }) {
               activeOpacity={0.85}
             >
               {loading
-                ? <ActivityIndicator color="#fff" size="small" />
+                ? <ActivityIndicator color={C.white} size="small" />
                 : <Text style={styles.btnText}>Entrar →</Text>
               }
             </TouchableOpacity>
@@ -187,7 +181,7 @@ export default function LoginScreen({ onLoginSuccess }) {
 const styles = StyleSheet.create({
   safe:     { flex: 1, backgroundColor: C.bg },
   scroll:   { flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: 28, paddingVertical: 48 },
-  logo:     { width: 80, height: 80, borderRadius: 18, marginBottom: 18 },
+  logo:     { width: 80, height: 80, borderRadius: radius.card, marginBottom: 18 },
   title:    { color: C.text, fontSize: 26, fontWeight: '800', letterSpacing: 0.5 },
   subtitle: { color: C.dim, fontSize: 12, marginTop: 6, letterSpacing: 0.3 },
   divider:  { width: 40, height: 3, backgroundColor: C.accent, borderRadius: 2, marginVertical: 24 },
@@ -197,7 +191,7 @@ const styles = StyleSheet.create({
 
   input: {
     backgroundColor: C.surface2, borderWidth: 1, borderColor: C.border,
-    borderRadius: 12, paddingHorizontal: 16, paddingVertical: 14,
+    borderRadius: radius.md, paddingHorizontal: spacing.lg, paddingVertical: 14,
     color: C.text, fontSize: 15,
   },
   inputFocused: { borderColor: C.accent },
@@ -207,7 +201,7 @@ const styles = StyleSheet.create({
   dropdown: {
     position: 'absolute', top: '100%', left: 0, right: 0,
     backgroundColor: C.surface2, borderWidth: 1, borderColor: C.border,
-    borderRadius: 12, marginTop: 4, zIndex: 100,
+    borderRadius: radius.md, marginTop: 4, zIndex: 100,
     overflow: 'hidden',
   },
   dropItem:       { paddingHorizontal: 16, paddingVertical: 13 },
@@ -230,19 +224,19 @@ const styles = StyleSheet.create({
     borderColor: C.border, alignItems: 'center', justifyContent: 'center',
   },
   checkboxChecked: { backgroundColor: C.accent, borderColor: C.accent },
-  checkmark:       { color: '#fff', fontSize: 12, fontWeight: '800' },
+  checkmark:       { color: C.white, fontSize: 12, fontWeight: '800' },
   rememberText:    { color: C.dim, fontSize: 13 },
 
   errorText: { color: C.error, fontSize: 13, marginTop: 10, textAlign: 'center' },
 
   btn: {
-    marginTop: 20, backgroundColor: C.accent, borderRadius: 14,
+    marginTop: 20, backgroundColor: C.accent, borderRadius: radius.card,
     paddingVertical: 16, alignItems: 'center', justifyContent: 'center',
     shadowColor: C.accent, shadowOpacity: 0.35, shadowRadius: 12,
     shadowOffset: { width: 0, height: 4 }, elevation: 6,
   },
   btnDisabled: { backgroundColor: C.surface2, shadowOpacity: 0 },
-  btnText:     { color: '#fff', fontSize: 16, fontWeight: '800', letterSpacing: 0.5 },
+  btnText:     { color: C.white, fontSize: 16, fontWeight: '800', letterSpacing: 0.5 },
 
   footer: { color: C.muted, fontSize: 11, marginTop: 36, textAlign: 'center' },
 });

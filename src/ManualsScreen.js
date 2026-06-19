@@ -7,13 +7,7 @@ import * as FileSystem from 'expo-file-system';
 import * as Sharing from 'expo-sharing';
 import * as IntentLauncher from 'expo-intent-launcher';
 import { BRAND_GROUPS } from './data';
-
-const C = {
-  bg: '#0d0f14', surface: '#161920', surface2: '#1e2230',
-  border: '#2a2f3e', accent: '#0096ff', accent2: '#00d4aa',
-  text: '#e4e8f0', dim: '#7a8299', muted: '#4a5168',
-  success: '#22c55e',
-};
+import { colors as C, radius, spacing } from './theme';
 
 export default function ManualsScreen() {
   const [loading, setLoading] = useState({});
@@ -202,8 +196,8 @@ export default function ManualsScreen() {
                           </View>
                         )}
                         {isUnavailable && (
-                          <View style={[styles.badge, { backgroundColor: '#1a1200', borderColor: '#f59e0b' }]}>
-                            <Text style={[styles.badgeText, { color: '#f59e0b' }]}>⏳</Text>
+                          <View style={[styles.badge, { backgroundColor: C.alert + '20', borderColor: C.alert }]}>
+                            <Text style={[styles.badgeText, { color: C.alert }]}>⏳</Text>
                           </View>
                         )}
                       </View>
@@ -236,7 +230,7 @@ export default function ManualsScreen() {
                                   ? C.surface2
                                   : manual.color
                             },
-                            isUnavailable && { borderWidth: 1, borderColor: '#f59e0b44' },
+                            isUnavailable && { borderWidth: 1, borderColor: C.alert + '44' },
                           ]}
                           onPress={() => handlePdf(manual)}
                           disabled={isLoading}
@@ -249,7 +243,7 @@ export default function ManualsScreen() {
                               </Text>
                             </View>
                           ) : isUnavailable ? (
-                            <Text style={[styles.btnText, { color: '#f59e0b' }]}>⏳ Em breve</Text>
+                            <Text style={[styles.btnText, { color: C.alert }]}>⏳ Em breve</Text>
                           ) : (
                             <Text style={styles.btnText}>{isDone ? '📂 Abrir' : '⬇ Baixar e Abrir'}</Text>
                           )}
@@ -282,17 +276,17 @@ export default function ManualsScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
-  scroll: { padding: 14, gap: 14, paddingBottom: 30 },
+  scroll: { padding: spacing.md, gap: spacing.md, paddingBottom: 30 },
 
   // Brand
   brandBlock: { gap: 8 },
   brandHeader: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: C.surface, borderRadius: 14, padding: 14,
+    backgroundColor: C.surface, borderRadius: radius.card, padding: 14,
     borderWidth: 1,
   },
   brandIconBadge: {
-    width: 38, height: 38, borderRadius: 10, borderWidth: 1,
+    width: 38, height: 38, borderRadius: radius.md, borderWidth: 1,
     alignItems: 'center', justifyContent: 'center',
   },
   brandIcon: { fontSize: 20 },
@@ -303,7 +297,7 @@ const styles = StyleSheet.create({
   modelBlock: { gap: 6, marginLeft: 4 },
   modelHeader: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
-    backgroundColor: C.surface2, borderRadius: 11, padding: 12,
+    backgroundColor: C.surface2, borderRadius: radius.md, padding: 12,
     borderLeftWidth: 3, borderWidth: 1, borderColor: C.border,
   },
   modelIcon: { fontSize: 18 },
@@ -314,7 +308,7 @@ const styles = StyleSheet.create({
 
   // Manual card
   card: {
-    backgroundColor: C.surface, borderRadius: 12, padding: 14,
+    backgroundColor: C.surface, borderRadius: radius.card, padding: 14,
     borderLeftWidth: 3, borderWidth: 1, borderColor: C.border,
     marginLeft: 12, gap: 8,
   },
@@ -323,8 +317,8 @@ const styles = StyleSheet.create({
   cardTitle: { color: C.text, fontSize: 13, fontWeight: '700' },
   cardSubtitle: { color: C.dim, fontSize: 10, marginTop: 1 },
   badge: {
-    backgroundColor: '#0d2a1a', borderWidth: 1, borderColor: C.success,
-    borderRadius: 12, width: 24, height: 24, alignItems: 'center', justifyContent: 'center',
+    backgroundColor: C.offlineSurface, borderWidth: 1, borderColor: C.success,
+    borderRadius: radius.md, width: 24, height: 24, alignItems: 'center', justifyContent: 'center',
   },
   badgeText: { color: C.success, fontSize: 11, fontWeight: '700' },
   tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
@@ -336,19 +330,19 @@ const styles = StyleSheet.create({
   progressText: { color: C.text, fontSize: 11, fontWeight: '600', minWidth: 30 },
   btns: { flexDirection: 'row', gap: 8 },
   btnMain: {
-    flex: 1, borderRadius: 10, paddingVertical: 12,
+    flex: 1, borderRadius: radius.md, paddingVertical: 12,
     alignItems: 'center', justifyContent: 'center', minHeight: 46,
   },
   btnRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  btnText: { color: '#fff', fontSize: 13, fontWeight: '700' },
+  btnText: { color: C.white, fontSize: 13, fontWeight: '700' },
   btnLoadText: { fontSize: 12, fontWeight: '600' },
   btnDel: {
-    width: 46, height: 46, borderRadius: 10, backgroundColor: '#1a0a10',
-    borderWidth: 1, borderColor: '#4a1020', alignItems: 'center', justifyContent: 'center',
+    width: 46, height: 46, borderRadius: radius.md, backgroundColor: C.dangerSurface,
+    borderWidth: 1, borderColor: C.dangerBorder, alignItems: 'center', justifyContent: 'center',
   },
   btnDelText: { fontSize: 18 },
   footer: {
-    padding: 14, backgroundColor: C.surface, borderRadius: 12,
+    padding: 14, backgroundColor: C.surface, borderRadius: radius.card,
     borderWidth: 1, borderColor: C.border, alignItems: 'center',
   },
   footerText: { color: C.muted, fontSize: 11, textAlign: 'center', lineHeight: 20 },

@@ -1,11 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, StyleSheet, SafeAreaView, StatusBar } from 'react-native';
-
-const C = {
-  bg: '#0d0f14', surface: '#161920', surface2: '#1e2230',
-  border: '#2a2f3e', accent: '#0096ff',
-  text: '#e4e8f0', dim: '#7a8299', muted: '#4a5168',
-};
+import { colors as C, radius, spacing } from './theme';
 
 export default function WelcomeScreen({ brands, onSelectBrand }) {
   return (
@@ -47,16 +42,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32, gap: 16,
   },
   logo: {
-    width: 72, height: 72, borderRadius: 18,
+    width: 72, height: 72, borderRadius: radius.card,
     backgroundColor: C.accent, alignItems: 'center', justifyContent: 'center',
     marginBottom: 8,
   },
-  logoText: { color: '#fff', fontWeight: '800', fontSize: 26 },
+  logoText: { color: C.white, fontWeight: '800', fontSize: 26 },
   title: { color: C.text, fontSize: 22, fontWeight: '800', textAlign: 'center' },
   sub: { color: C.dim, fontSize: 14, textAlign: 'center', lineHeight: 20 },
-  brandRow: { flexDirection: 'row', gap: 16, marginTop: 8, width: '100%' },
+  brandRow: { flexDirection: 'row', gap: spacing.lg, marginTop: 8, width: '100%' },
   card: {
-    flex: 1, borderWidth: 2, borderRadius: 16, backgroundColor: C.surface,
+    flex: 1, borderWidth: 2, borderRadius: radius.card, backgroundColor: C.surface,
     alignItems: 'center', paddingVertical: 24, paddingHorizontal: 12, gap: 10,
   },
   cardLabel: { fontSize: 20, fontWeight: '800' },
