@@ -12,6 +12,7 @@ import Tag from './components/Tag';
 import SurfaceCard from './components/SurfaceCard';
 import StatusBadge from './components/StatusBadge';
 import ActionButton from './components/ActionButton';
+import { getManualDownloadStatus } from './offlineStatus';
 
 export default function ManualsScreen() {
   const [loading, setLoading] = useState({});
@@ -36,8 +37,7 @@ export default function ManualsScreen() {
     for (const brand of BRAND_GROUPS) {
       for (const model of brand.models) {
         for (const m of model.manuals) {
-          const info = await FileSystem.getInfoAsync(FileSystem.documentDirectory + m.localName);
-          status[m.id] = info.exists && (info.size || 0) > 10000;
+          status[m.id] = await getManualDownloadStatus(m);
         }
       }
     }
