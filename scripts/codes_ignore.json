@@ -8,6 +8,10 @@
     "102215": "Appears only as a didactic example in the error code structure explanation — not a real displayable error code",
     "760024": "Appears only as a TOC page-number reference ('76.00.24 5') in the e62655 CPMD — not a real displayable error code"
   },
+  "hp_e826_cpmd": {
+    "102215": "Appears only as a didactic example in the error code structure explanation ('for example, in error code 10.22.15') — not a real displayable error code",
+    "760024": "Appears only as a book index page-number reference ('76.00.24 5') in the E826 CPMD — not a real displayable error code"
+  },
   "service": {
     "102215": "Appears only as a didactic example in the error code structure explanation — not a real displayable error code",
     "13B2D2": "Appears only as a didactic example in HP WISE Support Website search instructions ('Type the error code (for example, 13.b2.d2) in the Error Code Lookup keyword field') — not a real displayable error code",
