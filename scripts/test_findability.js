@@ -99,6 +99,7 @@ function parseSseText(text) {
 const KEYS = {
   E52645:      ['e52645_guia', 'cpmd', 'service'],
   E62655:      ['e62655_guia', 'e62655_service', 'e62655_cpmd'],
+  E826:        ['hp_e826_guia', 'hp_e826_service', 'hp_e826_cpmd'],
   imc3000:     ['ricoh_imc3000_service', 'ricoh_imc3000_guia', 'ricoh_imc3000_parts'],
   mpc3004:     ['ricoh_mpc3004_service', 'ricoh_mpc3004_guia'],
   sp3710:      ['ricoh_sp3710_service', 'ricoh_sp3710_guia', 'ricoh_sp3710_psg'],
@@ -219,6 +220,11 @@ expect('SC285-00 via mpc3004 searchKeys', 'SC285-00', KEYS.mpc3004, true);
 console.log('[Ricoh SP 3710] códigos SC### e SC542-## → devem achar via ricoh_sp3710_service');
 for (const code of ['SC202', 'SC541', 'SC543', 'SC688', 'SC542-01']) {
   expect(`${code} via sp3710 searchKeys`, code, KEYS.sp3710, true);
+}
+
+console.log('[HP E826] CPMD codes -> devem achar via hp_e826_cpmd');
+for (const code of ['13.B2.D2', '13.B9.A1', '10.00.35', '99.09.67', '59.05.50']) {
+  expect(`${code} via E826 searchKeys`, code, KEYS.E826, true);
 }
 
 // ── Lote 1 — subcódigos inline ● (5 famílias) ────────────────────────────────
@@ -471,5 +477,77 @@ console.log('\n[parseSseText] parser SSE — fix Gemini onload');
 }
 
 // ── Resumo ────────────────────────────────────────────────────────────────────
+console.log('[Cross-model isolation] HP E826 colidindo com E52645/E62655 nao cruza descricoes');
+expectContains(
+  '13.B2.D2 via E826 -> tray 2/registration sensor do E826, nao right door/PS4550 da E62655',
+  '13.B2.D2',
+  KEYS.E826,
+  ['13.B2.D2 Jam in tray 2', 'registration sensor'],
+  ['Jam in right door', 'PS4550']
+);
+expectContains(
+  '13.B2.D2 via E62655 -> right door/PS4550 da E62655, nao texto E826',
+  '13.B2.D2',
+  KEYS.E62655,
+  ['Jam in right door', 'PS4550'],
+  ['13.B2.D2 Jam in tray 2']
+);
+expectContains(
+  '13.B9.A1 via E826 -> Auto-Sense mode Normal, nao Tray 1 dos CPMDs antigos',
+  '13.B9.A1',
+  KEYS.E826,
+  ['Printing in Auto-Sense mode Normal'],
+  ['Tray 1']
+);
+expectContains(
+  '13.B9.A1 via E52645 -> Tray 1 antigo, nao Auto-Sense E826',
+  '13.B9.A1',
+  KEYS.E52645,
+  ['Tray 1'],
+  ['Auto-Sense mode Normal']
+);
+expectContains(
+  '10.00.35 via E826 -> black toner cartridge E826, nao descricao generica E52645',
+  '10.00.35',
+  KEYS.E826,
+  ['Incompatible toner cartridge', 'black toner cartridge'],
+  ['Incompatible supply in use']
+);
+expectContains(
+  '10.00.35 via E62655 -> supply E62655, nao toner cartridge E826',
+  '10.00.35',
+  KEYS.E62655,
+  ['Replace the supply with one that is designed for this printer'],
+  ['The black toner cartridge installed is not a genuine HP supply']
+);
+expectContains(
+  '99.09.67 via E826 -> hard disk drive or eMMC, nao texto E62655 service',
+  '99.09.67',
+  KEYS.E826,
+  ['hard disk drive or eMMC'],
+  ['after Format Disk or disk replacement']
+);
+expectContains(
+  '99.09.67 via E62655 -> texto E62655, nao eMMC E826',
+  '99.09.67',
+  KEYS.E62655,
+  ['after Format Disk or disk replacement'],
+  ['hard disk drive or eMMC']
+);
+expectContains(
+  '59.05.50 via E826 -> black drum motor E826',
+  '59.05.50',
+  KEYS.E826,
+  ['59.05.50 Black drum motor error'],
+  ['Drum motor startup abnormality']
+);
+expectContains(
+  '59.05.50 via E62655 -> drum motor startup antigo, nao stub E826',
+  '59.05.50',
+  KEYS.E62655,
+  ['Drum motor startup abnormality'],
+  ['59.05.50 Black drum motor error']
+);
+
 console.log(`\n=== ${pass + fail} testes: ${pass} passaram, ${fail} falharam ===`);
 if (fail > 0) process.exit(1);

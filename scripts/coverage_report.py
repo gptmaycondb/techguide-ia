@@ -39,6 +39,7 @@ IGNORE_PATH  = Path(__file__).parent / 'codes_ignore.json'
 ERROR_KEYS = [
     'cpmd', 'service',
     'e62655_cpmd', 'e62655_service',
+    'hp_e826_cpmd',
     'ricoh_imc3000_service', 'ricoh_mpc3004_service', 'ricoh_sp3710_service',
 ]
 
@@ -48,6 +49,7 @@ ERROR_KEYS = [
 MODEL_SEARCHKEYS: dict[str, list[str]] = {
     'E52645':   ['cpmd', 'service'],            # e52645_guia não tem error codes
     'E62655':   ['e62655_cpmd', 'e62655_service'],
+    'E826':     ['hp_e826_cpmd'],
     'imc3000':  ['ricoh_imc3000_service'],
     'mpc3004':  ['ricoh_mpc3004_service'],
     'sp3710':   ['ricoh_sp3710_service'],
@@ -288,7 +290,7 @@ def main() -> None:
         text  = clean_text(''.join(pdf_to_text(p) for p in available))
         cov   = covered_canons(index, svc)
         ig    = {canon(k) for k in ignore.get(svc, {})}
-        hp    = svc in ('cpmd', 'service', 'e62655_cpmd', 'e62655_service')
+        hp    = svc in ('cpmd', 'service', 'e62655_cpmd', 'e62655_service', 'hp_e826_cpmd')
         if hp:
             cands = extract_hp(text)
         elif svc == SP3710_SERVICE_KEY:

@@ -179,7 +179,7 @@ export const MANUALS_E826 = [
     subtitle: 'HP LaserJet Managed MFP A3',
     color: '#0096ff',
     indexKey: 'hp_e826_guia',
-    searchKeys: ['hp_e826_guia', 'hp_e826_service'],
+    searchKeys: ['hp_e826_guia', 'hp_e826_service', 'hp_e826_cpmd'],
     tags: ['E82650', 'E82660', 'E82670', 'A3', 'Mono', 'MFP', 'FutureSmart'],
     topics: {
       user: {
