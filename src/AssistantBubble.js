@@ -4,6 +4,7 @@ import {
   Animated, PanResponder, Dimensions, Platform,
 } from 'react-native';
 import { ASSISTANT_TIPS } from './tips';
+import { colors as C, radius } from './theme';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
@@ -13,12 +14,6 @@ const DISMISS_ZONE_H   = 90;
 const DISMISS_THRESHOLD  = SCREEN_H - DISMISS_ZONE_H;
 const DISMISS_CENTER_X   = SCREEN_W / 2 - BUBBLE_SIZE / 2;
 const DISMISS_CENTER_Y   = SCREEN_H - 60;
-
-const C = {
-  bg: '#0d0f14', surface2: '#1e2230', border: '#2a2f3e',
-  accent: '#0096ff', text: '#e4e8f0', dim: '#7a8299', muted: '#4a5168',
-  error: '#ff4d6d',
-};
 
 const MAX_DOTS = 5;
 
@@ -235,22 +230,22 @@ const styles = StyleSheet.create({
   dismissZone: { position: 'absolute', bottom: 20, left: 0, right: 0, alignItems: 'center' },
   dismissCircle: {
     width: 56, height: 56, borderRadius: 28,
-    backgroundColor: '#1a0a10', borderWidth: 2, borderColor: '#4a1020',
+    backgroundColor: C.dangerSurface, borderWidth: 2, borderColor: C.dangerBorder,
     alignItems: 'center', justifyContent: 'center',
   },
   dismissCircleActive: {
-    backgroundColor: '#3a0818', borderColor: C.error,
+    backgroundColor: C.dangerSurface, borderColor: C.error,
     shadowColor: C.error, shadowOpacity: 0.6, shadowRadius: 12, elevation: 6,
   },
-  dismissIcon: { color: '#ff6b8a', fontSize: 20, fontWeight: '700' },
+  dismissIcon: { color: C.danger, fontSize: 20, fontWeight: '700' },
 
   card: {
     position: 'absolute',
     top: Platform.OS === 'ios' ? 80 : 60,
     left: (SCREEN_W - 310) / 2, width: 310,
-    backgroundColor: C.surface2, borderRadius: 20,
+    backgroundColor: C.surface2, borderRadius: radius.lg,
     borderWidth: 1, borderColor: C.border,
-    shadowColor: '#000', shadowOpacity: 0.45, shadowRadius: 20,
+    shadowColor: C.black, shadowOpacity: 0.45, shadowRadius: 20,
     shadowOffset: { width: 0, height: 6 }, elevation: 12, overflow: 'hidden',
   },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 12 },
