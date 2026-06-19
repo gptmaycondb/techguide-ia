@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { ASSISTANT_TIPS } from './tips';
 import { colors as C, radius } from './theme';
+import SurfaceCard from './components/SurfaceCard';
 
 const { width: SCREEN_W, height: SCREEN_H } = Dimensions.get('window');
 
@@ -163,7 +164,7 @@ export default function AssistantBubble({ visible, onDismiss, brand = 'hp', mode
 
       {/* TipCard */}
       {tipOpen && !dragging && (
-        <Animated.View style={[styles.card, { transform: [{ scale: cardAnim }] }]}>
+        <SurfaceCard as={Animated.View} variant="raised" style={[styles.card, { transform: [{ scale: cardAnim }] }]}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardHeaderIcon}>💡</Text>
             <Text style={styles.cardHeaderLabel}>Dica {currentTip + 1} de {total}</Text>
@@ -187,7 +188,7 @@ export default function AssistantBubble({ visible, onDismiss, brand = 'hp', mode
               <Text style={styles.navArrow}>›</Text>
             </TouchableOpacity>
           </View>
-        </Animated.View>
+        </SurfaceCard>
       )}
 
       {/* Dismiss zone */}

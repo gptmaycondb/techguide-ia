@@ -11,6 +11,7 @@ import {
   isModelReady, semanticSearchManual,
 } from './semanticSearch';
 import { colors as C, radius } from './theme';
+import SurfaceCard from './components/SurfaceCard';
 
 function friendlyError(err) {
   if (err.name === 'AbortError') return 'Tempo limite excedido. Servidor iniciando — tente novamente em 30s.';
@@ -352,9 +353,9 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
         <Text style={styles.welcomeSub}>{manual.subtitle}</Text>
         <Text style={styles.welcomeHint}>Sugestoes de pesquisa:</Text>
         {questions.map((q, i) => (
-          <TouchableOpacity key={i} style={styles.suggBtn} onPress={() => send(q)}>
+          <SurfaceCard as={TouchableOpacity} key={i} variant="compact" style={styles.suggBtn} onPress={() => send(q)}>
             <Text style={styles.suggText}>→ {q}</Text>
-          </TouchableOpacity>
+          </SurfaceCard>
         ))}
       </View>
     );

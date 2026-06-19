@@ -8,6 +8,10 @@ import * as Sharing from 'expo-sharing';
 import * as IntentLauncher from 'expo-intent-launcher';
 import { BRAND_GROUPS } from './data';
 import { colors as C, radius, spacing } from './theme';
+import Tag from './components/Tag';
+import SurfaceCard from './components/SurfaceCard';
+import StatusBadge from './components/StatusBadge';
+import ActionButton from './components/ActionButton';
 
 export default function ManualsScreen() {
   const [loading, setLoading] = useState({});
@@ -138,7 +142,8 @@ export default function ManualsScreen() {
           <View key={brand.id} style={styles.brandBlock}>
 
             {/* ── Brand Header ─────────────────────────────── */}
-            <TouchableOpacity
+              <SurfaceCard
+                as={TouchableOpacity}
               style={[styles.brandHeader, { borderColor: brand.color + '50' }]}
               onPress={() => toggleBrand(brand.id)}
               activeOpacity={0.8}
@@ -153,14 +158,15 @@ export default function ManualsScreen() {
               <Text style={[styles.arrow, { color: brand.color }]}>
                 {expandedBrand[brand.id] ? '▲' : '▼'}
               </Text>
-            </TouchableOpacity>
+              </SurfaceCard>
 
             {/* ── Models inside brand ───────────────────────── */}
             {expandedBrand[brand.id] && brand.models.map(model => (
               <View key={model.id} style={styles.modelBlock}>
 
                 {/* Model Header */}
-                <TouchableOpacity
+                  <SurfaceCard
+                    as={TouchableOpacity}
                   style={[styles.modelHeader, { borderLeftColor: model.color }]}
                   onPress={() => toggleModel(model.id)}
                   activeOpacity={0.8}
@@ -173,7 +179,7 @@ export default function ManualsScreen() {
                   <Text style={[styles.arrow, { color: model.color }]}>
                     {expandedModel[model.id] ? '▲' : '▼'}
                   </Text>
-                </TouchableOpacity>
+                  </SurfaceCard>
 
                 {/* Manuals in model */}
                 {expandedModel[model.id] && model.manuals.map(manual => {
@@ -183,7 +189,7 @@ export default function ManualsScreen() {
                   const isUnavailable = !manual.url;
 
                   return (
-                    <View key={manual.id} style={[styles.card, { borderLeftColor: manual.color }]}>
+                    <SurfaceCard key={manual.id} style={[styles.card, { borderLeftColor: manual.color }]}>
                       <View style={styles.cardHeader}>
                         <Text style={styles.cardIcon}>{manual.icon}</Text>
                         <View style={{ flex: 1 }}>
@@ -191,22 +197,16 @@ export default function ManualsScreen() {
                           <Text style={styles.cardSubtitle}>{manual.subtitle}</Text>
                         </View>
                         {isDone && (
-                          <View style={styles.badge}>
-                            <Text style={styles.badgeText}>✓</Text>
-                          </View>
+                          <StatusBadge icon="✓" tone="offline" size={24} style={styles.badge} textStyle={styles.badgeText} />
                         )}
                         {isUnavailable && (
-                          <View style={[styles.badge, { backgroundColor: C.alert + '20', borderColor: C.alert }]}>
-                            <Text style={[styles.badgeText, { color: C.alert }]}>⏳</Text>
-                          </View>
+                          <StatusBadge icon="⏳" tone="alert" size={24} style={styles.badge} textStyle={[styles.badgeText, { color: C.alert }]} />
                         )}
                       </View>
 
                       <View style={styles.tagsRow}>
                         {manual.tags.map(t => (
-                          <View key={t} style={[styles.tag, { borderColor: manual.color + '60' }]}>
-                            <Text style={[styles.tagText, { color: manual.color }]}>{t}</Text>
-                          </View>
+                          <Tag key={t} label={t} color={manual.color} size="compact" />
                         ))}
                       </View>
 
@@ -220,7 +220,7 @@ export default function ManualsScreen() {
                       )}
 
                       <View style={styles.btns}>
-                        <TouchableOpacity
+                        <ActionButton
                           style={[
                             styles.btnMain,
                             {
@@ -247,14 +247,14 @@ export default function ManualsScreen() {
                           ) : (
                             <Text style={styles.btnText}>{isDone ? '📂 Abrir' : '⬇ Baixar e Abrir'}</Text>
                           )}
-                        </TouchableOpacity>
+                        </ActionButton>
                         {isDone && !isLoading && (
                           <TouchableOpacity style={styles.btnDel} onPress={() => deletePdf(manual)}>
                             <Text style={styles.btnDelText}>🗑</Text>
                           </TouchableOpacity>
                         )}
                       </View>
-                    </View>
+                    </SurfaceCard>
                   );
                 })}
               </View>
@@ -322,8 +322,6 @@ const styles = StyleSheet.create({
   },
   badgeText: { color: C.success, fontSize: 11, fontWeight: '700' },
   tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
-  tag: { borderWidth: 1, borderRadius: 5, paddingHorizontal: 6, paddingVertical: 2 },
-  tagText: { fontSize: 9, fontWeight: '600' },
   progressWrap: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   progressBg: { flex: 1, height: 6, backgroundColor: C.surface2, borderRadius: 3, overflow: 'hidden' },
   progressFill: { height: '100%', borderRadius: 3 },
