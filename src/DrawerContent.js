@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ScrollView, Modal, StyleSheet } from 'react-native';
 import { colors as C, radius } from './theme';
+import Tag from './components/Tag';
+import ActionButton from './components/ActionButton';
 
 export default function DrawerContent({ manual, mode, onQuestion, onLogout, showAssistant, onOpenAssistant, provider, visibleProviders = [], onChangeProvider }) {
   const [providerModalOpen, setProviderModalOpen] = useState(false);
@@ -20,9 +22,7 @@ export default function DrawerContent({ manual, mode, onQuestion, onLogout, show
       </View>
       <View style={styles.tags}>
         {manual.tags.map(t => (
-          <View key={t} style={[styles.tag, { borderColor: manual.color + '60' }]}>
-            <Text style={[styles.tagText, { color: manual.color }]}>{t}</Text>
-          </View>
+          <Tag key={t} label={t} color={manual.color} />
         ))}
       </View>
       <ScrollView style={styles.topics} showsVerticalScrollIndicator={false}>
@@ -39,7 +39,7 @@ export default function DrawerContent({ manual, mode, onQuestion, onLogout, show
       </ScrollView>
 
       <View style={styles.logoutSection}>
-        <TouchableOpacity
+        <ActionButton
           style={[styles.assistantBtn, showAssistant && styles.assistantBtnActive]}
           onPress={showAssistant ? undefined : onOpenAssistant}
           activeOpacity={showAssistant ? 1 : 0.75}
@@ -54,7 +54,7 @@ export default function DrawerContent({ manual, mode, onQuestion, onLogout, show
             </Text>
           </View>
           {showAssistant && <View style={styles.activeDot} />}
-        </TouchableOpacity>
+        </ActionButton>
 
         {onChangeProvider && (
           visibleProviders.length === 0 ? (
@@ -66,21 +66,21 @@ export default function DrawerContent({ manual, mode, onQuestion, onLogout, show
               </View>
             </View>
           ) : (
-            <TouchableOpacity style={styles.iaBtn} onPress={() => setProviderModalOpen(true)} activeOpacity={0.75}>
+            <ActionButton variant="secondary" style={styles.iaBtn} onPress={() => setProviderModalOpen(true)} activeOpacity={0.75}>
               <Text style={styles.iaIcon}>🧠</Text>
               <View style={{ flex: 1 }}>
                 <Text style={styles.iaText}>Modelo de IA</Text>
                 <Text style={styles.iaSub} numberOfLines={1}>{activeProvider?.label ?? '—'}</Text>
               </View>
               <Text style={styles.iaChevron}>▾</Text>
-            </TouchableOpacity>
+            </ActionButton>
           )
         )}
 
-        <TouchableOpacity style={styles.logoutBtn} onPress={onLogout} activeOpacity={0.75}>
+        <ActionButton variant="danger" style={styles.logoutBtn} onPress={onLogout} activeOpacity={0.75}>
           <Text style={styles.logoutIcon}>🚪</Text>
           <Text style={styles.logoutText}>Sair</Text>
-        </TouchableOpacity>
+        </ActionButton>
       </View>
 
       <Modal visible={providerModalOpen} transparent animationType="fade" onRequestClose={() => setProviderModalOpen(false)}>
@@ -116,8 +116,6 @@ const styles = StyleSheet.create({
   modelName: { color: C.text, fontSize: 14, fontWeight: '700' },
   modelType: { color: C.dim, fontSize: 11, marginTop: 2 },
   tags: { flexDirection: 'row', flexWrap: 'wrap', gap: 4, padding: 14, paddingTop: 10 },
-  tag: { borderWidth: 1, borderRadius: 4, paddingHorizontal: 7, paddingVertical: 2 },
-  tagText: { fontSize: 10, fontWeight: '600' },
   topics: { flex: 1 },
   section: { padding: 12, paddingTop: 8 },
   sectionLabel: { color: C.muted, fontSize: 9, letterSpacing: 1.2, textTransform: 'uppercase', marginBottom: 6 },

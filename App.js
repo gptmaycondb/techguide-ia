@@ -17,6 +17,9 @@ import DrawerContent from './src/DrawerContent';
 import ManualsScreen from './src/ManualsScreen';
 import AssistantBubble from './src/AssistantBubble';
 import { colors as C, radius, spacing } from './src/theme';
+import SurfaceCard from './src/components/SurfaceCard';
+import StatusBadge from './src/components/StatusBadge';
+import IconButton from './src/components/IconButton';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const DRAWER_W = Math.min(SCREEN_W * 0.82, 300);
@@ -267,17 +270,18 @@ export default function App() {
           </View>
 
           {/* Online indicator */}
-          <TouchableOpacity
-            style={[styles.onlineDot, { backgroundColor: isOnline ? C.offline + '22' : C.alert + '22', borderColor: isOnline ? C.offline : C.alert }]}
+          <StatusBadge
+            label={isOnline ? 'ON' : 'OFF'}
+            tone={isOnline ? 'offline' : 'alert'}
+            shape="pill"
+            size={32}
             onPress={() => { wakeUpServer(); checkOnline(); }}
-          >
-            <Text style={{ color: isOnline ? C.offline : C.alert, fontSize: 8, fontWeight: '700' }}>{isOnline ? 'ON' : 'OFF'}</Text>
-          </TouchableOpacity>
+            style={[styles.onlineDot, { backgroundColor: isOnline ? C.offline + '22' : C.alert + '22', borderColor: isOnline ? C.offline : C.alert }]}
+            textStyle={styles.onlineDotText}
+          />
 
           {activeTab === 'chat' && (
-            <TouchableOpacity style={styles.menuBtn} onPress={openDrawer}>
-              <Text style={styles.menuBtnText}>☰</Text>
-            </TouchableOpacity>
+            <IconButton icon="☰" onPress={openDrawer} style={styles.menuBtn} iconStyle={styles.menuBtnText} />
           )}
         </View>
 
@@ -355,7 +359,9 @@ export default function App() {
             </View>
             <View style={styles.brandRow}>
               {BRANDS.map(b => (
-                <TouchableOpacity
+                <SurfaceCard
+                  as={TouchableOpacity}
+                  variant="bare"
                   key={b.id}
                   style={[
                     styles.brandCard,
@@ -371,7 +377,7 @@ export default function App() {
                   <Text style={[styles.brandCardSub, { color: selectedBrandId === b.id ? b.color + 'cc' : C.muted }]}>
                     {b.manuals.length} modelo{b.manuals.length !== 1 ? 's' : ''}
                   </Text>
-                </TouchableOpacity>
+                </SurfaceCard>
               ))}
             </View>
             <View style={styles.pickerDivider} />
@@ -381,7 +387,9 @@ export default function App() {
               contentContainerStyle={styles.modelRow}
             >
               {selectedBrand.manuals.map(m => (
-                <TouchableOpacity
+                <SurfaceCard
+                  as={TouchableOpacity}
+                  variant="bare"
                   key={m.id}
                   style={[
                     styles.modelCard,
@@ -397,7 +405,7 @@ export default function App() {
                   <Text style={[styles.modelCardSub, { color: selectedManualId === m.id ? m.color + 'aa' : C.muted }]}>
                     {m.subtitle}
                   </Text>
-                </TouchableOpacity>
+                </SurfaceCard>
               ))}
             </ScrollView>
           </SafeAreaView>
@@ -416,9 +424,7 @@ export default function App() {
                 <Text style={styles.drawerTitle}>Topicos Rapidos</Text>
                 {authEmail ? <Text style={styles.drawerEmail} numberOfLines={1}>{authEmail}</Text> : null}
               </View>
-              <TouchableOpacity onPress={closeDrawer} style={styles.closeBtn}>
-                <Text style={styles.closeBtnText}>✕</Text>
-              </TouchableOpacity>
+              <IconButton icon="✕" onPress={closeDrawer} style={styles.closeBtn} iconStyle={styles.closeBtnText} />
             </View>
             <DrawerContent
               manual={manual}
@@ -447,7 +453,8 @@ const styles = StyleSheet.create({
   headerInfo: { flex: 1 },
   headerTitle: { color: C.text, fontSize: 13, fontWeight: '700' },
   headerSub: { color: C.dim, fontSize: 10, marginTop: 1 },
-  onlineDot: { width: 32, height: 22, borderRadius: 11, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  onlineDot: { width: 32, height: 22, borderRadius: 11 },
+  onlineDotText: { fontSize: 8, fontWeight: '700' },
   menuBtn: { width: 34, height: 34, borderRadius: radius.sm, backgroundColor: C.surface2, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
   menuBtnText: { color: C.dim, fontSize: 17 },
 
