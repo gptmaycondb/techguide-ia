@@ -47,9 +47,10 @@ PDF_SOURCES = {
     'e62655_service':        [Path('/tmp/e62655_service.pdf')],
     # gdown "https://drive.google.com/uc?id=1T6jWaRzZ2c-Rqxwl0naHSPXG-u27y_aj" -O /tmp/e826_guia.pdf
     # gdown "https://drive.google.com/uc?id=1hMzpRhjfF8Omei0gLZTFujwpoOW6LLAJ" -O /tmp/e826_service.pdf
-    # CPMD E826 fica para Camada 2: 1zvkbys7ZODegZhkUkJmSwobfUUwIMP_Y
+    # gdown "https://drive.google.com/uc?id=1zvkbys7ZODegZhkUkJmSwobfUUwIMP_Y" -O /tmp/e826_cpmd.pdf
     'hp_e826_guia':          [Path('/tmp/e826_guia.pdf')],
     'hp_e826_service':       [Path('/tmp/e826_service.pdf')],
+    'hp_e826_cpmd':          [Path('/tmp/e826_cpmd.pdf')],
 }
 
 OUT_SEARCH = PROJECT_ROOT / 'assets/search_index.json'
@@ -1133,6 +1134,150 @@ def build_error_codes_index() -> dict:
             if not any(x['key'] == 'e62655_cpmd' and x['text'] == ee['text'] for x in index[code]):
                 index[code].append(ee)
     print(f'  → {len(e62655_cpmd_errors)} códigos do E62655 CPMD')
+
+    # ── HP E826 CPMD ─────────────────────────────────────────────────────────
+    print('[errors] HP E826 CPMD')
+    e826_cpmd_text = ''
+    for p in PDF_SOURCES['hp_e826_cpmd']:
+        e826_cpmd_text += pdf_to_text(p)
+    e826_cpmd_text = clean_text(e826_cpmd_text)
+    e826_cpmd_errors = extract_hp_errors_from_cpmd(e826_cpmd_text)
+    for code, entries in e826_cpmd_errors.items():
+        for e in entries:
+            ee = {'key': 'hp_e826_cpmd', 'text': e['text']}
+            if not any(x['key'] == 'hp_e826_cpmd' and x['text'] == ee['text'] for x in index[code]):
+                index[code].append(ee)
+    print(f'  → {len(e826_cpmd_errors)} códigos do E826 CPMD')
+
+    # E826 CPMD: códigos reais que aparecem em seções agrupadas/inline sem
+    # cabeçalho individual próprio capturado pelo parser compartilhado.
+    _HP_E826_STUBS = [
+        ('30.03.30',
+         "30.03.30 Flatbed alignment calibration failed.\n"
+         "Context: Section '30.03.22, 30.03.23, and 30.03.30' in the E826 CPMD.\n"
+         "Recommended action: Turn the printer off and then on. Attempt to copy or scan a page. "
+         "If the error persists, dispatch an onsite technician to check the interface cable and follow the CPMD procedure."),
+        ('59.05.50',
+         "59.05.50 Black drum motor error.\n"
+         "Condition: The black drum motor is operating, but the printer indicates that it is stopped.\n"
+         "Recommended action: Turn the printer off and then on. If the error persists, dispatch an onsite technician and follow the E826 CPMD procedure."),
+        ('59.05.60',
+         "59.05.60 Black drum motor error.\n"
+         "Condition: The black drum motor is operating, but the printer indicates that it is stopped.\n"
+         "Recommended action: Turn the printer off and then on. If the error persists, dispatch an onsite technician and follow the E826 CPMD procedure."),
+        ('59.10.B0',
+         "59.10.B0 Black toner dispense motor error.\n"
+         "Condition: The black toner dispense motor operates, but the toner is not supplied. Copy, print, and fax services are unavailable.\n"
+         "Recommended action: Turn the printer off and then on. If the error persists, diagnose the black toner dispense motor and follow the E826 CPMD procedure."),
+        ('59.10.C0',
+         "59.10.C0 Black toner dispense motor error.\n"
+         "Condition: The black toner dispense motor operates, but the toner is not supplied. Copy, print, and fax services are unavailable.\n"
+         "Recommended action: Turn the printer off and then on. If the error persists, diagnose the black toner dispense motor and follow the E826 CPMD procedure."),
+        ('59.20.D0',
+         "59.20.D0 Black developer motor error.\n"
+         "Condition: The black developer motor was activated, but it stops after a certain amount of time.\n"
+         "Recommended action: Turn the printer off and then on. If the error persists, dispatch an onsite technician and follow the E826 CPMD procedure."),
+        ('59.20.E0',
+         "59.20.E0 Black developer motor error.\n"
+         "Condition: The black developer motor was activated, but it stops after a certain amount of time.\n"
+         "Recommended action: Turn the printer off and then on. If the error persists, dispatch an onsite technician and follow the E826 CPMD procedure."),
+        ('63.00.17',
+         "63.00.17 Engine communication failure.\n"
+         "Context: Section '63.00.17, 63.00.18, 63.00.19, or 63.00.1A' in the E826 CPMD.\n"
+         "Recommended action: Turn the printer off and then on. If the error persists, follow the E826 CPMD engine communication troubleshooting procedure."),
+        ('63.00.18',
+         "63.00.18 Engine communication failure.\n"
+         "Context: Section '63.00.17, 63.00.18, 63.00.19, or 63.00.1A' in the E826 CPMD.\n"
+         "Recommended action: Turn the printer off and then on. If the error persists, follow the E826 CPMD engine communication troubleshooting procedure."),
+        ('63.00.19',
+         "63.00.19 Engine communication failure.\n"
+         "Context: Section '63.00.17, 63.00.18, 63.00.19, or 63.00.1A' in the E826 CPMD.\n"
+         "Recommended action: Turn the printer off and then on. If the error persists, follow the E826 CPMD engine communication troubleshooting procedure."),
+        ('63.00.1A',
+         "63.00.1A Engine communication failure.\n"
+         "Context: Section '63.00.17, 63.00.18, 63.00.19, or 63.00.1A' in the E826 CPMD.\n"
+         "Recommended action: Turn the printer off and then on. If the error persists, follow the E826 CPMD engine communication troubleshooting procedure."),
+        ('63.00.39',
+         "63.00.39 Black developer T/C sensor failure.\n"
+         "Context: Section '63.00.39, 63.00.3A, 64.00.41, 63.00.42' in the E826 CPMD.\n"
+         "Recommended action: Turn the printer off and then on. If the error persists, check the formatter connection and developer unit connector; replace the developer unit if needed."),
+        ('63.00.3A',
+         "63.00.3A Black developer T/C sensor failure.\n"
+         "Context: Section '63.00.39, 63.00.3A, 64.00.41, 63.00.42' in the E826 CPMD.\n"
+         "Recommended action: Turn the printer off and then on. If the error persists, check the formatter connection and developer unit connector; replace the developer unit if needed."),
+        ('63.00.42',
+         "63.00.42 Black developer T/C sensor failure.\n"
+         "Context: Section '63.00.39, 63.00.3A, 64.00.41, 63.00.42' in the E826 CPMD.\n"
+         "Recommended action: Turn the printer off and then on. If the error persists, check the formatter connection and developer unit connector; replace the developer unit if needed."),
+        ('64.00.41',
+         "64.00.41 Black developer T/C sensor failure.\n"
+         "Context: Section '63.00.39, 63.00.3A, 64.00.41, 63.00.42' in the E826 CPMD.\n"
+         "Recommended action: Turn the printer off and then on. If the error persists, check the formatter connection and developer unit connector; replace the developer unit if needed."),
+        ('66.90.23',
+         "66.90.23 Finisher buffer unit error.\n"
+         "Condition: The buffer unit experienced an error; BM-exit CAM assembly unable to move paper downwards during buffering or not positioned correctly.\n"
+         "Recommended action: Open and close the finisher door, check the finisher for jammed paper or obstacles, and follow the E826 CPMD procedure."),
+        ('99.39.67',
+         "99.39.67 eMMC Not Bootable.\n"
+         "Context: The boot sequence is expected to stop at 99.39.67 when firmware must be downloaded after hard disk/eMMC service.\n"
+         "Recommended action: Download firmware from the Preboot menu. If the download fails, check hard disk installation and replace the hard disk drive if the error persists."),
+    ]
+    for code, name in {
+        '50.FF.01': 'Open heat error',
+        '50.FF.03': 'Open heat error',
+        '50.FF.04': 'Open heat error',
+        '50.FF.05': 'Open heat error',
+        '50.FF.06': 'Over heat error',
+        '50.FF.07': 'Over heat error',
+        '50.FF.08': 'Fuser error',
+        '50.FF.09': 'Fuser error',
+        '50.FF.0A': 'Fuser error',
+        '50.FF.0B': 'Open heat error',
+        '50.FF.0C': 'Low heat error',
+        '50.FF.0D': 'Low heat error',
+        '50.FF.0E': 'Low heat error',
+        '50.FF.0F': 'Low heat error',
+        '50.FF.10': 'Low heat error',
+        '50.FF.11': 'Low heat error',
+        '50.FF.12': 'Over heat error',
+        '50.FF.13': 'Over heat error',
+    }.items():
+        _HP_E826_STUBS.append((
+            code,
+            f"{code} {name}.\n"
+            "Condition: 50.FF.XX fuser error; the fuser temperature is less or higher than the target.\n"
+            "Recommended action: Turn the printer off, open the right door, remove jammed paper, check for obstructions inside the printer, open the fuser access door with the green tab, remove wrapped media, and contact HP support if the error persists.",
+        ))
+    for code, fan_name in {
+        '57.00.15': 'LSU fan',
+        '57.00.19': 'Developer fan',
+        '57.00.24': 'SMPS fan 2',
+        '57.00.26': 'FDB fan',
+    }.items():
+        _HP_E826_STUBS.append((
+            code,
+            f"{code} {fan_name} error.\n"
+            f"Condition: The {fan_name} was not activated, but the printer indicates that it is operating.\n"
+            f"Recommended action: Turn the printer off and then on. If the error persists, check for abnormal fan noise, dispatch an onsite technician, diagnose the {fan_name}, reconnect the fan harness if needed, retest the fan, and replace the fan if the test fails.",
+        ))
+    _HP_E826_STUBS.extend([
+        ('64.01.01',
+         "64.01.01 Imaging ASIC card not detected.\n"
+         "Recommended action: Turn the printer off and then on. If the error persists, dispatch an onsite technician, remove the formatter cover, disconnect and secure the external +5v cable from the accelerator board, and follow the CPMD procedure."),
+        ('64.04.06',
+         "64.04.06 Workflow Accelerator Card assertion failure.\n"
+         "Recommended action: Turn the printer off and then on. If the error persists, remove and reseat the accelerator card. If the issue is intermittent, capture logs and elevate the case using the Standard Support Process."),
+    ])
+    e826_stub_count = 0
+    for code, text_body in _HP_E826_STUBS:
+        entry = {'key': 'hp_e826_cpmd', 'text': text_body, 'src': 'stub'}
+        family = code.rsplit('.', 1)[0]
+        major = code.split('.', 1)[0]
+        for k in (code, family, major):
+            if not any(x['key'] == 'hp_e826_cpmd' and x['text'] == text_body for x in index[k]):
+                index[k].append(entry)
+                e826_stub_count += 1
+    print(f'  → {e826_stub_count} entradas de stub E826 adicionadas')
 
     # ── HP E62655 Service Manual ──────────────────────────────────────────────
     print('[errors] HP E62655 Service Manual')
