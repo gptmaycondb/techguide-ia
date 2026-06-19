@@ -24,6 +24,7 @@ const index = JSON.parse(fs.readFileSync(indexPath, 'utf8'));
 const modelKeys = {
   mfpe52645: ['cpmd', 'service'],
   mfpe62655: ['e62655_cpmd', 'e62655_service'],
+  hp_e826: ['hp_e826_cpmd'],
   ricoh_imc3000: ['ricoh_imc3000_service'],
   ricoh_mpc3004: ['ricoh_mpc3004_service'],
   ricoh_sp3710: ['ricoh_sp3710_service'],

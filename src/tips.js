@@ -76,6 +76,16 @@ export const ASSISTANT_TIPS = [
   { brand: 'hp', model: 'mfpe62655', text: 'Impressão clara no E62655? Ajuste a densidade em Menu > Configurações > Qualidade de impressão e confirme nível do toner.' },
   { brand: 'hp', model: 'mfpe62655', text: 'Manchas ou borrões no E62655 podem indicar fusor no fim da vida — consulte o Parts Catalog para o kit correto.' },
 
+  // ─── HP E826 SERIES ───────────────────────────────────────────────────────
+  { brand: 'hp', model: 'hp_e826', text: 'No E826, 13.B2.D2 eh atolamento na bandeja 2: remova papel pela porta direita e pela cavidade da bandeja. Confira o codigo exato.' },
+  { brand: 'hp', model: 'hp_e826', text: '13.B9.A1 no E826 indica atolamento em modo Auto-Sense Normal. Abra a porta direita e confira papel preso na area do fusor.' },
+  { brand: 'hp', model: 'hp_e826', text: '10.00.35 no E826 indica cartucho de toner preto incompativel ou lido incorretamente. Remova, reinstale e confirme o suprimento correto.' },
+  { brand: 'hp', model: 'hp_e826', text: '99.09.67 no E826 indica disco/eMMC sem firmware inicializavel. Baixe firmware pelo Preboot; se persistir, verifique disco/eMMC.' },
+  { brand: 'hp', model: 'hp_e826', text: '59.05.50 e 59.05.60 no E826 apontam motor do tambor preto. Desligue/ligue e, se persistir, siga o diagnostico do CPMD.' },
+  { brand: 'hp', model: 'hp_e826', text: 'Para trocar toner no E826, use Eject no painel, puxe o cartucho pela extremidade e instale apenas toner preto correto para a serie.' },
+  { brand: 'hp', model: 'hp_e826', text: 'Atolamento em papel A3 no E826: remova no sentido do percurso e confira bandejas 2/3 e opcionais de 2 x 520 folhas antes de religar.' },
+  { brand: 'hp', model: 'hp_e826', text: 'Para pecas do E826, consulte o Parts Catalog no manual de servico combinado da tela Consulta; nao use part number de memoria.' },
+
   // ─── RICOH MP C3004/C3504 ────────────────────────────────────────────────
   { brand: 'ricoh', model: 'ricoh_mpc3004', text: 'SC202 no MP C3004/3504 indica que o motor poligonal não atingiu o estado READY. Verifique motor, driver, chicote e conectores.' },
   { brand: 'ricoh', model: 'ricoh_mpc3004', text: 'Códigos de fusão como SC541, SC543, SC551 e SC553 no MP C3004/3504 exigem verificar termopilhas, chicotes e unidade de fusão.' },
