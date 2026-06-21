@@ -4,8 +4,6 @@ import {
   Alert, ActivityIndicator, SafeAreaView,
 } from 'react-native';
 import * as FileSystem from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
-import * as IntentLauncher from 'expo-intent-launcher';
 import { BRAND_GROUPS } from './data';
 import { colors as C, radius, spacing } from './theme';
 import Tag from './components/Tag';
@@ -15,6 +13,7 @@ import ActionButton from './components/ActionButton';
 import { getManualDownloadStatus } from './offlineStatus';
 import IconButton from './components/IconButton';
 import { favoriteId, isFavorite } from './favorites';
+import { openManualPdf } from './manualOpen';
 
 export default function ManualsScreen({ favorites = [], onToggleFavorite = () => {} }) {
   const [loading, setLoading] = useState({});
@@ -55,7 +54,7 @@ export default function ManualsScreen({ favorites = [], onToggleFavorite = () =>
     const info = await FileSystem.getInfoAsync(dest);
 
     if (info.exists && (info.size || 0) > 10000) {
-      await openPdf(dest);
+      try { await openManualPdf(manual); } catch (e) { Alert.alert('Erro ao abrir', e.message); }
       return;
     }
 
@@ -93,27 +92,6 @@ export default function ManualsScreen({ favorites = [], onToggleFavorite = () =>
 
     setLoading(l => ({ ...l, [manual.id]: false }));
     setProgress(p => ({ ...p, [manual.id]: 0 }));
-  }
-
-  async function openPdf(dest) {
-    try {
-      const contentUri = await FileSystem.getContentUriAsync(dest);
-      await IntentLauncher.startActivityAsync('android.intent.action.VIEW', {
-        data: contentUri,
-        flags: 1, // FLAG_GRANT_READ_URI_PERMISSION
-        type: 'application/pdf',
-      });
-    } catch {
-      try {
-        await Sharing.shareAsync(dest, {
-          mimeType: 'application/pdf',
-          dialogTitle: 'Abrir manual com...',
-          UTI: 'com.adobe.pdf',
-        });
-      } catch (e2) {
-        Alert.alert('Erro ao abrir', e2.message);
-      }
-    }
   }
 
   async function deletePdf(manual) {
@@ -208,7 +186,7 @@ export default function ManualsScreen({ favorites = [], onToggleFavorite = () =>
                           icon={isFavorite(favorites, favoriteId('manual', `${model.id}:${manual.id}`)) ? '★' : '☆'}
                           onPress={() => onToggleFavorite({ type: 'manual', id: favoriteId('manual', `${model.id}:${manual.id}`), label: manual.title, meta: `${model.label} · ${manual.subtitle}`, color: model.color, modelId: model.id, manualId: manual.id })}
                           style={styles.favoriteBtn}
-                          iconStyle={styles.favoriteIcon}
+                          iconStyle={isFavorite(favorites, favoriteId('manual', `${model.id}:${manual.id}`)) ? styles.favoriteFilled : styles.favoriteOutline}
                         />
                       </View>
 
@@ -330,7 +308,8 @@ const styles = StyleSheet.create({
   },
   badgeText: { color: C.success, fontSize: 11, fontWeight: '700' },
   favoriteBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: 'transparent', borderWidth: 0 },
-  favoriteIcon: { color: C.alert, fontSize: 19 },
+  favoriteFilled: { color: C.alert, fontSize: 19 },
+  favoriteOutline: { color: '#AEB6C4', fontSize: 19 },
   tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
   progressWrap: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   progressBg: { flex: 1, height: 6, backgroundColor: C.surface2, borderRadius: 3, overflow: 'hidden' },

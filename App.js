@@ -413,7 +413,7 @@ export default function App() {
                   style={[styles.modelCard, { borderColor: m.color + '60' }, selectedManualId === m.id && { backgroundColor: m.color + '22', borderColor: m.color }]}
                 >
                   <TouchableOpacity style={styles.modelSelect} onPress={() => { setSelectedManualId(m.id); setShowPicker(false); }} activeOpacity={0.7}><View><Text style={[styles.modelCardText, { color: selectedManualId === m.id ? m.color : C.dim }]}>{m.label}</Text><Text style={[styles.modelCardSub, { color: selectedManualId === m.id ? m.color + 'aa' : C.muted }]}>{m.subtitle}</Text></View></TouchableOpacity>
-                  <IconButton icon={isFavorite(favorites, favoriteId('model', m.id)) ? '★' : '☆'} onPress={() => toggleFavorite(modelFavorite(m))} style={styles.modelStar} iconStyle={styles.modelStarIcon} />
+                  <IconButton icon={isFavorite(favorites, favoriteId('model', m.id)) ? '★' : '☆'} onPress={() => toggleFavorite(modelFavorite(m))} style={styles.modelStar} iconStyle={isFavorite(favorites, favoriteId('model', m.id)) ? styles.modelStarFilled : styles.modelStarOutline} />
                 </SurfaceCard>
               ))}
             </ScrollView>
@@ -498,7 +498,8 @@ const styles = StyleSheet.create({
   modelCard: { flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 6, minWidth: 130 },
   modelSelect: { flex: 1, paddingHorizontal: 8, paddingVertical: 6 },
   modelStar: { width: 30, height: 30, borderRadius: 15, backgroundColor: 'transparent', borderWidth: 0 },
-  modelStarIcon: { color: C.alert, fontSize: 19 },
+  modelStarFilled: { color: C.alert, fontSize: 19 },
+  modelStarOutline: { color: '#AEB6C4', fontSize: 19 },
   modelCardText: { fontSize: 13, fontWeight: '700' },
   modelCardSub: { fontSize: 10, marginTop: 3 },
 
