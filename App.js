@@ -16,7 +16,6 @@ import ChatScreen from './src/ChatScreen';
 import DrawerContent from './src/DrawerContent';
 import ManualsScreen from './src/ManualsScreen';
 import AssistantBubble from './src/AssistantBubble';
-import HomeScreen from './src/HomeScreen';
 import { colors as C, radius, spacing } from './src/theme';
 import SurfaceCard from './src/components/SurfaceCard';
 import StatusBadge from './src/components/StatusBadge';
@@ -26,7 +25,6 @@ const { width: SCREEN_W } = Dimensions.get('window');
 const DRAWER_W = Math.min(SCREEN_W * 0.82, 300);
 
 const BOTTOM_TABS = [
-  { id: 'home', label: 'Início', icon: '⌂' },
   { id: 'chat', label: 'Consulta', icon: '💬' },
   { id: 'manuals', label: 'Manuais', icon: '📚' },
 ];
@@ -73,13 +71,12 @@ async function fetchProviders() {
 export default function App() {
   const [authStatus, setAuthStatus] = useState('loading'); // 'loading'|'guest'|'authed'
   const [authEmail, setAuthEmail]   = useState(null);
-  const [activeTab, setActiveTab] = useState('home');
+  const [activeTab, setActiveTab] = useState('chat');
   const mode = 'tech';
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [isOnline, setIsOnline] = useState(true);
   const [pendingQuestion, setPendingQuestion] = useState(null);
   const [allMessages, setAllMessages] = useState({});
-  const [recentIds, setRecentIds] = useState([]);
 
   // Manual selection
   const [selectedBrandId, setSelectedBrandId] = useState(BRANDS[0]?.id);
@@ -112,7 +109,6 @@ export default function App() {
   const manual = ALL_MANUALS.find(m => m.id === selectedManualId) || ALL_MANUALS[0];
   const chatKey = manual.id;
   const messages = allMessages[chatKey] || [];
-  const recentModels = recentIds.map(id => ALL_MANUALS.find(m => m.id === id)).filter(Boolean);
 
   function setMessages(msgs) {
     setAllMessages(prev => ({
@@ -152,8 +148,6 @@ export default function App() {
           try {
             const saved = await AsyncStorage.getItem(`tg_messages_${session.email}`);
             if (saved) setAllMessages(JSON.parse(saved));
-            const recent = await AsyncStorage.getItem(`tg_recent_models_${session.email}`);
-            if (recent) setRecentIds(JSON.parse(recent));
           } catch {}
         } else { setAuthStatus('guest'); }
       } catch { setAuthStatus('guest'); }
@@ -229,16 +223,7 @@ export default function App() {
   function selectBrand(brandId) {
     setSelectedBrandId(brandId);
     const brand = BRANDS.find(b => b.id === brandId);
-    if (brand?.manuals[0]) selectManual(brand.manuals[0].id);
-  }
-
-  function selectManual(id) {
-    setSelectedManualId(id);
-    setRecentIds(previous => {
-      const next = [id, ...previous.filter(value => value !== id)].slice(0, 5);
-      if (authEmail) AsyncStorage.setItem(`tg_recent_models_${authEmail}`, JSON.stringify(next)).catch(() => {});
-      return next;
-    });
+    if (brand?.manuals[0]) setSelectedManualId(brand.manuals[0].id);
   }
 
   if (authStatus === 'loading') return null;
@@ -250,7 +235,7 @@ export default function App() {
       brands={BRANDS}
       onSelectBrand={(brandId, manualId) => {
         selectBrand(brandId);
-        selectManual(manualId);
+        setSelectedManualId(manualId);
         setShowWelcome(false);
         if (!tutorialSeen) setShowTutorial(true);
       }}
@@ -325,9 +310,6 @@ export default function App() {
 
       {/* Content */}
       <View style={{ flex: 1, backgroundColor: C.bg }}>
-        <View style={{ flex: 1, display: activeTab === 'home' ? 'flex' : 'none' }}>
-          <HomeScreen manual={manual} isOnline={isOnline} recentModels={recentModels} onQuestion={handleQuestion} onSelectModel={selectManual} onSelectBrand={(id) => { selectBrand(id); setActiveTab('chat'); }} />
-        </View>
         <View style={{ flex: 1, display: activeTab === 'chat' ? 'flex' : 'none' }}>
           <ChatScreen
             key={chatKey}
@@ -414,7 +396,7 @@ export default function App() {
                     { borderColor: m.color + '60' },
                     selectedManualId === m.id && { backgroundColor: m.color + '22', borderColor: m.color },
                   ]}
-                  onPress={() => { selectManual(m.id); setShowPicker(false); }}
+                  onPress={() => { setSelectedManualId(m.id); setShowPicker(false); }}
                   activeOpacity={0.7}
                 >
                   <Text style={[styles.modelCardText, { color: selectedManualId === m.id ? m.color : C.dim }]}>
