@@ -29,7 +29,7 @@ const DRAWER_W = Math.min(SCREEN_W * 0.82, 300);
 const BOTTOM_TABS = [
   { id: 'chat', label: 'Consulta', icon: '💬' },
   { id: 'manuals', label: 'Manuais', icon: '📚' },
-  { id: 'favorites', label: 'Favoritos', icon: '★' },
+  { id: 'favorites', label: 'Favoritos', icon: '⭐' },
 ];
 
 // Group manuals by brand for the picker
