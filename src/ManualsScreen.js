@@ -13,8 +13,10 @@ import SurfaceCard from './components/SurfaceCard';
 import StatusBadge from './components/StatusBadge';
 import ActionButton from './components/ActionButton';
 import { getManualDownloadStatus } from './offlineStatus';
+import IconButton from './components/IconButton';
+import { favoriteId, isFavorite } from './favorites';
 
-export default function ManualsScreen() {
+export default function ManualsScreen({ favorites = [], onToggleFavorite = () => {} }) {
   const [loading, setLoading] = useState({});
   const [progress, setProgress] = useState({});
   const [downloaded, setDownloaded] = useState({});
@@ -202,6 +204,12 @@ export default function ManualsScreen() {
                         {isUnavailable && (
                           <StatusBadge icon="⏳" tone="alert" size={24} style={styles.badge} textStyle={[styles.badgeText, { color: C.alert }]} />
                         )}
+                        <IconButton
+                          icon={isFavorite(favorites, favoriteId('manual', `${model.id}:${manual.id}`)) ? '★' : '☆'}
+                          onPress={() => onToggleFavorite({ type: 'manual', id: favoriteId('manual', `${model.id}:${manual.id}`), label: manual.title, meta: `${model.label} · ${manual.subtitle}`, color: model.color, modelId: model.id, manualId: manual.id })}
+                          style={styles.favoriteBtn}
+                          iconStyle={styles.favoriteIcon}
+                        />
                       </View>
 
                       <View style={styles.tagsRow}>
@@ -321,6 +329,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.md, width: 24, height: 24, alignItems: 'center', justifyContent: 'center',
   },
   badgeText: { color: C.success, fontSize: 11, fontWeight: '700' },
+  favoriteBtn: { width: 28, height: 28, borderRadius: 14, backgroundColor: 'transparent', borderWidth: 0 },
+  favoriteIcon: { color: C.alert, fontSize: 19 },
   tagsRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 4 },
   progressWrap: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   progressBg: { flex: 1, height: 6, backgroundColor: C.surface2, borderRadius: 3, overflow: 'hidden' },
