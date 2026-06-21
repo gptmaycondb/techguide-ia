@@ -188,6 +188,42 @@ export function searchErrorCode(query, indexKey) {
   return results;
 }
 
+// Structured variant for UI cards. Keep searchErrorCode above untouched: it feeds AI context.
+export function searchErrorCodeEntries(query, indexKey) {
+  const keySet = indexKey ? new Set(Array.isArray(indexKey) ? indexKey : [indexKey]) : null;
+  const matchKey = keySet ? entry => keySet.has(entry.key) : () => true;
+  const q = query.trim().replace(/\b(SC)\s+(\d)/gi, '$1$2');
+  const codes = [
+    ...(q.toUpperCase().match(/SC\d{3,6}(?:-\d{2})?/g) || []),
+    ...(q.match(/\b\d{2}\.\d{2}(?:\.\d{2}(?:\.\d{2})?)?\b/g) || []),
+    ...(q.toUpperCase().match(/\b\d{2}\.[0-9A-F]{2,3}(?:\.[0-9A-F]{2})?\b/g) || []),
+    ...(q.toUpperCase().match(/\bJ\d{3,6}\b/g) || []),
+  ];
+  if (codes.length === 0) return [];
+
+  const raw = [];
+  for (const code of codes) {
+    if (errorCodesData[code]) {
+      raw.push(...errorCodesData[code].filter(matchKey).map(entry => ({ code, serviceKey: entry.key, text: entry.text })));
+    } else {
+      for (const [matchedCode, entries] of Object.entries(errorCodesData)) {
+        if (matchedCode.startsWith(code) || (code.length >= 4 && matchedCode.includes(code)) || wildcardMatchHP(matchedCode, code)) {
+          raw.push(...entries.filter(matchKey).map(entry => ({ code: matchedCode, serviceKey: entry.key, text: entry.text })));
+          if (raw.length >= 5) break;
+        }
+      }
+    }
+    if (raw.length >= 5) break;
+  }
+  const seen = new Set();
+  return raw.filter(entry => {
+    const sig = `${entry.code}:${entry.serviceKey}:${entry.text.slice(0, 80)}`;
+    if (seen.has(sig)) return false;
+    seen.add(sig);
+    return true;
+  }).slice(0, 5);
+}
+
 export function hasRelevantContent(query, indexKey, minScore = 2) {
   const chunks = searchData[indexKey];
   if (!chunks) return false;

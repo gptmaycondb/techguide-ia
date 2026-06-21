@@ -4,7 +4,7 @@ import {
   StyleSheet, ActivityIndicator, SafeAreaView, Keyboard,
   Linking, KeyboardAvoidingView, Platform,
 } from 'react-native';
-import { searchManual, searchErrorCode, hasRelevantContent, computeFoundInManual, MANUAL_INDEX_MAP } from './search';
+import { searchManual, searchErrorCode, searchErrorCodeEntries, hasRelevantContent, computeFoundInManual, MANUAL_INDEX_MAP } from './search';
 import { API_URL, DEFAULT_PROVIDER } from './data';
 import {
   loadModel, loadEmbeddings, unloadEmbeddings,
@@ -12,6 +12,8 @@ import {
 } from './semanticSearch';
 import { colors as C, radius } from './theme';
 import SurfaceCard from './components/SurfaceCard';
+import IconButton from './components/IconButton';
+import { favoriteId, isFavorite, textHash } from './favorites';
 
 function friendlyError(err) {
   if (err.name === 'AbortError') return 'Tempo limite excedido. Servidor iniciando — tente novamente em 30s.';
@@ -40,7 +42,7 @@ function parseSseText(text) {
   return events;
 }
 
-export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, onQuestionSent, messages, setMessages, provider = DEFAULT_PROVIDER }) {
+export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, onQuestionSent, messages, setMessages, provider = DEFAULT_PROVIDER, favorites = [], onToggleFavorite = () => {} }) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const listRef = useRef(null);
@@ -102,6 +104,7 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
     // Isolamento cross-model preservado: filtro por keys do modelo, não por key única.
     const errorChunks = searchErrorCode(q, searchKeys)
       .slice(0, 4).map(capErr);
+    const errorEntries = searchErrorCodeEntries(q, searchKeys);
     // Busca semântica on-device quando modelo está pronto; fallback keyword se ainda não carregou
     const rawManualChunks = isModelReady()
       ? await semanticSearchManual(q, searchKeys, 5)
@@ -116,6 +119,10 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
     }).slice(0, 8);
     const hasRC = searchKeys.map(k => hasRelevantContent(q, k));
     const foundInManual = computeFoundInManual(errorChunks, chunks, hasRC);
+
+    if (errorEntries.length) {
+      setMessages(m => [...m, { id: `error-code-${Date.now()}`, role: 'errorCode', entries: errorEntries }]);
+    }
 
     const noChunksMsg = '\n\nNenhum trecho encontrado nos manuais indexados. Informe ao usuario que a informacao nao foi localizada no indice e sugira consultar o manual fisico ou reformular a busca.';
 
@@ -307,6 +314,18 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
   }
 
   function renderMessage({ item }) {
+    if (item.role === 'errorCode') return (
+      <View style={styles.codeGroup}>
+        {item.entries.map(entry => {
+          const id = favoriteId('code', `${entry.code}:${entry.serviceKey}:${textHash(entry.text)}`);
+          const favorite = { type: 'code', id, label: entry.code, meta: sourceLabel(entry.serviceKey), color: C.alert, code: entry.code, serviceKey: entry.serviceKey, text: entry.text, modelId: manual.id };
+          return <SurfaceCard key={id} style={styles.codeCard}>
+            <View style={styles.codeHead}><View style={{ flex: 1 }}><Text style={styles.codeValue}>{entry.code}</Text><Text style={styles.codeSource}>{sourceLabel(entry.serviceKey)}</Text></View><IconButton icon={isFavorite(favorites, id) ? '★' : '☆'} onPress={() => onToggleFavorite(favorite)} style={styles.codeStar} iconStyle={isFavorite(favorites, id) ? styles.codeStarFilled : styles.codeStarOutline} /></View>
+            <Text style={styles.codeText} numberOfLines={8}>{entry.text}</Text>
+          </SurfaceCard>;
+        })}
+      </View>
+    );
     const isUser = item.role === 'user';
     return (
       <View style={[styles.msgRow, isUser ? styles.msgRowUser : styles.msgRowAi]}>
@@ -339,6 +358,12 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
         </View>
       </View>
     );
+  }
+
+  function sourceLabel(serviceKey) {
+    if (serviceKey.includes('cpmd')) return 'Manual (CPMD)';
+    if (serviceKey.includes('service')) return 'Service Manual';
+    return 'Manual';
   }
 
   function renderWelcome() {
@@ -424,6 +449,15 @@ const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
   list: { flex: 1 },
   welcome: { padding: 20, alignItems: 'center', gap: 10, marginTop: 16 },
+  codeGroup: { gap: 8, paddingHorizontal: 14 },
+  codeCard: { backgroundColor: C.alert + '12', borderColor: C.alert + '70', borderLeftWidth: 3, borderLeftColor: C.alert, padding: 12 },
+  codeHead: { flexDirection: 'row', alignItems: 'center' },
+  codeValue: { color: C.alert, fontSize: 18, fontWeight: '800' },
+  codeSource: { color: '#AEB6C4', fontSize: 11, marginTop: 2 },
+  codeText: { color: C.text, fontSize: 12, lineHeight: 18, marginTop: 8 },
+  codeStar: { width: 32, height: 32, borderRadius: 16, backgroundColor: 'transparent', borderWidth: 0 },
+  codeStarFilled: { color: C.alert, fontSize: 20 },
+  codeStarOutline: { color: '#AEB6C4', fontSize: 20 },
   welcomeIcon: { width: 56, height: 56, borderRadius: 14, alignItems: 'center', justifyContent: 'center' },
   welcomeIconText: { color: C.white, fontWeight: '800', fontSize: 18 },
   welcomeTitle: { color: C.text, fontSize: 17, fontWeight: '700', textAlign: 'center' },
