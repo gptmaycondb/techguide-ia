@@ -16,6 +16,8 @@ import ChatScreen from './src/ChatScreen';
 import DrawerContent from './src/DrawerContent';
 import ManualsScreen from './src/ManualsScreen';
 import AssistantBubble from './src/AssistantBubble';
+import FavoritesScreen from './src/FavoritesScreen';
+import { favoriteId, addFavorite, removeFavorite, isFavorite, listFavorites, saveFavorites } from './src/favorites';
 import { colors as C, radius, spacing } from './src/theme';
 import SurfaceCard from './src/components/SurfaceCard';
 import StatusBadge from './src/components/StatusBadge';
@@ -27,6 +29,7 @@ const DRAWER_W = Math.min(SCREEN_W * 0.82, 300);
 const BOTTOM_TABS = [
   { id: 'chat', label: 'Consulta', icon: '💬' },
   { id: 'manuals', label: 'Manuais', icon: '📚' },
+  { id: 'favorites', label: 'Favoritos', icon: '★' },
 ];
 
 // Group manuals by brand for the picker
@@ -77,6 +80,7 @@ export default function App() {
   const [isOnline, setIsOnline] = useState(true);
   const [pendingQuestion, setPendingQuestion] = useState(null);
   const [allMessages, setAllMessages] = useState({});
+  const [favorites, setFavorites] = useState([]);
 
   // Manual selection
   const [selectedBrandId, setSelectedBrandId] = useState(BRANDS[0]?.id);
@@ -148,6 +152,7 @@ export default function App() {
           try {
             const saved = await AsyncStorage.getItem(`tg_messages_${session.email}`);
             if (saved) setAllMessages(JSON.parse(saved));
+            setFavorites(await listFavorites(session.email));
           } catch {}
         } else { setAuthStatus('guest'); }
       } catch { setAuthStatus('guest'); }
@@ -226,6 +231,18 @@ export default function App() {
     if (brand?.manuals[0]) setSelectedManualId(brand.manuals[0].id);
   }
 
+  function toggleFavorite(item) {
+    setFavorites(previous => {
+      const next = isFavorite(previous, item.id) ? removeFavorite(previous, item.id) : addFavorite(previous, item);
+      saveFavorites(authEmail, next);
+      return next;
+    });
+  }
+
+  function modelFavorite(model) {
+    return { type: 'model', id: favoriteId('model', model.id), label: model.label, meta: model.subtitle, color: model.color, modelId: model.id };
+  }
+
   if (authStatus === 'loading') return null;
   if (authStatus === 'guest') return (
     <LoginScreen onLoginSuccess={(email) => { setAuthEmail(email); setAuthStatus('authed'); setShowAssistant(true); setShowWelcome(true); }} />
@@ -262,7 +279,7 @@ export default function App() {
           {/* Title */}
           <View style={styles.headerInfo}>
             <Text style={styles.headerTitle} numberOfLines={1}>
-              {activeTab === 'chat' ? manual.label : 'Manuais'}
+              {activeTab === 'chat' ? manual.label : activeTab === 'favorites' ? 'Favoritos' : 'Manuais'}
             </Text>
             <Text style={styles.headerSub} numberOfLines={1}>
               {activeTab === 'chat' ? manual.subtitle : 'HP · Ricoh'}
@@ -324,7 +341,10 @@ export default function App() {
           />
         </View>
         <View style={{ flex: 1, display: activeTab === 'manuals' ? 'flex' : 'none' }}>
-          <ManualsScreen />
+          <ManualsScreen favorites={favorites} onToggleFavorite={toggleFavorite} />
+        </View>
+        <View style={{ flex: 1, display: activeTab === 'favorites' ? 'flex' : 'none' }}>
+          <FavoritesScreen favorites={favorites} onToggleFavorite={toggleFavorite} onSelectModel={(item) => { setSelectedManualId(item.modelId); setActiveTab('chat'); }} onOpenManual={() => setActiveTab('manuals')} />
         </View>
       </View>
 
@@ -388,23 +408,12 @@ export default function App() {
             >
               {selectedBrand.manuals.map(m => (
                 <SurfaceCard
-                  as={TouchableOpacity}
                   variant="bare"
                   key={m.id}
-                  style={[
-                    styles.modelCard,
-                    { borderColor: m.color + '60' },
-                    selectedManualId === m.id && { backgroundColor: m.color + '22', borderColor: m.color },
-                  ]}
-                  onPress={() => { setSelectedManualId(m.id); setShowPicker(false); }}
-                  activeOpacity={0.7}
+                  style={[styles.modelCard, { borderColor: m.color + '60' }, selectedManualId === m.id && { backgroundColor: m.color + '22', borderColor: m.color }]}
                 >
-                  <Text style={[styles.modelCardText, { color: selectedManualId === m.id ? m.color : C.dim }]}>
-                    {m.label}
-                  </Text>
-                  <Text style={[styles.modelCardSub, { color: selectedManualId === m.id ? m.color + 'aa' : C.muted }]}>
-                    {m.subtitle}
-                  </Text>
+                  <TouchableOpacity style={styles.modelSelect} onPress={() => { setSelectedManualId(m.id); setShowPicker(false); }} activeOpacity={0.7}><View><Text style={[styles.modelCardText, { color: selectedManualId === m.id ? m.color : C.dim }]}>{m.label}</Text><Text style={[styles.modelCardSub, { color: selectedManualId === m.id ? m.color + 'aa' : C.muted }]}>{m.subtitle}</Text></View></TouchableOpacity>
+                  <IconButton icon={isFavorite(favorites, favoriteId('model', m.id)) ? '★' : '☆'} onPress={() => toggleFavorite(modelFavorite(m))} style={styles.modelStar} iconStyle={styles.modelStarIcon} />
                 </SurfaceCard>
               ))}
             </ScrollView>
@@ -486,7 +495,10 @@ const styles = StyleSheet.create({
   brandCardSub: { fontSize: 11 },
   pickerDivider: { height: 1, backgroundColor: C.border, marginHorizontal: 14 },
   modelRow: { paddingHorizontal: 14, paddingTop: 12, paddingBottom: 4, gap: 8 },
-  modelCard: { borderWidth: 1.5, borderRadius: 10, paddingHorizontal: 16, paddingVertical: 12, minWidth: 130 },
+  modelCard: { flexDirection: 'row', alignItems: 'center', borderWidth: 1.5, borderRadius: 10, paddingHorizontal: 8, paddingVertical: 6, minWidth: 130 },
+  modelSelect: { flex: 1, paddingHorizontal: 8, paddingVertical: 6 },
+  modelStar: { width: 30, height: 30, borderRadius: 15, backgroundColor: 'transparent', borderWidth: 0 },
+  modelStarIcon: { color: C.alert, fontSize: 19 },
   modelCardText: { fontSize: 13, fontWeight: '700' },
   modelCardSub: { fontSize: 10, marginTop: 3 },
 
