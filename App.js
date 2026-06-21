@@ -338,13 +338,15 @@ export default function App() {
             messages={messages}
             setMessages={setMessages}
             provider={provider}
+            favorites={favorites}
+            onToggleFavorite={toggleFavorite}
           />
         </View>
         <View style={{ flex: 1, display: activeTab === 'manuals' ? 'flex' : 'none' }}>
           <ManualsScreen favorites={favorites} onToggleFavorite={toggleFavorite} />
         </View>
         <View style={{ flex: 1, display: activeTab === 'favorites' ? 'flex' : 'none' }}>
-          <FavoritesScreen favorites={favorites} onToggleFavorite={toggleFavorite} onSelectModel={(item) => { setSelectedManualId(item.modelId); setActiveTab('chat'); }} onOpenManual={() => setActiveTab('manuals')} />
+          <FavoritesScreen favorites={favorites} onToggleFavorite={toggleFavorite} onSelectModel={(item) => { setSelectedManualId(item.modelId); setActiveTab('chat'); }} onOpenManual={() => setActiveTab('manuals')} onOpenCode={(item) => { setActiveTab('chat'); setPendingQuestion(item.code); }} />
         </View>
       </View>
 

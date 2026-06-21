@@ -2,6 +2,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export const favoriteId = (type, id) => `${type}:${id}`;
 
+export function textHash(text) {
+  let hash = 2166136261;
+  for (let i = 0; i < text.length; i++) hash = Math.imul(hash ^ text.charCodeAt(i), 16777619);
+  return (hash >>> 0).toString(16);
+}
+
 export function isFavorite(items, id) {
   return items.some(item => item.id === id);
 }
