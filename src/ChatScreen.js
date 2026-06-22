@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
   StyleSheet, ActivityIndicator, SafeAreaView, Keyboard,
-  Linking, KeyboardAvoidingView, Platform,
+  Linking, KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
 import { searchManual, searchErrorCode, searchErrorCodeEntries, hasRelevantContent, computeFoundInManual, MANUAL_INDEX_MAP } from './search';
 import { API_URL, DEFAULT_PROVIDER } from './data';
@@ -50,7 +50,7 @@ export function buildChatHistory(messages) {
     .map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text }));
 }
 
-export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, onQuestionSent, messages, setMessages, provider = DEFAULT_PROVIDER, favorites = [], onToggleFavorite = () => {} }) {
+export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, onQuestionSent, messages, setMessages, provider = DEFAULT_PROVIDER, favorites = [], onToggleFavorite = () => {}, onClearConversation = () => {}, onDeleteMessage = () => {} }) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const listRef = useRef(null);
@@ -87,6 +87,22 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
   }, []);
 
   const scrollToBottom = () => setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 150);
+
+  function confirmClearConversation() {
+    Alert.alert(
+      'Limpar conversa',
+      `Apagar todas as mensagens e resultados de ${manual.label}? Esta ação não pode ser desfeita.`,
+      [{ text: 'Cancelar', style: 'cancel' }, { text: 'Limpar', style: 'destructive', onPress: onClearConversation }]
+    );
+  }
+
+  function confirmDeleteMessage(messageId) {
+    Alert.alert(
+      'Apagar mensagem',
+      'Esta mensagem será removida da conversa. Esta ação não pode ser desfeita.',
+      [{ text: 'Cancelar', style: 'cancel' }, { text: 'Apagar', style: 'destructive', onPress: () => onDeleteMessage(messageId) }]
+    );
+  }
 
   async function send(question) {
     const q = (question || input).trim();
@@ -410,10 +426,11 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
               contentContainerStyle={{ padding: 14, gap: 12, paddingBottom: 12 }}
               keyboardShouldPersistTaps="handled"
               onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}>
+              {messages.length > 0 && <TouchableOpacity style={styles.clearConversationBtn} onPress={confirmClearConversation} activeOpacity={0.75}><Text style={styles.clearConversationText}>Limpar conversa</Text></TouchableOpacity>}
               {messages.map((item, index) => (
-                <View key={item.id}>
+                <TouchableOpacity key={item.id} activeOpacity={1} onLongPress={() => confirmDeleteMessage(item.id)} delayLongPress={450}>
                   {renderMessage({ item, index })}
-                </View>
+                </TouchableOpacity>
               ))}
             </ScrollView>
         }
@@ -457,6 +474,8 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
   list: { flex: 1 },
+  clearConversationBtn: { alignSelf: 'flex-end', paddingHorizontal: 10, paddingVertical: 7, borderRadius: radius.sm, borderWidth: 1, borderColor: C.dangerBorder, backgroundColor: C.dangerSurface },
+  clearConversationText: { color: C.danger, fontSize: 11, fontWeight: '700' },
   welcome: { padding: 20, alignItems: 'center', gap: 10, marginTop: 16 },
   codeGroup: { gap: 8, paddingHorizontal: 14 },
   codeCard: { backgroundColor: C.alert + '12', borderColor: C.alert + '70', borderLeftWidth: 3, borderLeftColor: C.alert, padding: 12 },

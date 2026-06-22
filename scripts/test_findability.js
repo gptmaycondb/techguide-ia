@@ -16,6 +16,7 @@ import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { getErrorFamily } from '../src/errorFamilies.js';
 import { getCodeFavoriteTarget } from '../src/codeFavorites.js';
+import { clearAllConversations, clearConversation, deleteConversationMessage } from '../src/conversationState.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
@@ -152,6 +153,26 @@ function expectContains(label, query, keys, includes, excludes = []) {
 }
 
 console.log('=== Findability Test Suite ===\n');
+
+console.log('[Conversation cleanup] escopos de limpeza local');
+{
+  const initial = {
+    hp_e826: [{ id: 'user-1' }, { id: 'error-code-2' }],
+    ricoh_imc3000: [{ id: 'ai-3' }],
+  };
+  const clearedCurrent = clearConversation(initial, 'hp_e826');
+  const deletedOne = deleteConversationMessage(initial, 'hp_e826', 'error-code-2');
+  const clearedAll = clearAllConversations();
+  const checks = [
+    ['limpar atual remove apenas hp_e826', !clearedCurrent.hp_e826 && clearedCurrent.ricoh_imc3000.length === 1],
+    ['apagar individual preserva as demais mensagens', deletedOne.hp_e826.length === 1 && deletedOne.hp_e826[0].id === 'user-1'],
+    ['limpar todas retorna objeto vazio', Object.keys(clearedAll).length === 0],
+  ];
+  for (const [label, ok] of checks) {
+    console.log(`  [${ok ? '✓' : '✗ FAIL'}] ${label}`);
+    if (ok) pass++; else fail++;
+  }
+}
 
 // ── Sync guard: verbatim copies must match source files ──────────────────────
 console.log('[Sync guard] Verificando sincronização com src/search.js e src/ChatScreen.js');
