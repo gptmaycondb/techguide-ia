@@ -18,6 +18,7 @@ import ManualsScreen from './src/ManualsScreen';
 import AssistantBubble from './src/AssistantBubble';
 import FavoritesScreen from './src/FavoritesScreen';
 import { favoriteId, addFavorite, removeFavorite, isFavorite, listFavorites, saveFavorites } from './src/favorites';
+import { getCodeFavoriteTarget } from './src/codeFavorites';
 import { colors as C, radius, spacing } from './src/theme';
 import SurfaceCard from './src/components/SurfaceCard';
 import StatusBadge from './src/components/StatusBadge';
@@ -346,7 +347,7 @@ export default function App() {
           <ManualsScreen favorites={favorites} onToggleFavorite={toggleFavorite} />
         </View>
         <View style={{ flex: 1, display: activeTab === 'favorites' ? 'flex' : 'none' }}>
-          <FavoritesScreen favorites={favorites} onToggleFavorite={toggleFavorite} onSelectModel={(item) => { setSelectedManualId(item.modelId); setActiveTab('chat'); }} onOpenManual={() => setActiveTab('manuals')} onOpenCode={(item) => { setActiveTab('chat'); setPendingQuestion(item.code); }} />
+          <FavoritesScreen favorites={favorites} onToggleFavorite={toggleFavorite} onSelectModel={(item) => { setSelectedManualId(item.modelId); setActiveTab('chat'); }} onOpenManual={() => setActiveTab('manuals')} onOpenCode={(item) => { const target = getCodeFavoriteTarget(item); if (!target) return; setSelectedManualId(target.modelId); setActiveTab('chat'); setPendingQuestion(target.code); }} />
         </View>
       </View>
 

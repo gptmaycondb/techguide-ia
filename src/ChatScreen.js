@@ -14,6 +14,7 @@ import { colors as C, radius } from './theme';
 import SurfaceCard from './components/SurfaceCard';
 import IconButton from './components/IconButton';
 import { favoriteId, isFavorite, textHash } from './favorites';
+import { getErrorFamily } from './errorFamilies';
 
 function friendlyError(err) {
   if (err.name === 'AbortError') return 'Tempo limite excedido. Servidor iniciando — tente novamente em 30s.';
@@ -40,6 +41,13 @@ function parseSseText(text) {
     try { events.push(JSON.parse(data)); } catch {}
   }
   return events;
+}
+
+export function buildChatHistory(messages) {
+  return messages
+    .filter(m => m.role !== 'errorCode' && m.text)
+    .slice(-6)
+    .map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text }));
 }
 
 export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, onQuestionSent, messages, setMessages, provider = DEFAULT_PROVIDER, favorites = [], onToggleFavorite = () => {} }) {
@@ -93,7 +101,7 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
     scrollToBottom();
 
     // Limit history to last 6 messages (3 exchanges) to avoid growing token cost
-    const history = newMsgs.slice(-6).map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text }));
+    const history = buildChatHistory(newMsgs);
 
     // Trechos de código de erro carregam o procedimento completo do manual
     // (defeito + causas + solução), até 2400 chars. Trechos de manual (busca textual)
@@ -314,18 +322,19 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
   }
 
   function renderMessage({ item }) {
-    if (item.role === 'errorCode') return (
-      <View style={styles.codeGroup}>
-        {item.entries.map(entry => {
+    if (item.role === 'errorCode') {
+      const entries = [...new Map(item.entries.map(entry => [entry.code, entry])).values()];
+      return <View style={styles.codeGroup}>
+        {entries.map(entry => {
           const id = favoriteId('code', `${entry.code}:${entry.serviceKey}:${textHash(entry.text)}`);
           const favorite = { type: 'code', id, label: entry.code, meta: sourceLabel(entry.serviceKey), color: C.alert, code: entry.code, serviceKey: entry.serviceKey, text: entry.text, modelId: manual.id };
+          const family = getErrorFamily(entry.code, manual.id);
           return <SurfaceCard key={id} style={styles.codeCard}>
-            <View style={styles.codeHead}><View style={{ flex: 1 }}><Text style={styles.codeValue}>{entry.code}</Text><Text style={styles.codeSource}>{sourceLabel(entry.serviceKey)}</Text></View><IconButton icon={isFavorite(favorites, id) ? '★' : '☆'} onPress={() => onToggleFavorite(favorite)} style={styles.codeStar} iconStyle={isFavorite(favorites, id) ? styles.codeStarFilled : styles.codeStarOutline} /></View>
-            <Text style={styles.codeText} numberOfLines={8}>{entry.text}</Text>
+            <View style={styles.codeHead}><View style={{ flex: 1 }}><Text style={styles.codeValue}>{entry.code}</Text><View style={styles.codeTags}>{family && <Text style={styles.codeFamily}>{family}</Text>}<Text style={[styles.codeModel, { color: manual.color || C.accent, borderColor: (manual.color || C.accent) + '80' }]}>{manual.label}</Text><Text style={styles.codeSource}>{sourceLabel(entry.serviceKey)}</Text></View></View><IconButton icon={isFavorite(favorites, id) ? '★' : '☆'} onPress={() => onToggleFavorite(favorite)} style={styles.codeStar} iconStyle={isFavorite(favorites, id) ? styles.codeStarFilled : styles.codeStarOutline} /></View>
           </SurfaceCard>;
         })}
-      </View>
-    );
+      </View>;
+    }
     const isUser = item.role === 'user';
     return (
       <View style={[styles.msgRow, isUser ? styles.msgRowUser : styles.msgRowAi]}>
@@ -453,8 +462,10 @@ const styles = StyleSheet.create({
   codeCard: { backgroundColor: C.alert + '12', borderColor: C.alert + '70', borderLeftWidth: 3, borderLeftColor: C.alert, padding: 12 },
   codeHead: { flexDirection: 'row', alignItems: 'center' },
   codeValue: { color: C.alert, fontSize: 18, fontWeight: '800' },
-  codeSource: { color: '#AEB6C4', fontSize: 11, marginTop: 2 },
-  codeText: { color: C.text, fontSize: 12, lineHeight: 18, marginTop: 8 },
+  codeTags: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, marginTop: 7 },
+  codeFamily: { color: C.alert, backgroundColor: C.alert + '1f', borderColor: C.alert + '80', borderWidth: 1, borderRadius: 10, overflow: 'hidden', paddingHorizontal: 8, paddingVertical: 3, fontSize: 11, fontWeight: '700' },
+  codeModel: { backgroundColor: 'transparent', borderWidth: 1, borderRadius: 10, overflow: 'hidden', paddingHorizontal: 8, paddingVertical: 3, fontSize: 11, fontWeight: '700' },
+  codeSource: { color: '#AEB6C4', backgroundColor: C.surface2, borderRadius: 10, overflow: 'hidden', paddingHorizontal: 8, paddingVertical: 3, fontSize: 11 },
   codeStar: { width: 32, height: 32, borderRadius: 16, backgroundColor: 'transparent', borderWidth: 0 },
   codeStarFilled: { color: C.alert, fontSize: 20 },
   codeStarOutline: { color: '#AEB6C4', fontSize: 20 },
