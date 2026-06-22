@@ -14,6 +14,8 @@
 import { readFileSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { getErrorFamily } from '../src/errorFamilies.js';
+import { getCodeFavoriteTarget } from '../src/codeFavorites.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
@@ -92,6 +94,13 @@ function parseSseText(text) {
     try { events.push(JSON.parse(data)); } catch {}
   }
   return events;
+}
+
+function buildChatHistory(messages) {
+  return messages
+    .filter(m => m.role !== 'errorCode' && m.text)
+    .slice(-6)
+    .map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text }));
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -176,6 +185,7 @@ console.log('[Sync guard] Verificando sincronização com src/search.js e src/Ch
     ['searchErrorCode',      srcSearch],
     ['computeFoundInManual', srcSearch],
     ['parseSseText',         srcChatJs],
+    ['buildChatHistory',     srcChatJs],
   ]) {
     const srcNorm  = normalize(extractFn(src,     fn));
     const testNorm = normalize(extractFn(testSelf, fn));
@@ -191,6 +201,45 @@ console.log('[Sync guard] Verificando sincronização com src/search.js e src/Ch
       console.log(`         test:...${testNorm.slice(Math.max(0, diffAt - 20), diffAt + 40)}...`);
     }
   }
+}
+
+console.log('\n[Error families] mapa aprovado por modelo');
+for (const [code, modelId, expected] of [
+  ['13.B2.D2', 'hp_e826', 'Atolamento'],
+  ['50.FF.02', 'hp_e826', 'Fusor'],
+  ['59.05.50', 'hp_e826', 'Motor'],
+  ['53.B0.02', 'hp_e826', 'Bandeja'],
+  ['64.04.02', 'hp_e826', 'Acessorio/Hardware'],
+  ['39.8', 'hp_e62655', null],
+  ['SC543', 'ricoh_sp3710', 'Motor/Fusao'],
+  ['SC541', 'ricoh_imc3000', 'Transporte de papel/Fusao'],
+]) {
+  const actual = getErrorFamily(code, modelId);
+  const ok = actual === expected;
+  console.log(`  [${ok ? '✓' : '✗ FAIL'}] ${code} (${modelId}) → ${actual}`);
+  if (ok) pass++; else fail++;
+}
+
+console.log('\n[Chat history] card local nao segue para provider');
+{
+  const history = buildChatHistory([
+    { role: 'user', text: '13.b2.d2' },
+    { role: 'errorCode', entries: [{ code: '13.B2.D2' }] },
+    { role: 'ai', text: 'Resposta anterior' },
+    { role: 'user', text: '13.B2.D2' },
+    { role: 'ai', text: '' },
+  ]);
+  const ok = history.length === 3 && history.every(message => typeof message.content === 'string' && message.content.length > 0);
+  console.log(`  [${ok ? '✓' : '✗ FAIL'}] errorCode/vazio excluidos; ${history.length} turnos com texto`);
+  if (ok) pass++; else fail++;
+}
+
+console.log('\n[Code favorite] reabre no modelo de origem');
+{
+  const target = getCodeFavoriteTarget({ type: 'code', code: '13.B2.D2', modelId: 'hp_e826' });
+  const ok = target?.modelId === 'hp_e826' && target?.code === '13.B2.D2';
+  console.log(`  [${ok ? '✓' : '✗ FAIL'}] favorito HP seleciona hp_e826 antes da busca`);
+  if (ok) pass++; else fail++;
 }
 
 // ── Positivos por modelo ──────────────────────────────────────────────────────
