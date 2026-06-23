@@ -61,7 +61,7 @@ export function getMessageCopyText(message) {
   return message.text || '';
 }
 
-export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, onQuestionSent, messages, setMessages, provider = DEFAULT_PROVIDER, favorites = [], onToggleFavorite = () => {}, onClearConversation = () => {}, onDeleteMessage = () => {} }) {
+export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, onQuestionSent, messages, setMessages, provider = DEFAULT_PROVIDER, favorites = [], onToggleFavorite = () => {}, onDeleteMessage = () => {} }) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [copiedMessageId, setCopiedMessageId] = useState(null);
@@ -102,14 +102,6 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
   }, []);
 
   const scrollToBottom = () => setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 150);
-
-  function confirmClearConversation() {
-    Alert.alert(
-      'Limpar conversa',
-      `Apagar todas as mensagens e resultados de ${manual.label}? Esta ação não pode ser desfeita.`,
-      [{ text: 'Cancelar', style: 'cancel' }, { text: 'Limpar', style: 'destructive', onPress: onClearConversation }]
-    );
-  }
 
   function confirmDeleteMessage(messageId) {
     Alert.alert(
@@ -488,8 +480,6 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
           </View>
         )}
 
-        {messages.length > 0 && <View style={styles.clearConversationBar}><TouchableOpacity style={styles.clearConversationBtn} onPress={confirmClearConversation} activeOpacity={0.75}><Text style={styles.clearConversationText}>Limpar conversa</Text></TouchableOpacity></View>}
-
         <View style={styles.inputBar}>
           <TextInput
             ref={inputRef}
@@ -522,9 +512,6 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
   list: { flex: 1 },
-  clearConversationBar: { alignItems: 'flex-end', paddingHorizontal: 12, paddingTop: 6, backgroundColor: C.bg },
-  clearConversationBtn: { alignSelf: 'flex-end', paddingHorizontal: 10, paddingVertical: 7, borderRadius: radius.sm, borderWidth: 1, borderColor: C.dangerBorder, backgroundColor: C.dangerSurface },
-  clearConversationText: { color: C.danger, fontSize: 11, fontWeight: '700' },
   welcome: { padding: 20, alignItems: 'center', gap: 10, marginTop: 16 },
   codeGroup: { gap: 8, paddingHorizontal: 14 },
   codeCard: { backgroundColor: C.alert + '12', borderColor: C.alert + '70', borderLeftWidth: 3, borderLeftColor: C.alert, padding: 12 },
