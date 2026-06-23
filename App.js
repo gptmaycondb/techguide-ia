@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
-  SafeAreaView, StatusBar, Animated, Dimensions, ScrollView, AppState,
+  SafeAreaView, StatusBar, Animated, Dimensions, ScrollView, AppState, Alert,
 } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
 import { logout, restoreSession } from './src/auth';
@@ -18,7 +18,7 @@ import ManualsScreen from './src/ManualsScreen';
 import AssistantBubble from './src/AssistantBubble';
 import FavoritesScreen from './src/FavoritesScreen';
 import { favoriteId, addFavorite, removeFavorite, isFavorite, listFavorites, saveFavorites } from './src/favorites';
-import { getCodeFavoriteTarget } from './src/codeFavorites';
+import { getCodeFavoriteRestoreMessages } from './src/codeFavorites';
 import { clearAllConversations, clearConversation, deleteConversationMessage } from './src/conversationState';
 import { colors as C, radius, spacing } from './src/theme';
 import SurfaceCard from './src/components/SurfaceCard';
@@ -264,6 +264,20 @@ export default function App() {
     setAllMessages(previous => deleteConversationMessage(previous, chatKey, messageId));
   }
 
+  function openCodeFavorite(item) {
+    const restored = getCodeFavoriteRestoreMessages(item);
+    if (!restored) {
+      Alert.alert('Favorito sem resposta salva', 'Este favorito foi criado antes do salvamento de respostas. Favorite o codigo novamente apos uma nova consulta.');
+      return;
+    }
+    setSelectedManualId(item.modelId);
+    setActiveTab('chat');
+    setAllMessages(previous => ({
+      ...previous,
+      [item.modelId]: [...(previous[item.modelId] || []), ...restored],
+    }));
+  }
+
   function modelFavorite(model) {
     return { type: 'model', id: favoriteId('model', model.id), label: model.label, meta: model.subtitle, color: model.color, modelId: model.id };
   }
@@ -373,7 +387,7 @@ export default function App() {
           <ManualsScreen favorites={favorites} onToggleFavorite={toggleFavorite} />
         </View>
         <View style={{ flex: 1, display: activeTab === 'favorites' ? 'flex' : 'none' }}>
-          <FavoritesScreen favorites={favorites} onToggleFavorite={toggleFavorite} onSelectModel={(item) => { setSelectedManualId(item.modelId); setActiveTab('chat'); }} onOpenManual={() => setActiveTab('manuals')} onOpenCode={(item) => { const target = getCodeFavoriteTarget(item); if (!target) return; setSelectedManualId(target.modelId); setActiveTab('chat'); setPendingQuestion(target.code); }} />
+          <FavoritesScreen favorites={favorites} onToggleFavorite={toggleFavorite} onSelectModel={(item) => { setSelectedManualId(item.modelId); setActiveTab('chat'); }} onOpenManual={() => setActiveTab('manuals')} onOpenCode={openCodeFavorite} />
         </View>
       </View>
 

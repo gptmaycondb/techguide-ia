@@ -15,13 +15,14 @@ import { readFileSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { getErrorFamily } from '../src/errorFamilies.js';
-import { getCodeFavoriteTarget } from '../src/codeFavorites.js';
+import { canSaveCodeFavorite, createCodeFavorite, getCodeFavoriteRestoreMessages } from '../src/codeFavorites.js';
 import { clearAllConversations, clearConversation, deleteConversationMessage } from '../src/conversationState.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
 
 const srcChatJs = readFileSync(resolve(ROOT, 'src/ChatScreen.js'), 'utf8');
+const srcAppJs = readFileSync(resolve(ROOT, 'App.js'), 'utf8');
 
 const errorCodesData = JSON.parse(
   readFileSync(resolve(ROOT, 'assets/error_codes_index.json'), 'utf8')
@@ -283,12 +284,41 @@ console.log('\n[Chat history] card local nao segue para provider');
   if (ok) pass++; else fail++;
 }
 
-console.log('\n[Code favorite] reabre no modelo de origem');
+console.log('\n[Code favorite] snapshot autossuficiente e restauracao local');
 {
-  const target = getCodeFavoriteTarget({ type: 'code', code: '13.B2.D2', modelId: 'hp_e826' });
-  const ok = target?.modelId === 'hp_e826' && target?.code === '13.B2.D2';
-  console.log(`  [${ok ? '✓' : '✗ FAIL'}] favorito HP seleciona hp_e826 antes da busca`);
-  if (ok) pass++; else fail++;
+  const entry = { code: '13.B2.D2', serviceKey: 'hp_e826_cpmd', text: 'Atolamento na bandeja 2.' };
+  const answer = { role: 'ai', text: 'Remova o papel preso.', streaming: false, source: 'Manual: E826', fromManual: true };
+  const favorite = createCodeFavorite({ entry, answer, manual: { id: 'hp_e826', label: 'HP E826', color: '#149BFF' }, family: 'Atolamento', source: 'Manual (CPMD)' });
+  const restored = getCodeFavoriteRestoreMessages(favorite, 100);
+  const checks = [
+    ['estrela exige uma entrada e IA completa', canSaveCodeFavorite([entry], answer)],
+    ['estrela some durante streaming', !canSaveCodeFavorite([entry], { ...answer, streaming: true })],
+    ['estrela some para erro ou varios codigos', !canSaveCodeFavorite([entry], { ...answer, isError: true }) && !canSaveCodeFavorite([entry, entry], answer)],
+    ['favorito salva card e resposta', favorite.savedCard.entries[0].code === entry.code && favorite.savedAnswer.text === answer.text],
+    ['restauracao insere card e resposta com IDs novos', restored?.[0].role === 'errorCode' && restored?.[1].role === 'ai' && restored[0].id !== restored[1].id],
+    ['favorito antigo nao gera reconsulta', getCodeFavoriteRestoreMessages({ type: 'code', modelId: 'hp_e826' }) === null],
+    ['limpar conversa nao altera snapshot do favorito', clearConversation({ hp_e826: [{ id: 'old' }] }, 'hp_e826').hp_e826 === undefined && favorite.savedAnswer.text === answer.text],
+  ];
+  for (const [label, ok] of checks) {
+    console.log(`  [${ok ? '✓' : '✗ FAIL'}] ${label}`);
+    if (ok) pass++; else fail++;
+  }
+}
+
+console.log('\n[Code favorite] reabertura local sem IA');
+{
+  const start = srcAppJs.indexOf('function openCodeFavorite');
+  const end = srcAppJs.indexOf('\n  function modelFavorite', start);
+  const restoreHandler = srcAppJs.slice(start, end);
+  const checks = [
+    ['reabertura escreve no historico do modelId', restoreHandler.includes('[item.modelId]: [...(previous[item.modelId] || []), ...restored]')],
+    ['reabertura nao agenda pergunta nem chama busca', !restoreHandler.includes('setPendingQuestion') && !restoreHandler.includes('searchErrorCode') && !restoreHandler.includes('fetch(')],
+    ['limpeza nao toca favoritos', !srcAppJs.slice(srcAppJs.indexOf('function handleClearAllConversations'), srcAppJs.indexOf('function openCodeFavorite')).includes('setFavorites')],
+  ];
+  for (const [label, ok] of checks) {
+    console.log(`  [${ok ? '✓' : '✗ FAIL'}] ${label}`);
+    if (ok) pass++; else fail++;
+  }
 }
 
 // ── Positivos por modelo ──────────────────────────────────────────────────────
