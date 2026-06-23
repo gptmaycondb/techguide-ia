@@ -24,6 +24,7 @@ import { colors as C, radius, spacing } from './src/theme';
 import SurfaceCard from './src/components/SurfaceCard';
 import StatusBadge from './src/components/StatusBadge';
 import IconButton from './src/components/IconButton';
+import { Ionicons } from '@expo/vector-icons';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const DRAWER_W = Math.min(SCREEN_W * 0.82, 300);
@@ -260,6 +261,14 @@ export default function App() {
     setAllMessages(previous => clearConversation(previous, chatKey));
   }
 
+  function confirmClearConversation() {
+    Alert.alert(
+      'Limpar conversa',
+      `Apagar todas as mensagens e resultados de ${manual.label}? Esta ação não pode ser desfeita.`,
+      [{ text: 'Cancelar', style: 'cancel' }, { text: 'Limpar', style: 'destructive', onPress: handleClearConversation }]
+    );
+  }
+
   function handleDeleteConversationMessage(messageId) {
     setAllMessages(previous => deleteConversationMessage(previous, chatKey, messageId));
   }
@@ -337,7 +346,10 @@ export default function App() {
           />
 
           {activeTab === 'chat' && (
+            <>
+              {messages.length > 0 && <TouchableOpacity accessibilityLabel="Limpar conversa" onPress={confirmClearConversation} style={styles.clearHeaderBtn} activeOpacity={0.75}><Ionicons name="trash-outline" size={18} color={C.dim} /></TouchableOpacity>}
             <IconButton icon="☰" onPress={openDrawer} style={styles.menuBtn} iconStyle={styles.menuBtnText} />
+            </>
           )}
         </View>
 
@@ -379,7 +391,6 @@ export default function App() {
             provider={provider}
             favorites={favorites}
             onToggleFavorite={toggleFavorite}
-            onClearConversation={handleClearConversation}
             onDeleteMessage={handleDeleteConversationMessage}
           />
         </View>
@@ -510,6 +521,7 @@ const styles = StyleSheet.create({
   onlineDotText: { fontSize: 8, fontWeight: '700' },
   menuBtn: { width: 34, height: 34, borderRadius: radius.sm, backgroundColor: C.surface2, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
   menuBtnText: { color: C.dim, fontSize: 17 },
+  clearHeaderBtn: { width: 34, height: 34, borderRadius: radius.sm, backgroundColor: C.surface2, borderWidth: 1, borderColor: C.border, alignItems: 'center', justifyContent: 'center' },
 
   // Equipment selector strip
   equipStrip: {

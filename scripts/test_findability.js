@@ -253,6 +253,19 @@ console.log('\n[Message actions] selecao nativa e copia integral');
   }
 }
 
+console.log('\n[Conversation cleanup] gatilho no cabecalho');
+{
+  const checks = [
+    ['faixa acima do input foi removida', !srcChatJs.includes('clearConversationBar') && !srcChatJs.includes('clearConversationBtn')],
+    ['lixeira so aparece na Consulta com mensagens', srcAppJs.includes("activeTab === 'chat' && (") && srcAppJs.includes('messages.length > 0 && <TouchableOpacity')],
+    ['lixeira reutiliza a limpeza do modelo atual', srcAppJs.includes('onPress: handleClearConversation') && srcAppJs.includes('clearConversation(previous, chatKey)')],
+  ];
+  for (const [label, ok] of checks) {
+    console.log(`  [${ok ? '✓' : '✗ FAIL'}] ${label}`);
+    if (ok) pass++; else fail++;
+  }
+}
+
 console.log('\n[Error families] mapa aprovado por modelo');
 for (const [code, modelId, expected] of [
   ['13.B2.D2', 'hp_e826', 'Atolamento'],
