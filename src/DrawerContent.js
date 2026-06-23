@@ -1,15 +1,20 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Modal, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, Modal, StyleSheet, Alert } from 'react-native';
 import { colors as C, radius } from './theme';
 import Tag from './components/Tag';
 import ActionButton from './components/ActionButton';
 
-export default function DrawerContent({ manual, mode, onQuestion, onLogout, showAssistant, onOpenAssistant, provider, visibleProviders = [], onChangeProvider }) {
+export default function DrawerContent({ manual, mode, onQuestion, onLogout, onClearAllConversations, showAssistant, onOpenAssistant, provider, visibleProviders = [], onChangeProvider }) {
   const [providerModalOpen, setProviderModalOpen] = useState(false);
 
   if (!manual) return null;
   const topics = manual.topics[mode] || manual.topics.user;
   const activeProvider = visibleProviders.find(p => p.id === provider) || visibleProviders[0];
+  const confirmClearAll = () => Alert.alert(
+    'Limpar todas as conversas',
+    'Todas as conversas e resultados de busca salvos neste dispositivo serão apagados. Esta ação não pode ser desfeita.',
+    [{ text: 'Cancelar', style: 'cancel' }, { text: 'Limpar', style: 'destructive', onPress: onClearAllConversations }]
+  );
 
   return (
     <View style={styles.container}>
@@ -76,6 +81,14 @@ export default function DrawerContent({ manual, mode, onQuestion, onLogout, show
             </ActionButton>
           )
         )}
+
+        <ActionButton variant="danger" style={styles.clearBtn} onPress={confirmClearAll} activeOpacity={0.75}>
+          <Text style={styles.clearIcon}>Limpar</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.clearText}>Limpar todas as conversas</Text>
+            <Text style={styles.clearSub}>Apaga o histórico salvo neste dispositivo</Text>
+          </View>
+        </ActionButton>
 
         <ActionButton variant="danger" style={styles.logoutBtn} onPress={onLogout} activeOpacity={0.75}>
           <Text style={styles.logoutIcon}>🚪</Text>
@@ -155,4 +168,8 @@ const styles = StyleSheet.create({
   iaOptionLabelActive: { color: C.accent },
   iaOptionSub: { color: C.muted, fontSize: 11, marginTop: 2 },
   iaCheck: { color: C.accent, fontSize: 16, fontWeight: '700' },
+  clearBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, paddingHorizontal: 10, borderRadius: radius.md, borderWidth: 1, borderColor: C.dangerBorder, backgroundColor: C.dangerSurface },
+  clearIcon: { color: C.danger, fontSize: 11, fontWeight: '700' },
+  clearText: { color: C.danger, fontSize: 13, fontWeight: '600' },
+  clearSub: { color: C.muted, fontSize: 10, marginTop: 2 },
 });

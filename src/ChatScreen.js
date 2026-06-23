@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, ScrollView,
   StyleSheet, ActivityIndicator, SafeAreaView, Keyboard,
-  Linking, KeyboardAvoidingView, Platform,
+  Linking, KeyboardAvoidingView, Platform, Alert,
 } from 'react-native';
 import { searchManual, searchErrorCode, searchErrorCodeEntries, hasRelevantContent, computeFoundInManual, MANUAL_INDEX_MAP } from './search';
 import { API_URL, DEFAULT_PROVIDER } from './data';
@@ -15,6 +15,7 @@ import SurfaceCard from './components/SurfaceCard';
 import IconButton from './components/IconButton';
 import { favoriteId, isFavorite, textHash } from './favorites';
 import { getErrorFamily } from './errorFamilies';
+import * as Clipboard from 'expo-clipboard';
 
 function friendlyError(err) {
   if (err.name === 'AbortError') return 'Tempo limite excedido. Servidor iniciando — tente novamente em 30s.';
@@ -50,11 +51,22 @@ export function buildChatHistory(messages) {
     .map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text }));
 }
 
-export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, onQuestionSent, messages, setMessages, provider = DEFAULT_PROVIDER, favorites = [], onToggleFavorite = () => {} }) {
+export function getMessageCopyText(message) {
+  if (message.role === 'errorCode') {
+    return (message.entries || [])
+      .map(entry => `${entry.code}\n${entry.text}`)
+      .join('\n\n');
+  }
+  return message.text || '';
+}
+
+export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, onQuestionSent, messages, setMessages, provider = DEFAULT_PROVIDER, favorites = [], onToggleFavorite = () => {}, onClearConversation = () => {}, onDeleteMessage = () => {} }) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [copiedMessageId, setCopiedMessageId] = useState(null);
   const listRef = useRef(null);
   const inputRef = useRef(null);
+  const copyFeedbackTimerRef = useRef(null);
 
   // searchKeys derivado do manual — estável durante a vida do componente (key={chatKey})
   const primaryKey = MANUAL_INDEX_MAP[manual.id] || manual.indexKey || 'e52645_guia';
@@ -65,6 +77,8 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
   useEffect(() => {
     loadModel().catch(() => {});
   }, []);
+
+  useEffect(() => () => clearTimeout(copyFeedbackTimerRef.current), []);
 
   // Pré-carrega embeddings do manual atual; libera ao desmontar (manual trocado via key={})
   useEffect(() => {
@@ -87,6 +101,35 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
   }, []);
 
   const scrollToBottom = () => setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 150);
+
+  function confirmClearConversation() {
+    Alert.alert(
+      'Limpar conversa',
+      `Apagar todas as mensagens e resultados de ${manual.label}? Esta ação não pode ser desfeita.`,
+      [{ text: 'Cancelar', style: 'cancel' }, { text: 'Limpar', style: 'destructive', onPress: onClearConversation }]
+    );
+  }
+
+  function confirmDeleteMessage(messageId) {
+    Alert.alert(
+      'Apagar mensagem',
+      'Esta mensagem será removida da conversa. Esta ação não pode ser desfeita.',
+      [{ text: 'Cancelar', style: 'cancel' }, { text: 'Apagar', style: 'destructive', onPress: () => onDeleteMessage(messageId) }]
+    );
+  }
+
+  async function copyMessage(message) {
+    const text = getMessageCopyText(message).trim();
+    if (!text) return;
+    try {
+      await Clipboard.setStringAsync(text);
+      setCopiedMessageId(message.id);
+      clearTimeout(copyFeedbackTimerRef.current);
+      copyFeedbackTimerRef.current = setTimeout(() => setCopiedMessageId(null), 1500);
+    } catch {
+      Alert.alert('Copiar mensagem', 'Nao foi possivel copiar esta mensagem.');
+    }
+  }
 
   async function send(question) {
     const q = (question || input).trim();
@@ -333,6 +376,7 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
             <View style={styles.codeHead}><View style={{ flex: 1 }}><Text style={styles.codeValue}>{entry.code}</Text><View style={styles.codeTags}>{family && <Text style={styles.codeFamily}>{family}</Text>}<Text style={[styles.codeModel, { color: manual.color || C.accent, borderColor: (manual.color || C.accent) + '80' }]}>{manual.label}</Text><Text style={styles.codeSource}>{sourceLabel(entry.serviceKey)}</Text></View></View><IconButton icon={isFavorite(favorites, id) ? '★' : '☆'} onPress={() => onToggleFavorite(favorite)} style={styles.codeStar} iconStyle={isFavorite(favorites, id) ? styles.codeStarFilled : styles.codeStarOutline} /></View>
           </SurfaceCard>;
         })}
+        {renderMessageActions(item)}
       </View>;
     }
     const isUser = item.role === 'user';
@@ -364,9 +408,22 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
               {item.fromManual ? '● ' : '⚠ '}{item.source}
             </Text>
           )}
+          {renderMessageActions(item)}
         </View>
       </View>
     );
+  }
+
+  function renderMessageActions(item) {
+    const hasText = Boolean(getMessageCopyText(item).trim());
+    return <View style={styles.messageActions}>
+      {hasText && <TouchableOpacity style={styles.messageAction} onPress={() => copyMessage(item)} activeOpacity={0.75}>
+        <Text style={styles.messageActionText}>{copiedMessageId === item.id ? 'Copiado' : 'Copiar'}</Text>
+      </TouchableOpacity>}
+      <TouchableOpacity style={[styles.messageAction, styles.deleteMessageAction]} onPress={() => confirmDeleteMessage(item.id)} activeOpacity={0.75}>
+        <Text style={[styles.messageActionText, styles.deleteMessageActionText]}>Apagar</Text>
+      </TouchableOpacity>
+    </View>;
   }
 
   function sourceLabel(serviceKey) {
@@ -410,6 +467,7 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
               contentContainerStyle={{ padding: 14, gap: 12, paddingBottom: 12 }}
               keyboardShouldPersistTaps="handled"
               onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}>
+              {messages.length > 0 && <TouchableOpacity style={styles.clearConversationBtn} onPress={confirmClearConversation} activeOpacity={0.75}><Text style={styles.clearConversationText}>Limpar conversa</Text></TouchableOpacity>}
               {messages.map((item, index) => (
                 <View key={item.id}>
                   {renderMessage({ item, index })}
@@ -457,6 +515,8 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
   list: { flex: 1 },
+  clearConversationBtn: { alignSelf: 'flex-end', paddingHorizontal: 10, paddingVertical: 7, borderRadius: radius.sm, borderWidth: 1, borderColor: C.dangerBorder, backgroundColor: C.dangerSurface },
+  clearConversationText: { color: C.danger, fontSize: 11, fontWeight: '700' },
   welcome: { padding: 20, alignItems: 'center', gap: 10, marginTop: 16 },
   codeGroup: { gap: 8, paddingHorizontal: 14 },
   codeCard: { backgroundColor: C.alert + '12', borderColor: C.alert + '70', borderLeftWidth: 3, borderLeftColor: C.alert, padding: 12 },
@@ -493,6 +553,11 @@ const styles = StyleSheet.create({
   linkBtn: { marginTop: 6, backgroundColor: C.infoSurface, borderRadius: radius.sm, borderWidth: 1, borderColor: C.accent + '50', paddingHorizontal: 10, paddingVertical: 6 },
   linkBtnText: { color: C.accent, fontSize: 11, fontWeight: '600' },
   source: { color: C.muted, fontSize: 10, marginTop: 4, marginLeft: 2 },
+  messageActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 6, marginTop: 6 },
+  messageAction: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.sm, backgroundColor: C.surface2, borderWidth: 1, borderColor: C.border },
+  messageActionText: { color: C.dim, fontSize: 10, fontWeight: '700' },
+  deleteMessageAction: { backgroundColor: C.dangerSurface, borderColor: C.dangerBorder },
+  deleteMessageActionText: { color: C.danger },
   typingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 10, paddingLeft: 16 },
   typingText: { fontSize: 12 },
   inputBar: {

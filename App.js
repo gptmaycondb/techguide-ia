@@ -19,6 +19,7 @@ import AssistantBubble from './src/AssistantBubble';
 import FavoritesScreen from './src/FavoritesScreen';
 import { favoriteId, addFavorite, removeFavorite, isFavorite, listFavorites, saveFavorites } from './src/favorites';
 import { getCodeFavoriteTarget } from './src/codeFavorites';
+import { clearAllConversations, clearConversation, deleteConversationMessage } from './src/conversationState';
 import { colors as C, radius, spacing } from './src/theme';
 import SurfaceCard from './src/components/SurfaceCard';
 import StatusBadge from './src/components/StatusBadge';
@@ -96,10 +97,15 @@ export default function App() {
 
   const drawerAnim = useRef(new Animated.Value(-DRAWER_W)).current;
   const saveTimeoutRef = useRef(null);
+  const skipPersistRef = useRef(false);
 
   // Persist conversation history with debounce
   useEffect(() => {
     if (!authEmail || authStatus !== 'authed') return;
+    if (skipPersistRef.current) {
+      skipPersistRef.current = false;
+      return;
+    }
     if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     saveTimeoutRef.current = setTimeout(async () => {
       const pruned = Object.fromEntries(
@@ -240,6 +246,24 @@ export default function App() {
     });
   }
 
+  async function handleClearAllConversations() {
+    closeDrawer();
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
+    skipPersistRef.current = true;
+    setAllMessages(clearAllConversations());
+    if (authEmail) {
+      try { await AsyncStorage.removeItem(`tg_messages_${authEmail}`); } catch {}
+    }
+  }
+
+  function handleClearConversation() {
+    setAllMessages(previous => clearConversation(previous, chatKey));
+  }
+
+  function handleDeleteConversationMessage(messageId) {
+    setAllMessages(previous => deleteConversationMessage(previous, chatKey, messageId));
+  }
+
   function modelFavorite(model) {
     return { type: 'model', id: favoriteId('model', model.id), label: model.label, meta: model.subtitle, color: model.color, modelId: model.id };
   }
@@ -341,6 +365,8 @@ export default function App() {
             provider={provider}
             favorites={favorites}
             onToggleFavorite={toggleFavorite}
+            onClearConversation={handleClearConversation}
+            onDeleteMessage={handleDeleteConversationMessage}
           />
         </View>
         <View style={{ flex: 1, display: activeTab === 'manuals' ? 'flex' : 'none' }}>
@@ -443,6 +469,7 @@ export default function App() {
               mode={mode}
               onQuestion={handleQuestion}
               onLogout={handleLogout}
+              onClearAllConversations={handleClearAllConversations}
               showAssistant={showAssistant}
               onOpenAssistant={() => { closeDrawer(); setShowAssistant(true); }}
               provider={provider}

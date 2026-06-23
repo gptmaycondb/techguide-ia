@@ -16,6 +16,7 @@ import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { getErrorFamily } from '../src/errorFamilies.js';
 import { getCodeFavoriteTarget } from '../src/codeFavorites.js';
+import { clearAllConversations, clearConversation, deleteConversationMessage } from '../src/conversationState.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
@@ -102,6 +103,15 @@ function buildChatHistory(messages) {
     .slice(-6)
     .map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text }));
 }
+
+function getMessageCopyText(message) {
+  if (message.role === 'errorCode') {
+    return (message.entries || [])
+      .map(entry => `${entry.code}\n${entry.text}`)
+      .join('\n\n');
+  }
+  return message.text || '';
+}
 // ─────────────────────────────────────────────────────────────────────────────
 
 // searchKeys espelham src/data.js
@@ -153,6 +163,26 @@ function expectContains(label, query, keys, includes, excludes = []) {
 
 console.log('=== Findability Test Suite ===\n');
 
+console.log('[Conversation cleanup] escopos de limpeza local');
+{
+  const initial = {
+    hp_e826: [{ id: 'user-1' }, { id: 'error-code-2' }],
+    ricoh_imc3000: [{ id: 'ai-3' }],
+  };
+  const clearedCurrent = clearConversation(initial, 'hp_e826');
+  const deletedOne = deleteConversationMessage(initial, 'hp_e826', 'error-code-2');
+  const clearedAll = clearAllConversations();
+  const checks = [
+    ['limpar atual remove apenas hp_e826', !clearedCurrent.hp_e826 && clearedCurrent.ricoh_imc3000.length === 1],
+    ['apagar individual preserva as demais mensagens', deletedOne.hp_e826.length === 1 && deletedOne.hp_e826[0].id === 'user-1'],
+    ['limpar todas retorna objeto vazio', Object.keys(clearedAll).length === 0],
+  ];
+  for (const [label, ok] of checks) {
+    console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}`);
+    if (ok) pass++; else fail++;
+  }
+}
+
 // ── Sync guard: verbatim copies must match source files ──────────────────────
 console.log('[Sync guard] Verificando sincronização com src/search.js e src/ChatScreen.js');
 {
@@ -186,6 +216,7 @@ console.log('[Sync guard] Verificando sincronização com src/search.js e src/Ch
     ['computeFoundInManual', srcSearch],
     ['parseSseText',         srcChatJs],
     ['buildChatHistory',     srcChatJs],
+    ['getMessageCopyText',   srcChatJs],
   ]) {
     const srcNorm  = normalize(extractFn(src,     fn));
     const testNorm = normalize(extractFn(testSelf, fn));
@@ -200,6 +231,24 @@ console.log('[Sync guard] Verificando sincronização com src/search.js e src/Ch
       console.log(`         src: ...${srcNorm.slice(Math.max(0, diffAt - 20), diffAt + 40)}...`);
       console.log(`         test:...${testNorm.slice(Math.max(0, diffAt - 20), diffAt + 40)}...`);
     }
+  }
+}
+
+console.log('\n[Message actions] selecao nativa e copia integral');
+{
+  const errorCardText = getMessageCopyText({
+    role: 'errorCode',
+    entries: [{ code: '13.B2.D2', text: 'Atolamento na bandeja 2.' }],
+  });
+  const checks = [
+    ['mensagem comum copia o texto completo', getMessageCopyText({ role: 'ai', text: 'Resposta completa.' }) === 'Resposta completa.'],
+    ['card de codigo copia codigo e descricao', errorCardText === '13.B2.D2\nAtolamento na bandeja 2.'],
+    ['texto selecionavel permanece no ChatScreen', srcChatJs.includes('selectable')],
+    ['wrapper de long-press foi removido', !srcChatJs.includes('onLongPress={() => confirmDeleteMessage')],
+  ];
+  for (const [label, ok] of checks) {
+    console.log(`  [${ok ? '✓' : '✗ FAIL'}] ${label}`);
+    if (ok) pass++; else fail++;
   }
 }
 
