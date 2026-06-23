@@ -15,6 +15,7 @@ import SurfaceCard from './components/SurfaceCard';
 import IconButton from './components/IconButton';
 import { favoriteId, isFavorite, textHash } from './favorites';
 import { getErrorFamily } from './errorFamilies';
+import * as Clipboard from 'expo-clipboard';
 
 function friendlyError(err) {
   if (err.name === 'AbortError') return 'Tempo limite excedido. Servidor iniciando — tente novamente em 30s.';
@@ -50,11 +51,22 @@ export function buildChatHistory(messages) {
     .map(m => ({ role: m.role === 'user' ? 'user' : 'assistant', content: m.text }));
 }
 
+export function getMessageCopyText(message) {
+  if (message.role === 'errorCode') {
+    return (message.entries || [])
+      .map(entry => `${entry.code}\n${entry.text}`)
+      .join('\n\n');
+  }
+  return message.text || '';
+}
+
 export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, onQuestionSent, messages, setMessages, provider = DEFAULT_PROVIDER, favorites = [], onToggleFavorite = () => {}, onClearConversation = () => {}, onDeleteMessage = () => {} }) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
+  const [copiedMessageId, setCopiedMessageId] = useState(null);
   const listRef = useRef(null);
   const inputRef = useRef(null);
+  const copyFeedbackTimerRef = useRef(null);
 
   // searchKeys derivado do manual — estável durante a vida do componente (key={chatKey})
   const primaryKey = MANUAL_INDEX_MAP[manual.id] || manual.indexKey || 'e52645_guia';
@@ -65,6 +77,8 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
   useEffect(() => {
     loadModel().catch(() => {});
   }, []);
+
+  useEffect(() => () => clearTimeout(copyFeedbackTimerRef.current), []);
 
   // Pré-carrega embeddings do manual atual; libera ao desmontar (manual trocado via key={})
   useEffect(() => {
@@ -102,6 +116,19 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
       'Esta mensagem será removida da conversa. Esta ação não pode ser desfeita.',
       [{ text: 'Cancelar', style: 'cancel' }, { text: 'Apagar', style: 'destructive', onPress: () => onDeleteMessage(messageId) }]
     );
+  }
+
+  async function copyMessage(message) {
+    const text = getMessageCopyText(message).trim();
+    if (!text) return;
+    try {
+      await Clipboard.setStringAsync(text);
+      setCopiedMessageId(message.id);
+      clearTimeout(copyFeedbackTimerRef.current);
+      copyFeedbackTimerRef.current = setTimeout(() => setCopiedMessageId(null), 1500);
+    } catch {
+      Alert.alert('Copiar mensagem', 'Nao foi possivel copiar esta mensagem.');
+    }
   }
 
   async function send(question) {
@@ -349,6 +376,7 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
             <View style={styles.codeHead}><View style={{ flex: 1 }}><Text style={styles.codeValue}>{entry.code}</Text><View style={styles.codeTags}>{family && <Text style={styles.codeFamily}>{family}</Text>}<Text style={[styles.codeModel, { color: manual.color || C.accent, borderColor: (manual.color || C.accent) + '80' }]}>{manual.label}</Text><Text style={styles.codeSource}>{sourceLabel(entry.serviceKey)}</Text></View></View><IconButton icon={isFavorite(favorites, id) ? '★' : '☆'} onPress={() => onToggleFavorite(favorite)} style={styles.codeStar} iconStyle={isFavorite(favorites, id) ? styles.codeStarFilled : styles.codeStarOutline} /></View>
           </SurfaceCard>;
         })}
+        {renderMessageActions(item)}
       </View>;
     }
     const isUser = item.role === 'user';
@@ -380,9 +408,22 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
               {item.fromManual ? '● ' : '⚠ '}{item.source}
             </Text>
           )}
+          {renderMessageActions(item)}
         </View>
       </View>
     );
+  }
+
+  function renderMessageActions(item) {
+    const hasText = Boolean(getMessageCopyText(item).trim());
+    return <View style={styles.messageActions}>
+      {hasText && <TouchableOpacity style={styles.messageAction} onPress={() => copyMessage(item)} activeOpacity={0.75}>
+        <Text style={styles.messageActionText}>{copiedMessageId === item.id ? 'Copiado' : 'Copiar'}</Text>
+      </TouchableOpacity>}
+      <TouchableOpacity style={[styles.messageAction, styles.deleteMessageAction]} onPress={() => confirmDeleteMessage(item.id)} activeOpacity={0.75}>
+        <Text style={[styles.messageActionText, styles.deleteMessageActionText]}>Apagar</Text>
+      </TouchableOpacity>
+    </View>;
   }
 
   function sourceLabel(serviceKey) {
@@ -428,9 +469,9 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
               onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}>
               {messages.length > 0 && <TouchableOpacity style={styles.clearConversationBtn} onPress={confirmClearConversation} activeOpacity={0.75}><Text style={styles.clearConversationText}>Limpar conversa</Text></TouchableOpacity>}
               {messages.map((item, index) => (
-                <TouchableOpacity key={item.id} activeOpacity={1} onLongPress={() => confirmDeleteMessage(item.id)} delayLongPress={450}>
+                <View key={item.id}>
                   {renderMessage({ item, index })}
-                </TouchableOpacity>
+                </View>
               ))}
             </ScrollView>
         }
@@ -512,6 +553,11 @@ const styles = StyleSheet.create({
   linkBtn: { marginTop: 6, backgroundColor: C.infoSurface, borderRadius: radius.sm, borderWidth: 1, borderColor: C.accent + '50', paddingHorizontal: 10, paddingVertical: 6 },
   linkBtnText: { color: C.accent, fontSize: 11, fontWeight: '600' },
   source: { color: C.muted, fontSize: 10, marginTop: 4, marginLeft: 2 },
+  messageActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 6, marginTop: 6 },
+  messageAction: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: radius.sm, backgroundColor: C.surface2, borderWidth: 1, borderColor: C.border },
+  messageActionText: { color: C.dim, fontSize: 10, fontWeight: '700' },
+  deleteMessageAction: { backgroundColor: C.dangerSurface, borderColor: C.dangerBorder },
+  deleteMessageActionText: { color: C.danger },
   typingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 10, paddingLeft: 16 },
   typingText: { fontSize: 12 },
   inputBar: {
