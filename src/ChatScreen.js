@@ -15,6 +15,7 @@ import SurfaceCard from './components/SurfaceCard';
 import IconButton from './components/IconButton';
 import { favoriteId, isFavorite, textHash } from './favorites';
 import { getErrorFamily } from './errorFamilies';
+import { canSaveCodeFavorite, createCodeFavorite } from './codeFavorites';
 import * as Clipboard from 'expo-clipboard';
 
 function friendlyError(err) {
@@ -188,7 +189,7 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
       const offlineText = foundInManual
         ? 'Modo offline — Trechos encontrados:\n\n' + chunks.map((c,i) => `[${i+1}] ${c.substring(0,1000)}${c.length>1000?'...':''}`).join('\n\n')
         : 'Modo offline — Nenhum resultado encontrado. Conecte-se para usar a IA.';
-      setMessages(m => [...m, { id: Date.now()+1, role: 'ai', text: offlineText, source: 'Manual (offline)', offline: true, fromManual: foundInManual }]);
+      setMessages(m => [...m, { id: Date.now()+1, role: 'ai', text: offlineText, source: 'Manual (offline)', offline: true, fromManual: foundInManual, streaming: false }]);
       setLoading(false);
       scrollToBottom();
       return;
@@ -364,16 +365,21 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
     return links;
   }
 
-  function renderMessage({ item }) {
+  function renderMessage({ item, index }) {
     if (item.role === 'errorCode') {
       const entries = [...new Map(item.entries.map(entry => [entry.code, entry])).values()];
+      const answer = messages[index + 1];
+      const canFavorite = canSaveCodeFavorite(entries, answer);
       return <View style={styles.codeGroup}>
         {entries.map(entry => {
           const id = favoriteId('code', `${entry.code}:${entry.serviceKey}:${textHash(entry.text)}`);
-          const favorite = { type: 'code', id, label: entry.code, meta: sourceLabel(entry.serviceKey), color: C.alert, code: entry.code, serviceKey: entry.serviceKey, text: entry.text, modelId: manual.id };
-          const family = getErrorFamily(entry.code, manual.id);
+          const family = item.savedCard?.family ?? getErrorFamily(entry.code, manual.id);
+          const modelLabel = item.savedCard?.modelLabel || manual.label;
+          const modelColor = item.savedCard?.modelColor || manual.color || C.accent;
+          const source = item.savedCard?.source || sourceLabel(entry.serviceKey);
+          const favorite = canFavorite ? createCodeFavorite({ entry, answer, manual, family, source }) : null;
           return <SurfaceCard key={id} style={styles.codeCard}>
-            <View style={styles.codeHead}><View style={{ flex: 1 }}><Text style={styles.codeValue}>{entry.code}</Text><View style={styles.codeTags}>{family && <Text style={styles.codeFamily}>{family}</Text>}<Text style={[styles.codeModel, { color: manual.color || C.accent, borderColor: (manual.color || C.accent) + '80' }]}>{manual.label}</Text><Text style={styles.codeSource}>{sourceLabel(entry.serviceKey)}</Text></View></View><IconButton icon={isFavorite(favorites, id) ? '★' : '☆'} onPress={() => onToggleFavorite(favorite)} style={styles.codeStar} iconStyle={isFavorite(favorites, id) ? styles.codeStarFilled : styles.codeStarOutline} /></View>
+            <View style={styles.codeHead}><View style={{ flex: 1 }}><Text style={styles.codeValue}>{entry.code}</Text><View style={styles.codeTags}>{family && <Text style={styles.codeFamily}>{family}</Text>}<Text style={[styles.codeModel, { color: modelColor, borderColor: modelColor + '80' }]}>{modelLabel}</Text><Text style={styles.codeSource}>{source}</Text></View></View>{canFavorite && <IconButton icon={isFavorite(favorites, favorite.id) ? '★' : '☆'} onPress={() => onToggleFavorite(favorite)} style={styles.codeStar} iconStyle={isFavorite(favorites, favorite.id) ? styles.codeStarFilled : styles.codeStarOutline} />}</View>
           </SurfaceCard>;
         })}
         {renderMessageActions(item)}
@@ -467,7 +473,6 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
               contentContainerStyle={{ padding: 14, gap: 12, paddingBottom: 12 }}
               keyboardShouldPersistTaps="handled"
               onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}>
-              {messages.length > 0 && <TouchableOpacity style={styles.clearConversationBtn} onPress={confirmClearConversation} activeOpacity={0.75}><Text style={styles.clearConversationText}>Limpar conversa</Text></TouchableOpacity>}
               {messages.map((item, index) => (
                 <View key={item.id}>
                   {renderMessage({ item, index })}
@@ -482,6 +487,8 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
             <Text style={[styles.typingText, { color: C.accent2 }]}>Consultando manual...</Text>
           </View>
         )}
+
+        {messages.length > 0 && <View style={styles.clearConversationBar}><TouchableOpacity style={styles.clearConversationBtn} onPress={confirmClearConversation} activeOpacity={0.75}><Text style={styles.clearConversationText}>Limpar conversa</Text></TouchableOpacity></View>}
 
         <View style={styles.inputBar}>
           <TextInput
@@ -515,6 +522,7 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: C.bg },
   list: { flex: 1 },
+  clearConversationBar: { alignItems: 'flex-end', paddingHorizontal: 12, paddingTop: 6, backgroundColor: C.bg },
   clearConversationBtn: { alignSelf: 'flex-end', paddingHorizontal: 10, paddingVertical: 7, borderRadius: radius.sm, borderWidth: 1, borderColor: C.dangerBorder, backgroundColor: C.dangerSurface },
   clearConversationText: { color: C.danger, fontSize: 11, fontWeight: '700' },
   welcome: { padding: 20, alignItems: 'center', gap: 10, marginTop: 16 },
