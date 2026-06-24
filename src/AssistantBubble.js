@@ -36,7 +36,7 @@ function buildShuffledTips(brand, modelId) {
   return shuffle(filtered);
 }
 
-export default function AssistantBubble({ visible, onDismiss, brand = 'hp', modelId }) {
+export default function AssistantBubble({ visible, onDismiss, brand = 'hp', modelId, tour, onTourTargetLayout }) {
   const pan       = useRef(new Animated.ValueXY({ x: SCREEN_W - BUBBLE_SIZE - EDGE_PADDING, y: SCREEN_H * 0.55 })).current;
   const pulseAnim = useRef(new Animated.Value(1)).current;
   const zoneAnim  = useRef(new Animated.Value(0)).current;
@@ -81,11 +81,11 @@ export default function AssistantBubble({ visible, onDismiss, brand = 'hp', mode
 
   // TipCard scale animation
   useEffect(() => {
-    if (tipOpen) {
+    if (tipOpen || tour) {
       cardAnim.setValue(0.82);
       Animated.spring(cardAnim, { toValue: 1, tension: 120, friction: 8, useNativeDriver: false }).start();
     }
-  }, [tipOpen, cardAnim]);
+  }, [tipOpen, Boolean(tour), cardAnim]);
 
   const closeTip = useCallback(() => setTipOpen(false), []);
   const nextTip  = useCallback(() => setCurrentTip(i => (i + 1) % shuffledTips.length), [shuffledTips.length]);
@@ -151,6 +151,12 @@ export default function AssistantBubble({ visible, onDismiss, brand = 'hp', mode
     if (visible) fadeAnim.setValue(1);
   }, [visible, fadeAnim]);
 
+  useEffect(() => {
+    if (tour?.target !== 'bubble') return;
+    const value = pan.__getValue();
+    onTourTargetLayout?.('bubble', { x: value.x, y: value.y, width: BUBBLE_SIZE, height: BUBBLE_SIZE });
+  }, [tour?.target, pan, onTourTargetLayout]);
+
   if (!visible) return null;
 
   const total    = shuffledTips.length;
@@ -159,11 +165,37 @@ export default function AssistantBubble({ visible, onDismiss, brand = 'hp', mode
   const dots     = Array.from({ length: Math.min(MAX_DOTS, total) }, (_, i) => dotStart + i);
   const tipText  = shuffledTips[currentTip]?.text ?? '';
 
+  const spotlight = tour?.spotlight;
+
   return (
-    <Animated.View style={[styles.root, { opacity: fadeAnim }]} pointerEvents="box-none">
+    <Animated.View style={[styles.root, tour && styles.tourRoot, { opacity: fadeAnim }]} pointerEvents={tour ? 'auto' : 'box-none'}>
+
+      {tour && <View style={styles.tourOverlay} pointerEvents="auto">
+        {spotlight && <>
+          <View style={[styles.shade, { top: 0, left: 0, right: 0, height: Math.max(0, spotlight.y - 10) }]} />
+          <View style={[styles.shade, { top: Math.max(0, spotlight.y - 10), left: 0, width: Math.max(0, spotlight.x - 10), height: spotlight.height + 20 }]} />
+          <View style={[styles.shade, { top: Math.max(0, spotlight.y - 10), left: spotlight.x + spotlight.width + 10, right: 0, height: spotlight.height + 20 }]} />
+          <View style={[styles.shade, { top: spotlight.y + spotlight.height + 10, left: 0, right: 0, bottom: 0 }]} />
+          <View style={[styles.spotlightRing, { left: spotlight.x - 10, top: spotlight.y - 10, width: spotlight.width + 20, height: spotlight.height + 20 }]} />
+        </>}
+        {!spotlight && <View style={[styles.shade, StyleSheet.absoluteFillObject]} />}
+      </View>}
 
       {/* TipCard */}
-      {tipOpen && !dragging && (
+      {tour ? (
+        <SurfaceCard as={Animated.View} variant="raised" style={[styles.card, styles.tourCard, (tour.target === 'favoritesTab' || tour.target === 'manualsTab') && styles.tourCardTop, { transform: [{ scale: cardAnim }] }]}>
+          <View style={styles.cardHeader}>
+            <Text style={styles.cardHeaderLabel}>{tour.welcome ? 'Boas-vindas' : `Passo ${tour.step} de ${tour.total}`}</Text>
+          </View>
+          <View style={styles.cardDivider} />
+          <Text selectable style={styles.cardText}>{tour.text}</Text>
+          <View style={styles.cardDivider} />
+          <View style={styles.tourActions}>
+            <TouchableOpacity onPress={tour.onSkip} style={styles.skipTourBtn}><Text style={styles.skipTourText}>Pular</Text></TouchableOpacity>
+            <TouchableOpacity onPress={tour.onNext} style={styles.nextTourBtn}><Text style={styles.nextTourText}>{tour.isLast ? 'Concluir' : 'Próximo'}</Text></TouchableOpacity>
+          </View>
+        </SurfaceCard>
+      ) : tipOpen && !dragging && (
         <SurfaceCard as={Animated.View} variant="raised" style={[styles.card, { transform: [{ scale: cardAnim }] }]}>
           <View style={styles.cardHeader}>
             <Text style={styles.cardHeaderIcon}>💡</Text>
@@ -204,7 +236,7 @@ export default function AssistantBubble({ visible, onDismiss, brand = 'hp', mode
           styles.bubbleWrap,
           { transform: [{ translateX: pan.x }, { translateY: pan.y }, { scale: pulseAnim }] },
         ]}
-        {...panResponder.panHandlers}
+        {...(tour ? {} : panResponder.panHandlers)}
       >
         <View style={[styles.bubble, nearDismiss && styles.bubbleDismiss]}>
           <Image source={require('../assets/assistant.png')} style={styles.bubbleImg} />
@@ -217,6 +249,10 @@ export default function AssistantBubble({ visible, onDismiss, brand = 'hp', mode
 
 const styles = StyleSheet.create({
   root: { ...StyleSheet.absoluteFillObject, zIndex: 60 },
+  tourRoot: { zIndex: 70 },
+  tourOverlay: { ...StyleSheet.absoluteFillObject },
+  shade: { position: 'absolute', backgroundColor: 'rgba(0,0,0,0.68)' },
+  spotlightRing: { position: 'absolute', borderWidth: 2, borderColor: C.accent, borderRadius: radius.md },
 
   bubbleWrap: { position: 'absolute', top: 0, left: 0, width: BUBBLE_SIZE, height: BUBBLE_SIZE },
   bubble: {
@@ -249,6 +285,8 @@ const styles = StyleSheet.create({
     shadowColor: C.black, shadowOpacity: 0.45, shadowRadius: 20,
     shadowOffset: { width: 0, height: 6 }, elevation: 12, overflow: 'hidden',
   },
+  tourCard: { top: undefined, bottom: 24, left: 16, right: 16, width: undefined },
+  tourCardTop: { top: Platform.OS === 'ios' ? 80 : 60, bottom: undefined },
   cardHeader: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16, paddingVertical: 12 },
   cardHeaderIcon: { fontSize: 16 },
   cardHeaderLabel: { flex: 1, color: C.accent, fontSize: 12, fontWeight: '700', letterSpacing: 0.3 },
@@ -261,4 +299,9 @@ const styles = StyleSheet.create({
   dots: { flexDirection: 'row', gap: 6, alignItems: 'center' },
   dot: { width: 6, height: 6, borderRadius: 3, backgroundColor: C.border },
   dotActive: { backgroundColor: C.accent, width: 8, height: 8, borderRadius: 4 },
+  tourActions: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 12 },
+  skipTourBtn: { paddingHorizontal: 12, paddingVertical: 10 },
+  skipTourText: { color: C.dim, fontSize: 13, fontWeight: '700' },
+  nextTourBtn: { backgroundColor: C.accent, borderRadius: radius.sm, paddingHorizontal: 16, paddingVertical: 10 },
+  nextTourText: { color: C.white, fontSize: 13, fontWeight: '800' },
 });
