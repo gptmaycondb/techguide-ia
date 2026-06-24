@@ -17,6 +17,7 @@ import { fileURLToPath } from 'url';
 import { getErrorFamily } from '../src/errorFamilies.js';
 import { canSaveCodeFavorite, createCodeFavorite, getCodeFavoriteRestoreMessages } from '../src/codeFavorites.js';
 import { clearAllConversations, clearConversation, deleteConversationMessage } from '../src/conversationState.js';
+import { ONBOARDING_STEPS, getOnboardingStep, onboardingStorageKey } from '../src/onboarding.js';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = resolve(__dirname, '..');
@@ -259,6 +260,24 @@ console.log('\n[Conversation cleanup] gatilho no cabecalho');
     ['faixa acima do input foi removida', !srcChatJs.includes('clearConversationBar') && !srcChatJs.includes('clearConversationBtn')],
     ['lixeira so aparece na Consulta com mensagens', srcAppJs.includes("activeTab === 'chat' && (") && srcAppJs.includes('messages.length > 0 && <TouchableOpacity')],
     ['lixeira reutiliza a limpeza do modelo atual', srcAppJs.includes('onPress: handleClearConversation') && srcAppJs.includes('clearConversation(previous, chatKey)')],
+  ];
+  for (const [label, ok] of checks) {
+    console.log(`  [${ok ? '✓' : '✗ FAIL'}] ${label}`);
+    if (ok) pass++; else fail++;
+  }
+}
+
+console.log('\n[Onboarding] roteiro deterministico e flag por usuario');
+{
+  const srcBubbleJs = readFileSync(resolve(ROOT, 'src/AssistantBubble.js'), 'utf8');
+  const srcOnboardingJs = readFileSync(resolve(ROOT, 'src/onboarding.js'), 'utf8');
+  const checks = [
+    ['cinco passos com abas esperadas', ONBOARDING_STEPS.length === 5 && ONBOARDING_STEPS[0].target === 'equipment' && ONBOARDING_STEPS[4].target === 'bubble'],
+    ['flag e isolado por usuario', onboardingStorageKey('tecnico@empresa.com') === 'tg_onboarding_done_tecnico@empresa.com'],
+    ['indice invalido nao cria passo', getOnboardingStep(-1) === null && getOnboardingStep(5) === null],
+    ['roteiro nao usa IA ou busca', !/fetch\(|API_URL|searchErrorCode|semanticSearchManual|from\s+['"].*search/.test(srcOnboardingJs)],
+    ['bolha desabilita PanResponder durante tour', srcBubbleJs.includes('...(tour ? {} : panResponder.panHandlers)')],
+    ['spotlight fica acima dos overlays existentes', srcBubbleJs.includes('tourRoot: { zIndex: 70 }')],
   ];
   for (const [label, ok] of checks) {
     console.log(`  [${ok ? '✓' : '✗ FAIL'}] ${label}`);

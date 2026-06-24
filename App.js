@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import {
   View, Text, TouchableOpacity, StyleSheet,
   SafeAreaView, StatusBar, Animated, Dimensions, ScrollView, AppState, Alert,
@@ -19,6 +19,7 @@ import AssistantBubble from './src/AssistantBubble';
 import FavoritesScreen from './src/FavoritesScreen';
 import { favoriteId, addFavorite, removeFavorite, isFavorite, listFavorites, saveFavorites } from './src/favorites';
 import { getCodeFavoriteRestoreMessages } from './src/codeFavorites';
+import { ONBOARDING_STEPS, getOnboardingStep, onboardingStorageKey } from './src/onboarding';
 import { clearAllConversations, clearConversation, deleteConversationMessage } from './src/conversationState';
 import { colors as C, radius, spacing } from './src/theme';
 import SurfaceCard from './src/components/SurfaceCard';
@@ -93,12 +94,17 @@ export default function App() {
   const [showWelcome, setShowWelcome] = useState(false);
   const [tutorialSeen, setTutorialSeen] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
+  const [onboardingDone, setOnboardingDone] = useState(false);
+  const [onboardingReady, setOnboardingReady] = useState(false);
+  const [tourStage, setTourStage] = useState(null);
+  const [tourSpotlight, setTourSpotlight] = useState(null);
   const [provider, setProvider] = useState(DEFAULT_PROVIDER);
   const [visibleProviders, setVisibleProviders] = useState(AI_PROVIDERS); // fallback = todos
 
   const drawerAnim = useRef(new Animated.Value(-DRAWER_W)).current;
   const saveTimeoutRef = useRef(null);
   const skipPersistRef = useRef(false);
+  const tourTargetRefs = useRef({});
 
   // Persist conversation history with debounce
   useEffect(() => {
@@ -160,8 +166,14 @@ export default function App() {
           try {
             const saved = await AsyncStorage.getItem(`tg_messages_${session.email}`);
             if (saved) setAllMessages(JSON.parse(saved));
-            setFavorites(await listFavorites(session.email));
+            const [savedFavorites, onboarding] = await Promise.all([
+              listFavorites(session.email),
+              AsyncStorage.getItem(onboardingStorageKey(session.email)),
+            ]);
+            setFavorites(savedFavorites);
+            setOnboardingDone(Boolean(onboarding));
           } catch {}
+          finally { setOnboardingReady(true); }
         } else { setAuthStatus('guest'); }
       } catch { setAuthStatus('guest'); }
       finally { SplashScreen.hideAsync(); }
@@ -239,6 +251,73 @@ export default function App() {
     if (brand?.manuals[0]) setSelectedManualId(brand.manuals[0].id);
   }
 
+  function startOnboarding() {
+    if (!onboardingReady || onboardingDone || !authEmail) return;
+    setShowAssistant(true);
+    setTourSpotlight(null);
+    setTourStage('welcome');
+  }
+
+  async function finishOnboarding() {
+    setTourStage(null);
+    setTourSpotlight(null);
+    setActiveTab('chat');
+    setOnboardingDone(true);
+    if (authEmail) {
+      try { await AsyncStorage.setItem(onboardingStorageKey(authEmail), '1'); } catch {}
+    }
+  }
+
+  function advanceOnboarding() {
+    if (tourStage === 'welcome') {
+      setTourStage(0);
+    } else if (tourStage === ONBOARDING_STEPS.length - 1) {
+      finishOnboarding();
+    } else {
+      setTourStage(stage => stage + 1);
+    }
+  }
+
+  function setTourTargetRef(target) {
+    return node => { tourTargetRefs.current[target] = node; };
+  }
+
+  function measureTourTarget(target) {
+    requestAnimationFrame(() => {
+      tourTargetRefs.current[target]?.measureInWindow?.((x, y, width, height) => {
+        if (width && height) setTourSpotlight({ x, y, width, height });
+      });
+    });
+  }
+
+  const handleTourTargetLayout = useCallback((target, layout) => {
+    if (getOnboardingStep(tourStage)?.target !== target) return;
+    setTourSpotlight(previous => (
+      previous?.x === layout.x && previous?.y === layout.y
+      && previous?.width === layout.width && previous?.height === layout.height
+        ? previous
+        : layout
+    ));
+  }, [tourStage]);
+
+  useEffect(() => {
+    const step = getOnboardingStep(tourStage);
+    if (!step) return;
+    setActiveTab(step.tab);
+    setShowPicker(false);
+    setTourSpotlight(null);
+    const timer = setTimeout(() => {
+      if (step.target !== 'search' && step.target !== 'bubble') measureTourTarget(step.target);
+    }, 120);
+    return () => clearTimeout(timer);
+  }, [tourStage]);
+
+  useEffect(() => {
+    if (onboardingReady && !onboardingDone && !showWelcome && !showTutorial && authStatus === 'authed' && tourStage === null) {
+      startOnboarding();
+    }
+  }, [onboardingReady, onboardingDone, showWelcome, showTutorial, authStatus, tourStage]);
+
   function toggleFavorite(item) {
     setFavorites(previous => {
       const next = isFavorite(previous, item.id) ? removeFavorite(previous, item.id) : addFavorite(previous, item);
@@ -303,6 +382,7 @@ export default function App() {
         setSelectedManualId(manualId);
         setShowWelcome(false);
         if (!tutorialSeen) setShowTutorial(true);
+        else startOnboarding();
       }}
     />
   );
@@ -311,6 +391,7 @@ export default function App() {
       await AsyncStorage.setItem('tg_tutorial_seen', '1');
       setTutorialSeen(true);
       setShowTutorial(false);
+      startOnboarding();
     }} />
   );
 
@@ -356,6 +437,7 @@ export default function App() {
         {/* Equipment selector strip — chat tab only */}
         {activeTab === 'chat' && (
           <TouchableOpacity
+            ref={setTourTargetRef('equipment')}
             style={[styles.equipStrip, { borderLeftColor: manual.color }]}
             onPress={() => setShowPicker(p => !p)}
             activeOpacity={0.75}
@@ -392,6 +474,8 @@ export default function App() {
             favorites={favorites}
             onToggleFavorite={toggleFavorite}
             onDeleteMessage={handleDeleteConversationMessage}
+            tourTarget={getOnboardingStep(tourStage)?.target}
+            onTourTargetLayout={handleTourTargetLayout}
           />
         </View>
         <View style={{ flex: 1, display: activeTab === 'manuals' ? 'flex' : 'none' }}>
@@ -406,6 +490,7 @@ export default function App() {
       <View style={styles.bottomNav}>
         {BOTTOM_TABS.map(tab => (
           <TouchableOpacity
+            ref={setTourTargetRef(tab.id === 'favorites' ? 'favoritesTab' : tab.id === 'manuals' ? 'manualsTab' : 'chatTab')}
             key={tab.id}
             style={[styles.bottomTab, activeTab === tab.id && styles.bottomTabActive]}
             onPress={() => { setActiveTab(tab.id); setShowPicker(false); }}
@@ -475,7 +560,26 @@ export default function App() {
         </View>
       )}
 
-      <AssistantBubble visible={showAssistant} onDismiss={() => setShowAssistant(false)} brand={selectedBrandId} modelId={selectedManualId} />
+      <AssistantBubble
+        visible={showAssistant || tourStage !== null}
+        onDismiss={() => setShowAssistant(false)}
+        brand={selectedBrandId}
+        modelId={selectedManualId}
+        onTourTargetLayout={handleTourTargetLayout}
+        tour={tourStage === null ? null : {
+          welcome: tourStage === 'welcome',
+          step: typeof tourStage === 'number' ? tourStage + 1 : null,
+          total: ONBOARDING_STEPS.length,
+          target: getOnboardingStep(tourStage)?.target,
+          text: tourStage === 'welcome'
+            ? 'Ola! Sou seu assistente. Vou te mostrar o basico em 5 passos rapidos. Toque em Proximo.'
+            : getOnboardingStep(tourStage)?.text,
+          isLast: tourStage === ONBOARDING_STEPS.length - 1,
+          spotlight: tourSpotlight,
+          onNext: advanceOnboarding,
+          onSkip: finishOnboarding,
+        }}
+      />
 
       {/* Drawer */}
       {drawerOpen && <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={closeDrawer} />}

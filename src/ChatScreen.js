@@ -61,7 +61,7 @@ export function getMessageCopyText(message) {
   return message.text || '';
 }
 
-export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, onQuestionSent, messages, setMessages, provider = DEFAULT_PROVIDER, favorites = [], onToggleFavorite = () => {}, onDeleteMessage = () => {} }) {
+export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, onQuestionSent, messages, setMessages, provider = DEFAULT_PROVIDER, favorites = [], onToggleFavorite = () => {}, onDeleteMessage = () => {}, tourTarget, onTourTargetLayout }) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [copiedMessageId, setCopiedMessageId] = useState(null);
@@ -102,6 +102,16 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
   }, []);
 
   const scrollToBottom = () => setTimeout(() => listRef.current?.scrollToEnd({ animated: true }), 150);
+
+  function reportSearchTarget() {
+    requestAnimationFrame(() => inputRef.current?.measureInWindow?.((x, y, width, height) => {
+      if (width && height) onTourTargetLayout?.('search', { x, y, width, height });
+    }));
+  }
+
+  useEffect(() => {
+    if (tourTarget === 'search') reportSearchTarget();
+  }, [tourTarget]);
 
   function confirmDeleteMessage(messageId) {
     Alert.alert(
@@ -483,6 +493,7 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
         <View style={styles.inputBar}>
           <TextInput
             ref={inputRef}
+            onLayout={tourTarget === 'search' ? reportSearchTarget : undefined}
             style={styles.input}
             value={input}
             onChangeText={setInput}
