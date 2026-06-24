@@ -276,8 +276,10 @@ console.log('\n[Onboarding] roteiro deterministico e flag por usuario');
     ['flag e isolado por usuario', onboardingStorageKey('tecnico@empresa.com') === 'tg_onboarding_done_tecnico@empresa.com'],
     ['indice invalido nao cria passo', getOnboardingStep(-1) === null && getOnboardingStep(5) === null],
     ['roteiro nao usa IA ou busca', !/fetch\(|API_URL|searchErrorCode|semanticSearchManual|from\s+['"].*search/.test(srcOnboardingJs)],
+    ['tutorial antigo foi removido', !srcAppJs.includes('TutorialScreen') && !srcAppJs.includes('tg_tutorial_seen')],
     ['bolha desabilita PanResponder durante tour', srcBubbleJs.includes('...(tour ? {} : panResponder.panHandlers)')],
     ['spotlight fica acima dos overlays existentes', srcBubbleJs.includes('tourRoot: { zIndex: 70 }')],
+    ['spotlight e balão respeitam as bordas da tela', srcBubbleJs.includes('function clampSpotlight') && srcBubbleJs.includes('function getTourBubblePosition') && srcBubbleJs.includes('function getTourBalloonPosition')],
   ];
   for (const [label, ok] of checks) {
     console.log(`  [${ok ? '✓' : '✗ FAIL'}] ${label}`);

@@ -5,7 +5,7 @@ export const ONBOARDING_STEPS = [
   },
   {
     tab: 'chat', target: 'search',
-    text: 'Aqui e o principal: digite o codigo de erro ou descreva o problema. O app busca direto nos manuais.',
+    text: 'Aqui é o principal: digite o código de erro ou descreva o problema. Eu busco direto nos manuais.',
   },
   {
     tab: 'favorites', target: 'favoritesTab',
@@ -17,7 +17,7 @@ export const ONBOARDING_STEPS = [
   },
   {
     tab: 'manuals', target: 'bubble',
-    text: 'Sou eu, seu assistente. Vou aparecer com dicas uteis enquanto voce trabalha. Toque em mim quando quiser uma dica.',
+    text: 'Eu sou seu Assistente! Toque em mim pra ver dicas do equipamento. Pra me fechar, arraste até o X aqui embaixo — e pra me trazer de volta, é só abrir pelo menu.',
   },
 ];
 

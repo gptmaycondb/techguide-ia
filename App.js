@@ -8,7 +8,6 @@ import { logout, restoreSession } from './src/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import LoginScreen from './src/LoginScreen';
 import WelcomeScreen from './src/WelcomeScreen';
-import TutorialScreen from './src/TutorialScreen';
 
 SplashScreen.preventAutoHideAsync();
 import { ALL_MANUALS, API_URL, AI_PROVIDERS, DEFAULT_PROVIDER } from './src/data';
@@ -92,8 +91,6 @@ export default function App() {
   const [showPicker, setShowPicker] = useState(false);
   const [showAssistant, setShowAssistant] = useState(true);
   const [showWelcome, setShowWelcome] = useState(false);
-  const [tutorialSeen, setTutorialSeen] = useState(false);
-  const [showTutorial, setShowTutorial] = useState(false);
   const [onboardingDone, setOnboardingDone] = useState(false);
   const [onboardingReady, setOnboardingReady] = useState(false);
   const [tourStage, setTourStage] = useState(null);
@@ -138,13 +135,11 @@ export default function App() {
   useEffect(() => {
     async function init() {
       try {
-        const [session, seen, savedProvider, providersData] = await Promise.all([
+        const [session, savedProvider, providersData] = await Promise.all([
           restoreSession(),
-          AsyncStorage.getItem('tg_tutorial_seen'),
           AsyncStorage.getItem('tg_provider'),
           fetchProviders(),
         ]);
-        if (seen) setTutorialSeen(true);
         // Resolve visible providers: fallback to all known if endpoint failed/timeout
         const apiList = providersData?.providers || KNOWN_PROVIDER_IDS;
         const { visible, selected } = resolveProviders(apiList, KNOWN_PROVIDER_IDS, savedProvider);
@@ -313,10 +308,10 @@ export default function App() {
   }, [tourStage]);
 
   useEffect(() => {
-    if (onboardingReady && !onboardingDone && !showWelcome && !showTutorial && authStatus === 'authed' && tourStage === null) {
+    if (onboardingReady && !onboardingDone && !showWelcome && authStatus === 'authed' && tourStage === null) {
       startOnboarding();
     }
-  }, [onboardingReady, onboardingDone, showWelcome, showTutorial, authStatus, tourStage]);
+  }, [onboardingReady, onboardingDone, showWelcome, authStatus, tourStage]);
 
   function toggleFavorite(item) {
     setFavorites(previous => {
@@ -381,18 +376,9 @@ export default function App() {
         selectBrand(brandId);
         setSelectedManualId(manualId);
         setShowWelcome(false);
-        if (!tutorialSeen) setShowTutorial(true);
-        else startOnboarding();
+        startOnboarding();
       }}
     />
-  );
-  if (authStatus === 'authed' && showTutorial) return (
-    <TutorialScreen onComplete={async () => {
-      await AsyncStorage.setItem('tg_tutorial_seen', '1');
-      setTutorialSeen(true);
-      setShowTutorial(false);
-      startOnboarding();
-    }} />
   );
 
   return (
@@ -572,7 +558,7 @@ export default function App() {
           total: ONBOARDING_STEPS.length,
           target: getOnboardingStep(tourStage)?.target,
           text: tourStage === 'welcome'
-            ? 'Ola! Sou seu assistente. Vou te mostrar o basico em 5 passos rapidos. Toque em Proximo.'
+            ? 'Olá! Eu sou seu Assistente. Vou te mostrar o básico em 5 passos rápidos. Toque em Próximo.'
             : getOnboardingStep(tourStage)?.text,
           isLast: tourStage === ONBOARDING_STEPS.length - 1,
           spotlight: tourSpotlight,
