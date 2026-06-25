@@ -42,6 +42,8 @@ PDF_SOURCES = {
     'ricoh_sp3710_guia':     [Path('/tmp/sp3710_guia.pdf')],
     'ricoh_sp3710_service':  [Path('/tmp/sp3710_service.pdf')],
     'ricoh_sp3710_psg':      [Path('/tmp/sp3710_psg.pdf')],
+    'ricoh_mp2555_guia':     [Path('/tmp/mp2555_guia.pdf')],
+    'ricoh_mp2555_service':  [Path('/tmp/mp2555_service.pdf')],
     'e62655_guia':           [Path('/tmp/e62655_guia.pdf')],
     'e62655_cpmd':           [Path('/tmp/e62655_cpmd.pdf')],
     'e62655_service':        [Path('/tmp/e62655_service.pdf')],

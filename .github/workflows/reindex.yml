@@ -47,11 +47,14 @@ jobs:
           gdown "https://drive.google.com/uc?id=1Iu_GneoZmhtSf-v9P3pQpsafJm2tVks1" -O /tmp/sp3710_guia.pdf
           gdown "https://drive.google.com/uc?id=1aNq74FQyNCwiHEUhi_Io45Dbdf8UsNpQ" -O /tmp/sp3710_service.pdf
           gdown "https://drive.google.com/uc?id=1JSD6dOuxOkXfdwe-N-RCctHkUU9FMWLD" -O /tmp/sp3710_psg.pdf
+          gdown "https://drive.google.com/uc?id=1MMafv99blqQOM5xtTzm9szWY-JFQ0P7K" -O /tmp/mp2555_guia.pdf
+          gdown "https://drive.google.com/uc?id=1I8GbZBlvywJcmlgwrIphlUjuGiUq2KID" -O /tmp/mp2555_service.pdf
           gdown "https://drive.google.com/uc?id=1nReLfTlkWvTXU8JEdUNnkqrYZ_kNEdG8" -O /tmp/e62655_guia.pdf
           gdown "https://drive.google.com/uc?id=1PKE-eD_-Ixk5vfC9ANb45nyDlHiJbcDf" -O /tmp/e62655_cpmd.pdf
           gdown "https://drive.google.com/uc?id=1hg-Ji4DNHCQXu2y1w5pO9cOj3oD-NsaJ" -O /tmp/e62655_service.pdf
           gdown "https://drive.google.com/uc?id=1T6jWaRzZ2c-Rqxwl0naHSPXG-u27y_aj" -O /tmp/e826_guia.pdf
           gdown "https://drive.google.com/uc?id=1hMzpRhjfF8Omei0gLZTFujwpoOW6LLAJ" -O /tmp/e826_service.pdf
+          gdown "https://drive.google.com/uc?id=1zvkbys7ZODegZhkUkJmSwobfUUwIMP_Y" -O /tmp/e826_cpmd.pdf
 
       - name: Reindex with Poppler
         run: |
