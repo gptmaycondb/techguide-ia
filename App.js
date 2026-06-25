@@ -132,6 +132,20 @@ export default function App() {
     }));
   }
 
+  async function initAuthedUser(email) {
+    try {
+      const saved = await AsyncStorage.getItem(`tg_messages_${email}`);
+      if (saved) setAllMessages(JSON.parse(saved));
+      const [savedFavorites, onboarding] = await Promise.all([
+        listFavorites(email),
+        AsyncStorage.getItem(onboardingStorageKey(email)),
+      ]);
+      setFavorites(savedFavorites);
+      setOnboardingDone(Boolean(onboarding));
+    } catch {}
+    finally { setOnboardingReady(true); }
+  }
+
   useEffect(() => {
     async function init() {
       try {
@@ -158,17 +172,7 @@ export default function App() {
           setAuthEmail(session.email);
           setAuthStatus('authed');
           setShowWelcome(true);
-          try {
-            const saved = await AsyncStorage.getItem(`tg_messages_${session.email}`);
-            if (saved) setAllMessages(JSON.parse(saved));
-            const [savedFavorites, onboarding] = await Promise.all([
-              listFavorites(session.email),
-              AsyncStorage.getItem(onboardingStorageKey(session.email)),
-            ]);
-            setFavorites(savedFavorites);
-            setOnboardingDone(Boolean(onboarding));
-          } catch {}
-          finally { setOnboardingReady(true); }
+          await initAuthedUser(session.email);
         } else { setAuthStatus('guest'); }
       } catch { setAuthStatus('guest'); }
       finally { SplashScreen.hideAsync(); }
@@ -367,7 +371,13 @@ export default function App() {
 
   if (authStatus === 'loading') return null;
   if (authStatus === 'guest') return (
-    <LoginScreen onLoginSuccess={(email) => { setAuthEmail(email); setAuthStatus('authed'); setShowAssistant(true); setShowWelcome(true); }} />
+    <LoginScreen onLoginSuccess={async (email) => {
+      setAuthEmail(email);
+      setAuthStatus('authed');
+      setShowAssistant(true);
+      setShowWelcome(true);
+      await initAuthedUser(email);
+    }} />
   );
   if (authStatus === 'authed' && showWelcome) return (
     <WelcomeScreen
