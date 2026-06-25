@@ -484,17 +484,25 @@ export default function App() {
 
       {/* Bottom nav */}
       <View style={styles.bottomNav}>
-        {BOTTOM_TABS.map(tab => (
-          <TouchableOpacity
-            ref={setTourTargetRef(tab.id === 'favorites' ? 'favoritesTab' : tab.id === 'manuals' ? 'manualsTab' : 'chatTab')}
-            key={tab.id}
-            style={[styles.bottomTab, activeTab === tab.id && styles.bottomTabActive]}
-            onPress={() => { setActiveTab(tab.id); setShowPicker(false); }}
-          >
-            <Text style={styles.bottomTabIcon}>{tab.icon}</Text>
-            <Text style={[styles.bottomTabLabel, activeTab === tab.id && { color: C.accent }]}>{tab.label}</Text>
-          </TouchableOpacity>
-        ))}
+        {BOTTOM_TABS.map(tab => {
+          const tourTarget = tab.id === 'favorites' ? 'favoritesTab' : tab.id === 'manuals' ? 'manualsTab' : null;
+          return (
+            <TouchableOpacity
+              key={tab.id}
+              style={[styles.bottomTab, activeTab === tab.id && styles.bottomTabActive]}
+              onPress={() => { setActiveTab(tab.id); setShowPicker(false); }}
+            >
+              <View
+                ref={tourTarget ? setTourTargetRef(tourTarget) : undefined}
+                collapsable={false}
+                style={styles.bottomTabSpotlightTarget}
+              >
+                <Text style={styles.bottomTabIcon}>{tab.icon}</Text>
+                <Text style={[styles.bottomTabLabel, activeTab === tab.id && { color: C.accent }]}>{tab.label}</Text>
+              </View>
+            </TouchableOpacity>
+          );
+        })}
       </View>
 
       {/* Model Picker Overlay */}
@@ -662,6 +670,7 @@ const styles = StyleSheet.create({
   bottomNav: { flexDirection: 'row', backgroundColor: C.surface, borderTopWidth: 1, borderTopColor: C.border, paddingBottom: 8 },
   bottomTab: { flex: 1, alignItems: 'center', paddingVertical: 10, gap: 3 },
   bottomTabActive: { borderTopWidth: 2, borderTopColor: C.accent },
+  bottomTabSpotlightTarget: { alignItems: 'center', gap: 3 },
   bottomTabIcon: { fontSize: 20 },
   bottomTabLabel: { color: C.dim, fontSize: 11, fontWeight: '600' },
   overlay: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 40 },
