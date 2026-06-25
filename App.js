@@ -30,9 +30,9 @@ const { width: SCREEN_W } = Dimensions.get('window');
 const DRAWER_W = Math.min(SCREEN_W * 0.82, 300);
 
 const BOTTOM_TABS = [
+  { id: 'favorites', label: 'Favoritos', icon: '⭐' },
   { id: 'chat', label: 'Consulta', icon: '💬' },
   { id: 'manuals', label: 'Manuais', icon: '📚' },
-  { id: 'favorites', label: 'Favoritos', icon: '⭐' },
 ];
 
 // Group manuals by brand for the picker
