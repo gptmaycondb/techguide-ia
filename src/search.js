@@ -52,6 +52,13 @@ export const MANUAL_INDEX_MAP = {
   'ricoh_sp3710_guia':    'ricoh_sp3710_guia',
   'ricoh_sp3710_service': 'ricoh_sp3710_service',
   'ricoh_sp3710_psg':     'ricoh_sp3710_psg',
+
+  // Ricoh MP 2555/3055/3555
+  'ricoh_mp2555':         'ricoh_mp2555_guia',
+  'ricoh_mp3055':         'ricoh_mp2555_guia',
+  'ricoh_mp3555':         'ricoh_mp2555_guia',
+  'ricoh_mp2555_guia':    'ricoh_mp2555_guia',
+  'ricoh_mp2555_service': 'ricoh_mp2555_service',
 };
 
 const STOPWORDS = new Set([

@@ -28,6 +28,9 @@ const srcAppJs = readFileSync(resolve(ROOT, 'App.js'), 'utf8');
 const errorCodesData = JSON.parse(
   readFileSync(resolve(ROOT, 'assets/error_codes_index.json'), 'utf8')
 );
+const searchData = JSON.parse(
+  readFileSync(resolve(ROOT, 'assets/search_index.json'), 'utf8')
+);
 
 // ── searchErrorCode copiado VERBATIM de src/search.js ────────────────────────
 function wildcardMatchHP(pattern, code) {
@@ -124,6 +127,9 @@ const KEYS = {
   imc3000:     ['ricoh_imc3000_service', 'ricoh_imc3000_guia', 'ricoh_imc3000_parts'],
   mpc3004:     ['ricoh_mpc3004_service', 'ricoh_mpc3004_guia'],
   sp3710:      ['ricoh_sp3710_service', 'ricoh_sp3710_guia', 'ricoh_sp3710_psg'],
+  mp2555:      ['ricoh_mp2555_service', 'ricoh_mp2555_guia'],
+  mp3055:      ['ricoh_mp2555_service', 'ricoh_mp2555_guia'],
+  mp3555:      ['ricoh_mp2555_service', 'ricoh_mp2555_guia'],
 };
 
 let pass = 0, fail = 0;
@@ -183,6 +189,29 @@ console.log('[Conversation cleanup] escopos de limpeza local');
     console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${label}`);
     if (ok) pass++; else fail++;
   }
+}
+
+function expectIndexContains(label, key, includes, excludes = []) {
+  const entries = searchData[key] || [];
+  const joined = entries.map(e => e.t || '').join('\n');
+  const ok = entries.length > 0
+    && includes.every(s => joined.includes(s))
+    && excludes.every(s => !joined.includes(s));
+  const marker = ok ? 'âœ“' : 'âœ— FAIL';
+  console.log(`  [${marker}] ${label}`);
+  if (!ok) {
+    console.log(`         key=${key} chunks=${entries.length}`);
+    console.log(`         includes=${JSON.stringify(includes)} excludes=${JSON.stringify(excludes)}`);
+    fail++;
+  } else {
+    pass++;
+  }
+}
+
+function expectIndexMissing(label, key) {
+  const ok = !Object.prototype.hasOwnProperty.call(searchData, key);
+  console.log(`  [${ok ? 'âœ“' : 'âœ— FAIL'}] ${label}`);
+  if (ok) pass++; else fail++;
 }
 
 // ── Sync guard: verbatim copies must match source files ──────────────────────
@@ -457,6 +486,40 @@ expect('SC544-00 via mpc3004 searchKeys', 'SC544-00', KEYS.mpc3004, true);
 
 console.log('[Lote 3 — stub] SC852-02 (ARFU stub, mpc3004) → deve achar');
 expect('SC852-02 via mpc3004 searchKeys', 'SC852-02', KEYS.mpc3004, true);
+
+console.log('\n[Ricoh MP 2555/3055/3555 - Camada 1] conteudo indexado e parts fora da busca');
+expectIndexContains(
+  'MP 2555 User Guide via Poppler -> Web Image Monitor / pasta compartilhada',
+  'ricoh_mp2555_guia',
+  ['Web Image Monitor', 'Criar uma pasta compartilhada']
+);
+expectIndexContains(
+  'MP 2555 Service Manual via Poppler -> D284 MP 2555 e fusing unit',
+  'ricoh_mp2555_service',
+  ['D284', 'MP 2555', 'fusing unit']
+);
+expectIndexMissing(
+  'MP 2555 Parts Catalog listado mas ausente do search_index',
+  'ricoh_mp2555_parts_catalog'
+);
+for (const [model, keys] of [
+  ['MP 2555', KEYS.mp2555],
+  ['MP 3055', KEYS.mp3055],
+  ['MP 3555', KEYS.mp3555],
+]) {
+  const ok = JSON.stringify(keys) === JSON.stringify([
+    'ricoh_mp2555_service',
+    'ricoh_mp2555_guia',
+  ]) && keys.every(key => Array.isArray(searchData[key]) && searchData[key].length > 0);
+  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${model} usa as chaves compartilhadas da plataforma D284/D285/D286`);
+  if (ok) pass++; else fail++;
+}
+expectIndexContains(
+  'MP 2555 nao reutiliza chunks da SP 3710',
+  'ricoh_mp2555_service',
+  ['D284', 'MP 2555'],
+  ['SP 3710DN']
+);
 
 // ── Negativos cross-model ─────────────────────────────────────────────────────
 console.log('\n[Cross-model isolation] Código E62655-only não vaza para E52645');

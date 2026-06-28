@@ -54,7 +54,6 @@ jobs:
           gdown "https://drive.google.com/uc?id=1hg-Ji4DNHCQXu2y1w5pO9cOj3oD-NsaJ" -O /tmp/e62655_service.pdf
           gdown "https://drive.google.com/uc?id=1T6jWaRzZ2c-Rqxwl0naHSPXG-u27y_aj" -O /tmp/e826_guia.pdf
           gdown "https://drive.google.com/uc?id=1hMzpRhjfF8Omei0gLZTFujwpoOW6LLAJ" -O /tmp/e826_service.pdf
-          gdown "https://drive.google.com/uc?id=1zvkbys7ZODegZhkUkJmSwobfUUwIMP_Y" -O /tmp/e826_cpmd.pdf
 
       - name: Reindex with Poppler
         run: |
