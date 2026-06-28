@@ -24,6 +24,7 @@ const ROOT = resolve(__dirname, '..');
 
 const srcChatJs = readFileSync(resolve(ROOT, 'src/ChatScreen.js'), 'utf8');
 const srcAppJs = readFileSync(resolve(ROOT, 'App.js'), 'utf8');
+const srcDataJs = readFileSync(resolve(ROOT, 'src/data.js'), 'utf8');
 
 const errorCodesData = JSON.parse(
   readFileSync(resolve(ROOT, 'assets/error_codes_index.json'), 'utf8')
@@ -127,9 +128,7 @@ const KEYS = {
   imc3000:     ['ricoh_imc3000_service', 'ricoh_imc3000_guia', 'ricoh_imc3000_parts'],
   mpc3004:     ['ricoh_mpc3004_service', 'ricoh_mpc3004_guia'],
   sp3710:      ['ricoh_sp3710_service', 'ricoh_sp3710_guia', 'ricoh_sp3710_psg'],
-  mp2555:      ['ricoh_mp2555_service', 'ricoh_mp2555_guia'],
-  mp3055:      ['ricoh_mp2555_service', 'ricoh_mp2555_guia'],
-  mp3555:      ['ricoh_mp2555_service', 'ricoh_mp2555_guia'],
+  mp2555Series: ['ricoh_mp2555_service', 'ricoh_mp2555_guia'],
 };
 
 let pass = 0, fail = 0;
@@ -502,17 +501,26 @@ expectIndexMissing(
   'MP 2555 Parts Catalog listado mas ausente do search_index',
   'ricoh_mp2555_parts_catalog'
 );
-for (const [model, keys] of [
-  ['MP 2555', KEYS.mp2555],
-  ['MP 3055', KEYS.mp3055],
-  ['MP 3555', KEYS.mp3555],
-]) {
-  const ok = JSON.stringify(keys) === JSON.stringify([
+{
+  const keys = KEYS.mp2555Series;
+  const canonicalIds = [
+    'ricoh_mp2555_guia',
+    'ricoh_mp2555_service',
+    'ricoh_mp2555_parts_catalog',
+  ];
+  const presentationOk = (srcDataJs.match(/id: 'ricoh_mp2555_series'/g) || []).length === 1
+    && (srcDataJs.match(/id: 'ricoh_mp2555_series_group'/g) || []).length === 1
+    && !srcDataJs.includes("id: 'ricoh_mp3055'")
+    && !srcDataJs.includes("id: 'ricoh_mp3555'")
+    && canonicalIds.every(id => (srcDataJs.match(new RegExp(`id: '${id}'`, 'g')) || []).length === 1);
+  const searchOk = JSON.stringify(keys) === JSON.stringify([
     'ricoh_mp2555_service',
     'ricoh_mp2555_guia',
   ]) && keys.every(key => Array.isArray(searchData[key]) && searchData[key].length > 0);
-  console.log(`  [${ok ? 'PASS' : 'FAIL'}] ${model} usa as chaves compartilhadas da plataforma D284/D285/D286`);
-  if (ok) pass++; else fail++;
+  console.log(`  [${presentationOk ? 'PASS' : 'FAIL'}] uma entrada da serie e tres manuais canonicos sem duplicacao`);
+  if (presentationOk) pass++; else fail++;
+  console.log(`  [${searchOk ? 'PASS' : 'FAIL'}] serie MP 2555/3055/3555 usa as duas chaves Poppler compartilhadas`);
+  if (searchOk) pass++; else fail++;
 }
 expectIndexContains(
   'MP 2555 nao reutiliza chunks da SP 3710',
