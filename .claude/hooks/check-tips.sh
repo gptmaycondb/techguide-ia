@@ -28,6 +28,7 @@ const modelKeys = {
   ricoh_imc3000: ['ricoh_imc3000_service'],
   ricoh_mpc3004: ['ricoh_mpc3004_service'],
   ricoh_sp3710: ['ricoh_sp3710_service'],
+  ricoh_mp2555_series: ['ricoh_mp2555_service'],
 };
 
 const canon = value => value.toUpperCase().replace(/[\s.\-/]/g, '');
@@ -41,6 +42,14 @@ const indexedByModel = Object.fromEntries(
     ),
   ])
 );
+const isIndexedForModel = (model, code) => {
+  const canonicalCode = canon(code);
+  if (indexedByModel[model].has(canonicalCode)) return true;
+  return /^SC\d{3}$/i.test(code)
+    && [...indexedByModel[model]].some(value =>
+      value.startsWith(canonicalCode) && value.length > canonicalCode.length
+    );
+};
 
 const errors = [];
 const tipRe = /\{\s*brand:\s*'([^']+)'(?:,\s*model:\s*'([^']+)')?,\s*text:\s*'([^']*)'\s*\}/g;
@@ -71,7 +80,7 @@ while ((match = tipRe.exec(source))) {
   for (const code of codes) {
     if (!model || !indexedByModel[model]) {
       errors.push(`#${tipNumber}: código específico sem modelo validável: ${code}`);
-    } else if (!indexedByModel[model].has(canon(code))) {
+    } else if (!isIndexedForModel(model, code)) {
       errors.push(`#${tipNumber}: ${code} não existe no índice para ${model}`);
     }
   }

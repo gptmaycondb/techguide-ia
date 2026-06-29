@@ -109,6 +109,16 @@ export const ASSISTANT_TIPS = [
   { brand: 'ricoh', model: 'ricoh_sp3710', text: 'Atolamento no SP 3710? Remova o papel no sentido do percurso e confira bandeja, duplex e saida antes de religar.' },
   { brand: 'ricoh', model: 'ricoh_sp3710', text: 'Para pecas do SP 3710, consulte o Parts Catalog na tela de Consulta; nao use part number de memoria.' },
 
+  // RICOH MP 2555/3055/3555
+  { brand: 'ricoh', model: 'ricoh_mp2555_series', text: 'SC202-00 no motor poligonal: desligue e ligue o equipamento; se persistir, confira chicote e conexoes da unidade laser antes de substituir componentes.' },
+  { brand: 'ricoh', model: 'ricoh_mp2555_series', text: 'SC324-01 no motor de revelacao preto: reconecte o conector e confira chicote, torque da unidade e travamento mecanico antes da troca do motor.' },
+  { brand: 'ricoh', model: 'ricoh_mp2555_series', text: 'SC520-01 no motor de registro: verifique conector, chicote e encoder; depois confira se o motor gira livremente antes de substituir placa ou motor.' },
+  { brand: 'ricoh', model: 'ricoh_mp2555_series', text: 'SC541-01 na termopilha central do fusor: reconecte os conectores entre fusor e placa de controle e confira o chicote antes de substituir o sensor.' },
+  { brand: 'ricoh', model: 'ricoh_mp2555_series', text: 'SC547-01 de zero-cross: desligue e ligue a chave principal; se voltar, confira o rele do fusor e a conexao entre fonte e placa controladora.' },
+  { brand: 'ricoh', model: 'ricoh_mp2555_series', text: 'SC559-00 apos tres atolamentos no fusor: remova o papel preso e confirme uma saida normal de papel para zerar o contador de atolamentos.' },
+  { brand: 'ricoh', model: 'ricoh_mp2555_series', text: 'SC940 na serie MP 2555 aponta solenoide de pickup de bandeja: confira solenoide, chicote e mecanismo de puxada antes de substituir.' },
+  { brand: 'ricoh', model: 'ricoh_mp2555_series', text: 'Atolamento frequente de papel: confira roletes de tracao, guias do percurso e umidade/qualidade do papel antes de procurar falha eletronica.' },
+
   // ─── GENERAL ─────────────────────────────────────────────────────────────
   { brand: 'general', text: 'Sempre anote o código de erro completo antes de reiniciar o equipamento — ele é a chave do diagnóstico.' },
   { brand: 'general', text: 'Antes de abrir a impressora, desligue e aguarde alguns minutos: o fusor opera em alta temperatura.' },
