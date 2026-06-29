@@ -170,11 +170,17 @@ export function searchErrorCode(query, indexKey) {
 
   const raw = [];
   for (const code of toTry) {
+    let matchedForModel = false;
     if (errorCodesData[code]) {
       const filtered = errorCodesData[code].filter(matchKey);
-      if (filtered.length) raw.push(...filtered.map(e => e.text));
-    } else {
+      if (filtered.length) {
+        raw.push(...filtered.map(e => e.text));
+        matchedForModel = true;
+      }
+    }
+    if (!matchedForModel) {
       for (const [k, entries] of Object.entries(errorCodesData)) {
+        if (k === code) continue;
         if (k.startsWith(code) || (code.length >= 4 && k.includes(code)) || wildcardMatchHP(k, code)) {
           const filtered = entries.filter(matchKey);
           if (filtered.length) raw.push(...filtered.map(e => e.text));
@@ -210,10 +216,17 @@ export function searchErrorCodeEntries(query, indexKey) {
 
   const raw = [];
   for (const code of codes) {
+    let matchedForModel = false;
     if (errorCodesData[code]) {
-      raw.push(...errorCodesData[code].filter(matchKey).map(entry => ({ code, serviceKey: entry.key, text: entry.text })));
-    } else {
+      const filtered = errorCodesData[code].filter(matchKey);
+      if (filtered.length) {
+        raw.push(...filtered.map(entry => ({ code, serviceKey: entry.key, text: entry.text })));
+        matchedForModel = true;
+      }
+    }
+    if (!matchedForModel) {
       for (const [matchedCode, entries] of Object.entries(errorCodesData)) {
+        if (matchedCode === code) continue;
         if (matchedCode.startsWith(code) || (code.length >= 4 && matchedCode.includes(code)) || wildcardMatchHP(matchedCode, code)) {
           raw.push(...entries.filter(matchKey).map(entry => ({ code: matchedCode, serviceKey: entry.key, text: entry.text })));
           if (raw.length >= 5) break;
