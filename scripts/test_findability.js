@@ -61,11 +61,17 @@ function searchErrorCode(query, indexKey) {
 
   const raw = [];
   for (const code of toTry) {
+    let matchedForModel = false;
     if (errorCodesData[code]) {
       const filtered = errorCodesData[code].filter(matchKey);
-      if (filtered.length) raw.push(...filtered.map(e => e.text));
-    } else {
+      if (filtered.length) {
+        raw.push(...filtered.map(e => e.text));
+        matchedForModel = true;
+      }
+    }
+    if (!matchedForModel) {
       for (const [k, entries] of Object.entries(errorCodesData)) {
+        if (k === code) continue;
         if (k.startsWith(code) || (code.length >= 4 && k.includes(code)) || wildcardMatchHP(k, code)) {
           const filtered = entries.filter(matchKey);
           if (filtered.length) raw.push(...filtered.map(e => e.text));
@@ -325,6 +331,10 @@ for (const [code, modelId, expected] of [
   ['39.8', 'hp_e62655', null],
   ['SC543', 'ricoh_sp3710', 'Motor/Fusao'],
   ['SC541', 'ricoh_imc3000', 'Transporte de papel/Fusao'],
+  ['SC541', 'ricoh_mp2555_series', 'Transporte de papel/Fusao'],
+  ['SC702-01', 'ricoh_mp2555_series', 'Perifericos'],
+  ['SC845-01', 'ricoh_mp2555_series', 'Controlador'],
+  ['SC940-01', 'ricoh_mp2555_series', 'Diversos'],
 ]) {
   const actual = getErrorFamily(code, modelId);
   const ok = actual === expected;
@@ -588,6 +598,57 @@ expectContains(
 );
 expect('SC688 (3710-only) via imc3000 keys → NOT FOUND', 'SC688', KEYS.imc3000, false);
 expect('SC688 (3710-only) via mpc3004 keys → NOT FOUND', 'SC688', KEYS.mpc3004, false);
+
+console.log('[Cross-model isolation] MP 2555 versus SP 3710 - 17 colisoes nos dois sentidos');
+for (const [code, mpText, otherText] of [
+  ['SC202', 'Polygon Motor: ON Timeout Error', 'polygon mirror motor (M4)'],
+  ['SC203', 'Polygon Motor: OFF Timeout Error', 'polygon mirror motor (M4)'],
+  ['SC204', 'Polygon Motor: XSCRDY Signal Error', 'signal remains HIGH'],
+  ['SC220', 'Laser Synchronization Detection Error: Leading Edge', '0.4 sec'],
+  ['SC520', 'Registration Motor: Lock', 'main motor (M3)'],
+  ['SC541', 'Fusing Thermopile (Center) Disconnection', 'Fusing thermistor (TH1) error'],
+  ['SC542-02', 'Fusing Thermopile (Center) Thermopile Does Not Reload', 'Fuser reload error'],
+  ['SC542-03', 'Fusing Thermopile (Center) Does Not Reload', 'Fuser reload error'],
+  ['SC543', 'Fusing Thermopile (Center) High Temperature', '235°C'],
+  ['SC544', 'Fusing High Temperature Detection', '250°C'],
+  ['SC545', 'Fusing Central Heater Continuously Heat', 'Fuser full heater error'],
+  ['SC547', 'Zero cross Error (relay-contact soldering)', 'Zero cross error'],
+  ['SC551', 'NC Sensor (End) Disconnection', 'Non-contact thermistor error'],
+  ['SC552', 'Fusing Thermopile (Edge) Does Not Reload', 'Fuser reload error (non-contact thermistor)'],
+  ['SC553', 'Fusing Thermopile (Edge) High Temperature', '220°C'],
+  ['SC554', 'Fusing Thermopile (Edge) High Temperature', '228°C'],
+  ['SC559', 'Fusing Jam Detected for 3 Times Consecutively', 'Fuser 3 times jam error'],
+]) {
+  expectContains(`${code} via MP 2555`, code, KEYS.mp2555Series, [mpText]);
+  expectContains(`${code} via SP 3710`, code, KEYS.sp3710, [otherText]);
+}
+
+console.log('[Cross-model isolation] MP 2555 versus IM C3000 - 20 diferencas nos dois sentidos');
+for (const [code, mpText, imText] of [
+  ['SC702-01', 'Protection Device Intercept Error 1 (ARDF)', 'ARDF DF3110 Error'],
+  ['SC720-03', 'Protection Device Intercept Error 1', 'Booklet Finisher SR3290'],
+  ['SC720-06', 'Access error to NVRAM', 'Booklet Finisher SR3290'],
+  ['SC721-03', 'Protection Device Intercept Error 1', 'Booklet Finisher SR3270'],
+  ['SC721-06', 'Access error to NVRAM', 'Booklet Finisher SR3270'],
+  ['SC721-24', 'Paper Exit Guide Plate Open/Close Motor', 'DC motor control error'],
+  ['SC721-41', 'Feedout Pawl Motor Error', 'Release Motor Error'],
+  ['SC721-70', 'Tray Lift Motor Error', 'Folding Transport Motor Error'],
+  ['SC722-06', 'Access error to NVRAM', 'Finisher SR3260 Error'],
+  ['SC722-24', 'Paper Exit Guide Plate Open/Close Motor Error', 'Protection Device Intercept Error 1'],
+  ['SC724-38', 'Stack Height Lever Motor Error', 'paper press HP sensor'],
+  ['SC724-70', 'Tray Lift Motor Error', 'Shift Tray Ascent/Descent Motor Error'],
+  ['SC724-86', 'Stapler Motor Error', 'Cooling Fan Motor Lock'],
+  ['SC845-01', 'Engine Board', 'Controller board'],
+  ['SC845-02', 'Controller Board', 'Operation panel'],
+  ['SC845-05', 'firmware cannot be read', 'Not available for this machine'],
+  ['SC940-01', '1st Paper Feed Tray Pickup Solenoid', 'Toner supply motor (K)'],
+  ['SC940-02', '2nd Paper Feed Tray Pickup Solenoid', 'Toner supply motor (C)'],
+  ['SC940-03', 'Bypass Pickup Solenoid', 'Toner supply motor (M)'],
+  ['SC940-04', 'Paper Exit Switching Solenoid', 'Toner supply motor (Y)'],
+]) {
+  expectContains(`${code} via MP 2555`, code, KEYS.mp2555Series, [mpText]);
+  expectContains(`${code} via IM C3000`, code, KEYS.imc3000, [imText]);
+}
 
 // ── Dedup interno ─────────────────────────────────────────────────────────────
 // 99.09.67 existe sob 'service' e pode aparecer em múltiplas chaves do E52645;

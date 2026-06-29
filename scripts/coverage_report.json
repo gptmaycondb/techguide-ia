@@ -1,5 +1,5 @@
 {
-  "index_sha256": "6d4a1957012ceac921b0b3fc3fef968cae2aa416db01afe4d3ecb79aab43e952",
+  "index_sha256": "594ebd70ba8a1006f32d62214553c078f24bf5dacf3275e125639288b1631d40",
   "per_key": {
     "cpmd": {
       "candidates": 404,
@@ -39,6 +39,14 @@
       "candidates": 730,
       "covered": 730,
       "covered_by_synthetic": 0,
+      "missing": [],
+      "missing_detail": {},
+      "orphans": []
+    },
+    "ricoh_mp2555_service": {
+      "candidates": 489,
+      "covered": 489,
+      "covered_by_synthetic": 105,
       "missing": [],
       "missing_detail": {},
       "orphans": []
@@ -100,6 +108,14 @@
       "covered": 730,
       "keys": [
         "ricoh_imc3000_service"
+      ],
+      "missing": []
+    },
+    "mp2555": {
+      "candidates": 489,
+      "covered": 489,
+      "keys": [
+        "ricoh_mp2555_service"
       ],
       "missing": []
     },

@@ -25,9 +25,10 @@ from pathlib import Path
 # build_index.py tem guard if __name__ == '__main__' — import seguro (não chama main)
 sys.path.insert(0, str(Path(__file__).parent))
 from build_index import (
-    PDF_SOURCES, pdf_to_text, clean_text,
+    PDF_SOURCES, pdf_to_text, pdf_to_text_raw, clean_text,
     is_toc_chunk, is_book_index_chunk,
-    extract_sp3710_service_call_text,
+    extract_sp3710_service_call_text, extract_mp2555_sc_sections,
+    MP2555_SERVICE_KEY,
 )
 
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -41,6 +42,7 @@ ERROR_KEYS = [
     'e62655_cpmd', 'e62655_service',
     'hp_e826_cpmd',
     'ricoh_imc3000_service', 'ricoh_mpc3004_service', 'ricoh_sp3710_service',
+    'ricoh_mp2555_service',
 ]
 
 # Grupos de equivalência por modelo — espelham os searchKeys de src/data.js.
@@ -53,6 +55,7 @@ MODEL_SEARCHKEYS: dict[str, list[str]] = {
     'imc3000':  ['ricoh_imc3000_service'],
     'mpc3004':  ['ricoh_mpc3004_service'],
     'sp3710':   ['ricoh_sp3710_service'],
+    'mp2555':   ['ricoh_mp2555_service'],
 }
 
 # Detectores permissivos por família
@@ -291,7 +294,21 @@ def main() -> None:
         cov   = covered_canons(index, svc)
         ig    = {canon(k) for k in ignore.get(svc, {})}
         hp    = svc in ('cpmd', 'service', 'e62655_cpmd', 'e62655_service', 'hp_e826_cpmd')
-        if hp:
+        if svc == MP2555_SERVICE_KEY:
+            extracted = extract_mp2555_sc_sections(
+                ''.join(pdf_to_text_raw(p) for p in available),
+                MP2555_SERVICE_KEY,
+            )
+            cands = {
+                canon(code): {
+                    'original': code,
+                    'count': 1,
+                    'context': entries[0]['text'][:300],
+                    'toc_only': False,
+                }
+                for code, entries in extracted.items()
+            }
+        elif hp:
             cands = extract_hp(text)
         elif svc == SP3710_SERVICE_KEY:
             cands = extract_sp3710(text)

@@ -24,12 +24,23 @@ const SP3710_FAMILIES = {
   5: 'Motor/Fusao', 6: 'Comunicacao',
 };
 
+const MP2555_FAMILIES = {
+  1: 'Scanner', 2: 'Escrita de imagem', 3: 'Carga/Revelacao',
+  4: 'Ao redor do cilindro', 5: 'Transporte de papel/Fusao',
+  6: 'Comunicacao', 7: 'Perifericos', 8: 'Controlador', 9: 'Diversos',
+};
+
 export function getErrorFamily(code, modelId) {
   const value = String(code || '').trim().toUpperCase();
   if (value.startsWith('SC')) {
     const prefix = value.match(/^SC(\d)/)?.[1];
     if (!prefix) return null;
-    return (modelId === 'ricoh_sp3710' ? SP3710_FAMILIES : RICOH_FAMILIES)[prefix] || null;
+    const families = modelId === 'ricoh_sp3710'
+      ? SP3710_FAMILIES
+      : modelId === 'ricoh_mp2555_series'
+        ? MP2555_FAMILIES
+        : RICOH_FAMILIES;
+    return families[prefix] || null;
   }
   const prefix = value.match(/^(\d{2})\./)?.[1];
   return prefix === '39' ? null : HP_FAMILIES[prefix] || null;

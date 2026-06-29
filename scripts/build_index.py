@@ -92,6 +92,18 @@ def pdf_to_text(path: Path) -> str:
     return result.stdout.decode('utf-8', errors='replace')
 
 
+def pdf_to_text_raw(path: Path) -> str:
+    """Extrai texto preservando a ordem do stream; usado nas tabelas da MP 2555."""
+    if not path.exists():
+        print(f'  AVISO: {path} não encontrado — pulando', file=sys.stderr)
+        return ''
+    result = subprocess.run(
+        ['pdftotext', '-raw', '-enc', 'UTF-8', str(path), '-'],
+        capture_output=True
+    )
+    return result.stdout.decode('utf-8', errors='replace')
+
+
 def extract_texts(key: str) -> str:
     """Concatena texto de todos os PDFs de uma index key."""
     paths = PDF_SOURCES.get(key, [])
@@ -667,6 +679,14 @@ SP3710_CODES = [
 ]
 SP3710_HEADER_RE = re.compile(r'(?m)^SC\s?(\d{3}(?:-\d{2})?)\s+(?:[A-D]\b|$)')
 PROPAGATION_EXCLUDED_SERVICE_KEYS = {SP3710_SERVICE_KEY}
+MP2555_SERVICE_KEY = 'ricoh_mp2555_service'
+MP2555_MIN_TEXT = 120
+MP2555_RICH_SIBLING = 400
+MP2555_STRUCTURAL_GROUPS = {
+    'SC549', 'SC622', 'SC669', 'SC670', 'SC672', 'SC682',
+    'SC700', 'SC720', 'SC721', 'SC722', 'SC724', 'SC727',
+    'SC761', 'SC816', 'SC845', 'SC863', 'SC864', 'SC865',
+}
 
 def extract_ricoh_sc_sections(text: str, service_key: str = 'ricoh_imc3000_service') -> dict:
     """
@@ -713,6 +733,106 @@ def extract_ricoh_sc_sections(text: str, service_key: str = 'ricoh_imc3000_servi
         # Só adicionar ao grupo se ainda não tiver (primeiro representa o grupo)
         if not results[group]:
             results[group].append(entry)
+
+    return results
+
+
+def normalize_mp2555_sc_text(text: str) -> str:
+    """
+    Recompõe códigos quebrados entre colunas sem alterar o parser Ricoh comum.
+
+    Cobre pypdf/Poppler -raw ("SC541-\\n02") e Poppler padrão
+    ("SC541-\\nA\\n02"). O Level é mantido após o código para que possa ser
+    removido do texto exibido, sem participar da chave.
+    """
+    text = re.sub(
+        r'(?m)^(SC\s?\d{3})-\s*\n+\s*([A-D])\s*\n+\s*(\d{2})\s*$',
+        lambda m: f'{m.group(1)}-{m.group(3)}\n{m.group(2)}',
+        text,
+    )
+    return re.sub(r'(SC\s?\d{3})-\s*\n\s*(\d{2})', r'\1-\2', text)
+
+
+def extract_mp2555_sc_sections(text: str, service_key: str = MP2555_SERVICE_KEY) -> dict:
+    """Extrai os 471 subcódigos e somente os 18 grupos aprovados da série MP 2555."""
+    normalized = clean_text(normalize_mp2555_sc_text(text))
+    sources = [
+        extract_ricoh_sc_sections(normalized, service_key),
+        expand_ricoh_ranges(normalized, service_key),
+        extract_ricoh_sc_detailed_sections(normalized, service_key),
+    ]
+    results = defaultdict(list)
+
+    full_codes = sorted({
+        code for source in sources for code in source
+        if re.fullmatch(r'SC\d{3}-\d{2}', code)
+    })
+    for code in full_codes:
+        candidates = [
+            entry for source in sources for entry in source.get(code, [])
+            if entry.get('key') == service_key
+        ]
+        if not candidates:
+            continue
+        entry = dict(max(candidates, key=lambda item: len(item['text'])))
+        entry['text'] = re.sub(
+            rf'^\s*{re.escape(code)}\s*\n\s*[A-D]\s+',
+            f'{code}\n',
+            entry['text'],
+            count=1,
+        ).strip()
+        results[code].append(entry)
+
+    for group in sorted(MP2555_STRUCTURAL_GROUPS):
+        candidates = [
+            entry for source in sources for entry in source.get(group, [])
+            if entry.get('key') == service_key
+        ]
+        if candidates:
+            entry = dict(max(candidates, key=lambda item: len(item['text'])))
+            entry['text'] = re.sub(
+                rf'^\s*(?:SC\d{{3}}-\d{{2}}|{re.escape(group)})\s*\n\s*[A-D]\s+',
+                f'{group}\n',
+                entry['text'],
+                count=1,
+            ).strip()
+            results[group].append(entry)
+
+    # O manual traz SC670 apenas como cabeçalho estrutural da seção 6.13.1,
+    # sem corpo próprio antes da seção SC672.
+    if 'SC670' not in results and re.search(
+        r'(?im)^\s*(?:6\.13\.1\s+)?WHEN\s+SC670\s+IS\s+DISPLAYED\s*$',
+        normalized,
+    ):
+        results['SC670'].append({
+            'key': service_key,
+            'text': 'SC670\nWhen SC670 is displayed (Service Manual section 6.13.1).',
+        })
+
+    # Algumas linhas da tabela trazem apenas o nome do erro; reutilize a seção
+    # mais completa do mesmo grupo, como a propagação Ricoh global já faz.
+    by_group = defaultdict(list)
+    for code in results:
+        if re.fullmatch(r'SC\d{3}-\d{2}', code):
+            by_group[code[:5]].append(code)
+    for siblings in by_group.values():
+        rich_code = max(
+            siblings,
+            key=lambda code: len(results[code][0]['text']),
+        )
+        rich_text = results[rich_code][0]['text']
+        if len(rich_text) < MP2555_RICH_SIBLING:
+            continue
+        for code in siblings:
+            entry = results[code][0]
+            if len(entry['text']) >= MP2555_MIN_TEXT:
+                continue
+            entry['text'] = (
+                entry['text'].rstrip()
+                + f'\n\nShared diagnostic procedure from {rich_code}:\n'
+                + rich_text
+            )
+            entry['src'] = 'propagated'
 
     return results
 
@@ -1463,6 +1583,24 @@ def build_error_codes_index() -> dict:
                 index[code].append(e)
                 sp3710_count += 1
     print(f'  → {sp3710_count} SC codes do SP 3710 adicionados')
+
+    # ── Ricoh MP 2555/3055/3555 Service Manual ───────────────────────────────
+    print('[errors] Ricoh MP 2555/3055/3555 Service Manual')
+    mp2555_path = PDF_SOURCES['ricoh_mp2555_service'][0]
+    mp2555_errors = extract_mp2555_sc_sections(
+        pdf_to_text_raw(mp2555_path),
+        MP2555_SERVICE_KEY,
+    )
+    mp2555_count = 0
+    for code, entries in mp2555_errors.items():
+        for entry in entries:
+            if not any(
+                item['key'] == MP2555_SERVICE_KEY and item['text'] == entry['text']
+                for item in index[code]
+            ):
+                index[code].append(entry)
+                mp2555_count += 1
+    print(f'  → {mp2555_count} códigos/grupos da série MP 2555 adicionados')
 
     # Stubs: códigos reais sem seção própria no PDF — texto derivado de menção inline.
     # Sobrevivem ao reindex por estarem no código, não no JSON.
