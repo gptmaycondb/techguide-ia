@@ -25,6 +25,7 @@ const ROOT = resolve(__dirname, '..');
 const srcChatJs = readFileSync(resolve(ROOT, 'src/ChatScreen.js'), 'utf8');
 const srcAppJs = readFileSync(resolve(ROOT, 'App.js'), 'utf8');
 const srcDataJs = readFileSync(resolve(ROOT, 'src/data.js'), 'utf8');
+const srcAuthJs = readFileSync(resolve(ROOT, 'src/auth.js'), 'utf8');
 
 const errorCodesData = JSON.parse(
   readFileSync(resolve(ROOT, 'assets/error_codes_index.json'), 'utf8')
@@ -281,6 +282,24 @@ console.log('\n[Message actions] selecao nativa e copia integral');
     ['card de codigo copia codigo e descricao', errorCardText === '13.B2.D2\nAtolamento na bandeja 2.'],
     ['texto selecionavel permanece no ChatScreen', srcChatJs.includes('selectable')],
     ['wrapper de long-press foi removido', !srcChatJs.includes('onLongPress={() => confirmDeleteMessage')],
+  ];
+  for (const [label, ok] of checks) {
+    console.log(`  [${ok ? '✓' : '✗ FAIL'}] ${label}`);
+    if (ok) pass++; else fail++;
+  }
+}
+
+console.log('\n[Backend auth] token Firebase e 401 no ChatScreen');
+{
+  const tokenReadAt = srcChatJs.indexOf('authToken = await getValidToken()');
+  const requestAt = srcChatJs.indexOf('const xhr = new XMLHttpRequest()');
+  const checks = [
+    ['ChatScreen importa getValidToken', srcChatJs.includes("import { getValidToken } from './auth'")],
+    ['token e renovado antes de criar o XHR', tokenReadAt >= 0 && requestAt > tokenReadAt],
+    ['Authorization usa Bearer token', srcChatJs.includes("xhr.setRequestHeader('Authorization', `Bearer ${authToken}`)")],
+    ['401 tem tratamento dedicado antes do fallback', srcChatJs.includes('if (xhr.status === 401)')],
+    ['mensagem de sessao expirada e clara', srcChatJs.includes('Sessão expirada, faça login novamente.')],
+    ['getValidToken renova token perto de expirar', srcAuthJs.includes('Number(expiry) > Date.now() + 60000') && srcAuthJs.includes('await _refreshToken(refreshToken, email)')],
   ];
   for (const [label, ok] of checks) {
     console.log(`  [${ok ? '✓' : '✗ FAIL'}] ${label}`);

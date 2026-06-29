@@ -16,11 +16,15 @@ import IconButton from './components/IconButton';
 import { favoriteId, isFavorite, textHash } from './favorites';
 import { getErrorFamily } from './errorFamilies';
 import { canSaveCodeFavorite, createCodeFavorite } from './codeFavorites';
+import { getValidToken } from './auth';
 import * as Clipboard from 'expo-clipboard';
+
+const AUTH_REQUIRED_MESSAGE = 'Sessão expirada, faça login novamente.';
 
 function friendlyError(err) {
   if (err.name === 'AbortError') return 'Tempo limite excedido. Servidor iniciando — tente novamente em 30s.';
   const msg = err.message || '';
+  if (msg.includes('auth_required')) return AUTH_REQUIRED_MESSAGE;
   if (msg.includes('ANTHROPIC_API_KEY')) return 'Provedor Claude sem chave configurada no servidor.';
   if (msg.includes('OPENAI_API_KEY'))    return 'Provedor OpenAI não configurado. Troque o modelo de IA no Drawer.';
   if (msg.includes('GEMINI_API_KEY'))    return 'Provedor Gemini não configurado. Troque o modelo de IA no Drawer.';
@@ -197,6 +201,23 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
       return;
     }
 
+    let authToken = null;
+    try {
+      authToken = await getValidToken();
+    } catch {}
+    if (!authToken) {
+      setMessages(m => [...m, {
+        id: Date.now() + 1,
+        role: 'ai',
+        text: AUTH_REQUIRED_MESSAGE,
+        isError: true,
+        streaming: false,
+      }]);
+      setLoading(false);
+      scrollToBottom();
+      return;
+    }
+
     const aiMsgId = Date.now() + 1;
     setMessages(m => [...m, { id: aiMsgId, role: 'ai', text: '', streaming: true }]);
     scrollToBottom();
@@ -222,6 +243,7 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
       xhr.open('POST', API_URL);
       xhr.setRequestHeader('Content-Type', 'application/json');
       xhr.setRequestHeader('Accept', 'text/event-stream');
+      xhr.setRequestHeader('Authorization', `Bearer ${authToken}`);
 
       // Timeout de INATIVIDADE: 60s sem nenhum chunk → aborta. Reinicia a cada dado
       // recebido, permitindo respostas longas (procedimentos completos) desde que
@@ -273,6 +295,16 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
 
       xhr.onload = () => {
         clearTimeout(timeoutId);
+        if (xhr.status === 401) {
+          setMessages(m => m.map(msg =>
+            msg.id === aiMsgId
+              ? { ...msg, text: AUTH_REQUIRED_MESSAGE, isError: true, streaming: false }
+              : msg
+          ));
+          setLoading(false);
+          scrollToBottom();
+          return;
+        }
         if (!doneReceived) {
           // Processar SSE restante não lido pelo onprogress (offset lastIndex evita duplicação).
           // Gemini e providers rápidos podem entregar tudo antes do onprogress disparar.
