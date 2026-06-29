@@ -35,6 +35,27 @@ function buildGeminiMessages(messages) {
   while (mapped.length > 0 && mapped[0].role !== 'user') mapped.shift();
   return { history: mapped, userText: lastMsg?.parts[0]?.text || '' };
 }
+
+const AUTH_ERROR = {
+  error: 'auth_required',
+  message: 'Sessão expirada, faça login novamente.',
+};
+
+function createRequireAuth(firebaseAuth) {
+  return async function requireAuth(req, res, next) {
+    const match = req.headers.authorization?.match(/^Bearer\s+(.+)$/i);
+    if (!firebaseAuth || !match) {
+      return res.status(401).json(AUTH_ERROR);
+    }
+    try {
+      const decoded = await firebaseAuth.verifyIdToken(match[1]);
+      req.uid = decoded.uid;
+      return next();
+    } catch {
+      return res.status(401).json(AUTH_ERROR);
+    }
+  };
+}
 // ─────────────────────────────────────────────────────────────────────────────
 
 let pass = 0, fail = 0;
@@ -54,7 +75,7 @@ function check(label, result, expected) {
 console.log('=== Backend Unit Tests ===\n');
 
 // ── Sync guard: cópia verbatim deve ser idêntica ao server.js ─────────────────
-console.log('[Sync guard] buildGeminiMessages deve ser idêntica a backend/server.js');
+console.log('[Sync guard] funções puras devem ser idênticas a backend/server.js');
 {
   const testSelf = readFileSync(fileURLToPath(import.meta.url), 'utf8');
 
@@ -79,18 +100,20 @@ console.log('[Sync guard] buildGeminiMessages deve ser idêntica a backend/serve
       .trim();
   }
 
-  const srcNorm  = normalize(extractFn(srcServer, 'buildGeminiMessages'));
-  const testNorm = normalize(extractFn(testSelf,  'buildGeminiMessages'));
-  const ok = srcNorm === testNorm;
-  console.log(`  [${ok ? '✓' : '✗ FAIL'}] buildGeminiMessages`);
-  if (ok) {
-    pass++;
-  } else {
-    fail++;
-    const diffAt = [...srcNorm].findIndex((c, i) => c !== testNorm[i]);
-    console.log(`         diverge em posição ${diffAt}`);
-    console.log(`         server: ...${srcNorm.slice(Math.max(0, diffAt - 20), diffAt + 40)}...`);
-    console.log(`         test:   ...${testNorm.slice(Math.max(0, diffAt - 20), diffAt + 40)}...`);
+  for (const fnName of ['buildGeminiMessages', 'createRequireAuth']) {
+    const srcNorm  = normalize(extractFn(srcServer, fnName));
+    const testNorm = normalize(extractFn(testSelf, fnName));
+    const ok = srcNorm === testNorm;
+    console.log(`  [${ok ? '✓' : '✗ FAIL'}] ${fnName}`);
+    if (ok) {
+      pass++;
+    } else {
+      fail++;
+      const diffAt = [...srcNorm].findIndex((c, i) => c !== testNorm[i]);
+      console.log(`         diverge em posição ${diffAt}`);
+      console.log(`         server: ...${srcNorm.slice(Math.max(0, diffAt - 20), diffAt + 40)}...`);
+      console.log(`         test:   ...${testNorm.slice(Math.max(0, diffAt - 20), diffAt + 40)}...`);
+    }
   }
 }
 
@@ -197,5 +220,57 @@ console.log('\n[A1e] payload realista do contrato legado (systemPrompt + histór
 }
 
 // ── Resultado ─────────────────────────────────────────────────────────────────
+console.log('\n[Auth] /chat exige Bearer válido e preserva o handler autenticado');
+{
+  const makeRes = () => ({
+    statusCode: null,
+    body: null,
+    status(code) { this.statusCode = code; return this; },
+    json(body) { this.body = body; return this; },
+  });
+  const expectedError = JSON.stringify(AUTH_ERROR);
+
+  const missingRes = makeRes();
+  let missingNext = 0;
+  await createRequireAuth(null)(
+    { headers: {} },
+    missingRes,
+    () => { missingNext++; }
+  );
+  check('auth não inicializada falha fechada com 401', missingRes.statusCode, 401);
+  check('auth não inicializada retorna auth_required', JSON.stringify(missingRes.body), expectedError);
+  check('auth não inicializada não chama handler', missingNext, 0);
+
+  const invalidRes = makeRes();
+  let invalidNext = 0;
+  await createRequireAuth({ verifyIdToken: async () => { throw new Error('expired'); } })(
+    { headers: { authorization: 'Bearer invalid-token' } },
+    invalidRes,
+    () => { invalidNext++; }
+  );
+  check('token inválido/expirado retorna 401', invalidRes.statusCode, 401);
+  check('token inválido retorna auth_required', JSON.stringify(invalidRes.body), expectedError);
+  check('token inválido não chama handler', invalidNext, 0);
+
+  const validReq = { headers: { authorization: 'Bearer valid-token' } };
+  const validRes = makeRes();
+  let validNext = 0;
+  await createRequireAuth({ verifyIdToken: async token => ({ uid: `uid-for-${token}` }) })(
+    validReq,
+    validRes,
+    () => { validNext++; }
+  );
+  check('token válido anexa uid', validReq.uid, 'uid-for-valid-token');
+  check('token válido segue para handler/SSE', validNext, 1);
+  check('token válido não escreve resposta antecipada', validRes.statusCode, null);
+
+  check('/chat usa middleware antes do handler',
+    /app\.post\('\/chat',\s*requireAuth,\s*async\s*\(req,\s*res\)/.test(srcServer), true);
+  check('/providers continua público',
+    /app\.get\('\/providers',\s*\(req,\s*res\)/.test(srcServer), true);
+  check('SSE autenticado continua emitindo delta e done',
+    srcServer.includes("type: 'delta'") && srcServer.includes("type: 'done'"), true);
+}
+
 console.log(`\n=== ${pass + fail} testes: ${pass} passaram, ${fail} falharam ===`);
 process.exit(fail > 0 ? 1 : 0);
