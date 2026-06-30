@@ -40,7 +40,13 @@ const AUTH_ERROR = {
   error: 'auth_required',
   message: 'Sessão expirada, faça login novamente.',
 };
-const DAILY_LIMIT = 10;
+
+function parseDailyLimit(value) {
+  const parsed = Number(value);
+  return Number.isInteger(parsed) && parsed > 0 ? parsed : 10;
+}
+
+const DAILY_LIMIT = parseDailyLimit(process.env.DAILY_LIMIT);
 
 function createRequireAuth(firebaseAuth) {
   return async function requireAuth(req, res, next) {
@@ -186,6 +192,7 @@ console.log('[Sync guard] funções puras devem ser idênticas a backend/server.
 
   for (const fnName of [
     'buildGeminiMessages',
+    'parseDailyLimit',
     'createRequireAuth',
     'getSaoPauloDay',
     'isMasterEmail',
@@ -311,6 +318,16 @@ console.log('\n[A1e] payload realista do contrato legado (systemPrompt + histór
 }
 
 // ── Resultado ─────────────────────────────────────────────────────────────────
+console.log('\n[Config] DAILY_LIMIT aceita somente inteiro positivo');
+{
+  check('DAILY_LIMIT=5 usa 5', parseDailyLimit('5'), 5);
+  check('DAILY_LIMIT ausente usa 10', parseDailyLimit(undefined), 10);
+  check('DAILY_LIMIT=abc usa 10', parseDailyLimit('abc'), 10);
+  check('DAILY_LIMIT=0 usa 10', parseDailyLimit('0'), 10);
+  check('DAILY_LIMIT=-3 usa 10', parseDailyLimit('-3'), 10);
+  check('DAILY_LIMIT decimal usa 10', parseDailyLimit('5.5'), 10);
+}
+
 console.log('\n[Auth] /chat exige Bearer válido e preserva o handler autenticado');
 {
   const makeRes = () => ({
@@ -433,6 +450,23 @@ console.log('\n[Usage] limite diário transacional, mestre e fuso de Brasília')
   check('11ª consulta retorna rate_limit', blockedRes.body.error, 'rate_limit');
   check('consulta bloqueada não chama provider/handler', blockedNext, 0);
   check('consulta bloqueada não incrementa', blockedFirestore.state.writes, 0);
+
+  const configuredFirestore = makeFirestore(5);
+  const configuredRes = makeRes();
+  let configuredNext = 0;
+  await createUsageLimit({
+    firestore: configuredFirestore,
+    fieldValue,
+    masterEmail: 'master@example.com',
+    dailyLimit: parseDailyLimit('5'),
+  })(
+    { uid: 'uid-5', email: 'user@example.com' },
+    configuredRes,
+    () => { configuredNext++; }
+  );
+  check('DAILY_LIMIT=5 bloqueia após 5 consultas', configuredRes.statusCode, 429);
+  check('limite configurado não chama provider/handler', configuredNext, 0);
+  check('resposta informa limite configurado 5', configuredRes.body.limit, 5);
 
   const masterReq = { uid: 'uid-master', email: 'MASTER@example.com' };
   const masterRes = makeRes();
