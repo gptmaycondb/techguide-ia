@@ -40,6 +40,7 @@ const AUTH_ERROR = {
   error: 'auth_required',
   message: 'Sessão expirada, faça login novamente.',
 };
+const DAILY_LIMIT = 10;
 
 function createRequireAuth(firebaseAuth) {
   return async function requireAuth(req, res, next) {
@@ -50,11 +51,94 @@ function createRequireAuth(firebaseAuth) {
     try {
       const decoded = await firebaseAuth.verifyIdToken(match[1]);
       req.uid = decoded.uid;
+      req.email = decoded.email || null;
       return next();
     } catch {
       return res.status(401).json(AUTH_ERROR);
     }
   };
+}
+
+function getSaoPauloDay(value = new Date()) {
+  const parts = new Intl.DateTimeFormat('en-US', {
+    timeZone: 'America/Sao_Paulo',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).formatToParts(value);
+  const get = type => parts.find(part => part.type === type)?.value;
+  return `${get('year')}-${get('month')}-${get('day')}`;
+}
+
+function isMasterEmail(email, masterEmail) {
+  return Boolean(email && masterEmail)
+    && email.trim().toLowerCase() === masterEmail.trim().toLowerCase();
+}
+
+function createUsageLimit({
+  firestore,
+  fieldValue,
+  masterEmail = process.env.MASTER_EMAIL,
+  dailyLimit = DAILY_LIMIT,
+  now = () => new Date(),
+}) {
+  return async function requireUsage(req, res, next) {
+    if (isMasterEmail(req.email, masterEmail)) {
+      req.usage = { unlimited: true };
+      return next();
+    }
+    if (!firestore) {
+      return res.status(503).json({
+        error: 'usage_unavailable',
+        message: 'Controle de consultas temporariamente indisponível. Tente novamente.',
+      });
+    }
+
+    const day = getSaoPauloDay(now());
+    const ref = firestore.collection('usage').doc(`${req.uid}_${day}`);
+    let used = 0;
+    try {
+      await firestore.runTransaction(async transaction => {
+        const snapshot = await transaction.get(ref);
+        const current = snapshot.exists ? Number(snapshot.data()?.count || 0) : 0;
+        if (current >= dailyLimit) {
+          const error = new Error('daily_limit_reached');
+          error.code = 'daily_limit_reached';
+          throw error;
+        }
+        used = current + 1;
+        transaction.set(ref, {
+          uid: req.uid,
+          day,
+          count: fieldValue.increment(1),
+          updatedAt: fieldValue.serverTimestamp(),
+        }, { merge: true });
+      });
+    } catch (error) {
+      if (error.code === 'daily_limit_reached') {
+        return res.status(429).json({
+          error: 'rate_limit',
+          message: 'Limite diário de consultas atingido. Libera à meia-noite.',
+          used: dailyLimit,
+          limit: dailyLimit,
+        });
+      }
+      console.error(`Usage limit failed for uid=${req.uid}:`, error.message);
+      return res.status(503).json({
+        error: 'usage_unavailable',
+        message: 'Controle de consultas temporariamente indisponível. Tente novamente.',
+      });
+    }
+
+    req.usage = { used, limit: dailyLimit, remaining: dailyLimit - used };
+    return next();
+  };
+}
+
+function isProviderRateLimit(error) {
+  return error?.status === 429
+    || error?.statusCode === 429
+    || /(?:429|rate.?limit|quota|resource_exhausted)/i.test(error?.message || '');
 }
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -100,7 +184,14 @@ console.log('[Sync guard] funções puras devem ser idênticas a backend/server.
       .trim();
   }
 
-  for (const fnName of ['buildGeminiMessages', 'createRequireAuth']) {
+  for (const fnName of [
+    'buildGeminiMessages',
+    'createRequireAuth',
+    'getSaoPauloDay',
+    'isMasterEmail',
+    'createUsageLimit',
+    'isProviderRateLimit',
+  ]) {
     const srcNorm  = normalize(extractFn(srcServer, fnName));
     const testNorm = normalize(extractFn(testSelf, fnName));
     const ok = srcNorm === testNorm;
@@ -255,21 +346,122 @@ console.log('\n[Auth] /chat exige Bearer válido e preserva o handler autenticad
   const validReq = { headers: { authorization: 'Bearer valid-token' } };
   const validRes = makeRes();
   let validNext = 0;
-  await createRequireAuth({ verifyIdToken: async token => ({ uid: `uid-for-${token}` }) })(
+  await createRequireAuth({ verifyIdToken: async token => ({
+    uid: `uid-for-${token}`,
+    email: 'tecnico@example.com',
+  }) })(
     validReq,
     validRes,
     () => { validNext++; }
   );
   check('token válido anexa uid', validReq.uid, 'uid-for-valid-token');
+  check('token válido anexa email', validReq.email, 'tecnico@example.com');
   check('token válido segue para handler/SSE', validNext, 1);
   check('token válido não escreve resposta antecipada', validRes.statusCode, null);
 
-  check('/chat usa middleware antes do handler',
-    /app\.post\('\/chat',\s*requireAuth,\s*async\s*\(req,\s*res\)/.test(srcServer), true);
+  check('/chat usa auth e limite antes do handler',
+    /app\.post\('\/chat',\s*requireAuth,\s*requireUsage,\s*async\s*\(req,\s*res\)/.test(srcServer), true);
   check('/providers continua público',
     /app\.get\('\/providers',\s*\(req,\s*res\)/.test(srcServer), true);
   check('SSE autenticado continua emitindo delta e done',
     srcServer.includes("type: 'delta'") && srcServer.includes("type: 'done'"), true);
+}
+
+console.log('\n[Usage] limite diário transacional, mestre e fuso de Brasília');
+{
+  const fieldValue = {
+    increment: value => ({ increment: value }),
+    serverTimestamp: () => ({ serverTimestamp: true }),
+  };
+  const makeFirestore = initialCount => {
+    const state = { count: initialCount, writes: 0 };
+    return {
+      state,
+      collection: name => ({
+        doc: id => ({ name, id }),
+      }),
+      runTransaction: async callback => callback({
+        get: async () => ({
+          exists: state.count > 0,
+          data: () => ({ count: state.count }),
+        }),
+        set: (ref, data) => {
+          state.count += data.count.increment;
+          state.writes++;
+          state.ref = ref;
+          state.data = data;
+        },
+      }),
+    };
+  };
+  const makeRes = () => ({
+    statusCode: null,
+    body: null,
+    status(code) { this.statusCode = code; return this; },
+    json(body) { this.body = body; return this; },
+  });
+
+  const firestore = makeFirestore(9);
+  const acceptedReq = { uid: 'uid-1', email: 'user@example.com' };
+  const acceptedRes = makeRes();
+  let acceptedNext = 0;
+  await createUsageLimit({
+    firestore,
+    fieldValue,
+    masterEmail: 'master@example.com',
+    now: () => new Date('2026-06-29T12:00:00Z'),
+  })(acceptedReq, acceptedRes, () => { acceptedNext++; });
+  check('consulta 10 é aceita', acceptedNext, 1);
+  check('consulta aceita incrementa exatamente uma vez', firestore.state.count, 10);
+  check('uso 10/10 é anexado à requisição', JSON.stringify(acceptedReq.usage),
+    JSON.stringify({ used: 10, limit: 10, remaining: 0 }));
+  check('documento usa UID + dia de São Paulo', firestore.state.ref.id, 'uid-1_2026-06-29');
+
+  const blockedFirestore = makeFirestore(10);
+  const blockedRes = makeRes();
+  let blockedNext = 0;
+  await createUsageLimit({
+    firestore: blockedFirestore,
+    fieldValue,
+    masterEmail: 'master@example.com',
+  })(
+    { uid: 'uid-2', email: 'user@example.com' },
+    blockedRes,
+    () => { blockedNext++; }
+  );
+  check('11ª consulta retorna 429', blockedRes.statusCode, 429);
+  check('11ª consulta retorna rate_limit', blockedRes.body.error, 'rate_limit');
+  check('consulta bloqueada não chama provider/handler', blockedNext, 0);
+  check('consulta bloqueada não incrementa', blockedFirestore.state.writes, 0);
+
+  const masterReq = { uid: 'uid-master', email: 'MASTER@example.com' };
+  const masterRes = makeRes();
+  let masterNext = 0;
+  await createUsageLimit({
+    firestore: null,
+    fieldValue,
+    masterEmail: 'master@example.com',
+  })(masterReq, masterRes, () => { masterNext++; });
+  check('mestre ignora limite e Firestore', masterNext, 1);
+  check('mestre recebe unlimited', masterReq.usage.unlimited, true);
+
+  check('23:59 em Brasília ainda é o dia anterior',
+    getSaoPauloDay(new Date('2026-06-29T02:59:59Z')), '2026-06-28');
+  check('00:00 em Brasília inicia novo dia',
+    getSaoPauloDay(new Date('2026-06-29T03:00:00Z')), '2026-06-29');
+  check('email mestre é case-insensitive',
+    isMasterEmail('Maycon@Example.com', 'maycon@example.com'), true);
+}
+
+console.log('\n[Provider 429] cota global não é mascarada como erro genérico');
+{
+  check('status 429 é reconhecido', isProviderRateLimit({ status: 429 }), true);
+  check('RESOURCE_EXHAUSTED é reconhecido',
+    isProviderRateLimit({ message: 'RESOURCE_EXHAUSTED: quota exceeded' }), true);
+  check('erro comum não é classificado como 429',
+    isProviderRateLimit({ status: 500, message: 'internal error' }), false);
+  check('SSE inclui uso e provider_rate_limit',
+    srcServer.includes("type: 'usage'") && srcServer.includes("'provider_rate_limit'"), true);
 }
 
 console.log(`\n=== ${pass + fail} testes: ${pass} passaram, ${fail} falharam ===`);

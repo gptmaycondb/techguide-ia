@@ -20,6 +20,8 @@ import { getValidToken } from './auth';
 import * as Clipboard from 'expo-clipboard';
 
 const AUTH_REQUIRED_MESSAGE = 'Sessão expirada, faça login novamente.';
+const DAILY_LIMIT_MESSAGE = 'Limite diário de consultas atingido. Libera à meia-noite.';
+const PROVIDER_LIMIT_MESSAGE = 'Serviço de IA temporariamente indisponível. Tente em instantes.';
 
 function friendlyError(err) {
   if (err.name === 'AbortError') return 'Tempo limite excedido. Servidor iniciando — tente novamente em 30s.';
@@ -65,7 +67,7 @@ export function getMessageCopyText(message) {
   return message.text || '';
 }
 
-export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, onQuestionSent, messages, setMessages, provider = DEFAULT_PROVIDER, favorites = [], onToggleFavorite = () => {}, onDeleteMessage = () => {}, tourTarget, onTourTargetLayout }) {
+export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, onQuestionSent, messages, setMessages, provider = DEFAULT_PROVIDER, favorites = [], onToggleFavorite = () => {}, onDeleteMessage = () => {}, usage = null, onUsage = () => {}, tourTarget, onTourTargetLayout }) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [copiedMessageId, setCopiedMessageId] = useState(null);
@@ -281,12 +283,24 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
                 ...msg, streaming: false,
                 source: foundInManual ? `Manual: ${manual.subtitle}` : 'Resposta geral',
                 fromManual: foundInManual,
-              } : msg
-            ));
+                } : msg
+              ));
+          } else if (ev.type === 'usage') {
+            onUsage(ev.unlimited
+              ? { unlimited: true }
+              : { used: ev.used, limit: ev.limit, remaining: ev.remaining });
           } else if (ev.type === 'error') {
+            doneReceived = true;
             setMessages(m => m.map(msg =>
               msg.id === aiMsgId
-                ? { ...msg, text: friendlyError(new Error(ev.message)), isError: true, streaming: false }
+                ? {
+                  ...msg,
+                  text: ev.error === 'provider_rate_limit'
+                    ? PROVIDER_LIMIT_MESSAGE
+                    : friendlyError(new Error(ev.message)),
+                  isError: true,
+                  streaming: false,
+                }
                 : msg
             ));
           }
@@ -299,6 +313,27 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
           setMessages(m => m.map(msg =>
             msg.id === aiMsgId
               ? { ...msg, text: AUTH_REQUIRED_MESSAGE, isError: true, streaming: false }
+              : msg
+          ));
+          setLoading(false);
+          scrollToBottom();
+          return;
+        }
+        if (xhr.status === 429) {
+          let response = {};
+          try { response = JSON.parse(xhr.responseText); } catch {}
+          const isPersonalLimit = response.error === 'rate_limit';
+          if (isPersonalLimit) {
+            onUsage({ used: response.used, limit: response.limit, remaining: 0 });
+          }
+          setMessages(m => m.map(msg =>
+            msg.id === aiMsgId
+              ? {
+                ...msg,
+                text: isPersonalLimit ? DAILY_LIMIT_MESSAGE : PROVIDER_LIMIT_MESSAGE,
+                isError: true,
+                streaming: false,
+              }
               : msg
           ));
           setLoading(false);
@@ -322,11 +357,22 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
                   fromManual: foundInManual,
                 } : msg
               ));
+            } else if (ev.type === 'usage') {
+              onUsage(ev.unlimited
+                ? { unlimited: true }
+                : { used: ev.used, limit: ev.limit, remaining: ev.remaining });
             } else if (ev.type === 'error') {
               doneReceived = true;
               setMessages(m => m.map(msg =>
                 msg.id === aiMsgId
-                  ? { ...msg, text: friendlyError(new Error(ev.message)), isError: true, streaming: false }
+                  ? {
+                    ...msg,
+                    text: ev.error === 'provider_rate_limit'
+                      ? PROVIDER_LIMIT_MESSAGE
+                      : friendlyError(new Error(ev.message)),
+                    isError: true,
+                    streaming: false,
+                  }
                   : msg
               ));
             }
@@ -338,6 +384,7 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
             const json = JSON.parse(xhr.responseText);
             if (json.error) throw new Error(typeof json.error === 'string' ? json.error : json.error.message);
             if (!json.content?.length) throw new Error('Resposta vazia');
+            if (json.usage) onUsage(json.usage);
             const answer = json.content.map(b => b.text || '').join('');
             setMessages(m => m.map(msg =>
               msg.id === aiMsgId ? {
@@ -522,6 +569,13 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
           </View>
         )}
 
+        {usage && (
+          <View style={styles.usageBar}>
+            <Text style={styles.usageText}>
+              {usage.unlimited ? 'Consultas: ilimitado' : `${usage.used}/${usage.limit} hoje`}
+            </Text>
+          </View>
+        )}
         <View style={styles.inputBar}>
           <TextInput
             ref={inputRef}
@@ -598,6 +652,8 @@ const styles = StyleSheet.create({
   deleteMessageActionText: { color: C.danger },
   typingRow: { flexDirection: 'row', alignItems: 'center', gap: 8, padding: 10, paddingLeft: 16 },
   typingText: { fontSize: 12 },
+  usageBar: { alignItems: 'flex-end', paddingHorizontal: 14, paddingTop: 6, backgroundColor: C.surface },
+  usageText: { color: C.dim, fontSize: 11, fontWeight: '700' },
   inputBar: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
     paddingHorizontal: 12, paddingVertical: 10,

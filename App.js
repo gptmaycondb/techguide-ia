@@ -84,6 +84,7 @@ export default function App() {
   const [pendingQuestion, setPendingQuestion] = useState(null);
   const [allMessages, setAllMessages] = useState({});
   const [favorites, setFavorites] = useState([]);
+  const [dailyUsage, setDailyUsage] = useState(null);
 
   // Manual selection
   const [selectedBrandId, setSelectedBrandId] = useState(BRANDS[0]?.id);
@@ -227,6 +228,7 @@ export default function App() {
     setAuthStatus('guest');
     setAuthEmail(null);
     setAllMessages({});
+    setDailyUsage(null);
     setPendingQuestion(null);
     setActiveTab('chat');
     setShowAssistant(true);
@@ -374,6 +376,7 @@ export default function App() {
     <LoginScreen onLoginSuccess={async (email) => {
       setAuthEmail(email);
       setAuthStatus('authed');
+      setDailyUsage(null);
       setShowAssistant(true);
       setShowWelcome(true);
       await initAuthedUser(email);
@@ -470,6 +473,8 @@ export default function App() {
             favorites={favorites}
             onToggleFavorite={toggleFavorite}
             onDeleteMessage={handleDeleteConversationMessage}
+            usage={dailyUsage}
+            onUsage={setDailyUsage}
             tourTarget={getOnboardingStep(tourStage)?.target}
             onTourTargetLayout={handleTourTargetLayout}
           />
