@@ -6,37 +6,38 @@ on:
     paths:
       - 'backend/server.js'
       - 'backend/package.json'
+      - 'backend/package-lock.json'
+      - '.github/workflows/sync-backend.yml'
 
 jobs:
   sync:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout techguide-ia
+        uses: actions/checkout@v4
 
-      - name: Sync server.js
-        env:
-          GH_TOKEN: ${{ secrets.MANUAIS_HP_TOKEN }}
-        run: |
-          SHA=$(gh api repos/gptmaycondb/manuais-hp/contents/server.js --jq '.sha' 2>/dev/null || echo "")
-          CONTENT=$(base64 -w 0 backend/server.js)
-          PAYLOAD="{\"message\":\"sync: server.js from techguide-ia@${GITHUB_SHA:0:7}\",\"content\":\"$CONTENT\""
-          [ -n "$SHA" ] && PAYLOAD="$PAYLOAD,\"sha\":\"$SHA\""
-          PAYLOAD="$PAYLOAD}"
-          gh api repos/gptmaycondb/manuais-hp/contents/server.js \
-            --method PUT \
-            --input - <<< "$PAYLOAD"
-          echo "server.js synced"
+      - name: Checkout manuais-hp
+        uses: actions/checkout@v4
+        with:
+          repository: gptmaycondb/manuais-hp
+          token: ${{ secrets.MANUAIS_HP_TOKEN }}
+          path: manuais-hp
 
-      - name: Sync package.json
-        env:
-          GH_TOKEN: ${{ secrets.MANUAIS_HP_TOKEN }}
+      - name: Sync backend atomically
         run: |
-          SHA=$(gh api repos/gptmaycondb/manuais-hp/contents/package.json --jq '.sha' 2>/dev/null || echo "")
-          CONTENT=$(base64 -w 0 backend/package.json)
-          PAYLOAD="{\"message\":\"sync: package.json from techguide-ia@${GITHUB_SHA:0:7}\",\"content\":\"$CONTENT\""
-          [ -n "$SHA" ] && PAYLOAD="$PAYLOAD,\"sha\":\"$SHA\""
-          PAYLOAD="$PAYLOAD}"
-          gh api repos/gptmaycondb/manuais-hp/contents/package.json \
-            --method PUT \
-            --input - <<< "$PAYLOAD"
-          echo "package.json synced"
+          cp backend/server.js manuais-hp/server.js
+          cp backend/package.json manuais-hp/package.json
+          cp backend/package-lock.json manuais-hp/package-lock.json
+
+          cd manuais-hp
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add server.js package.json package-lock.json
+
+          if git diff --cached --quiet; then
+            echo "Backend already synchronized"
+            exit 0
+          fi
+
+          git commit -m "sync: backend from techguide-ia@${GITHUB_SHA:0:7}"
+          git push origin HEAD:main
