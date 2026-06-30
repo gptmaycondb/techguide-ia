@@ -300,6 +300,10 @@ console.log('\n[Backend auth] token Firebase e 401 no ChatScreen');
     ['401 tem tratamento dedicado antes do fallback', srcChatJs.includes('if (xhr.status === 401)')],
     ['mensagem de sessao expirada e clara', srcChatJs.includes('Sessão expirada, faça login novamente.')],
     ['getValidToken renova token perto de expirar', srcAuthJs.includes('Number(expiry) > Date.now() + 60000') && srcAuthJs.includes('await _refreshToken(refreshToken, email)')],
+    ['evento SSE usage atualiza contador global', srcChatJs.includes("ev.type === 'usage'") && srcChatJs.includes('onUsage(ev.unlimited')],
+    ['contador global sobrevive a troca de modelo', srcAppJs.includes('const [dailyUsage, setDailyUsage] = useState(null)') && srcAppJs.includes('usage={dailyUsage}')],
+    ['limite pessoal e provider 429 têm mensagens distintas', srcChatJs.includes('DAILY_LIMIT_MESSAGE') && srcChatJs.includes('PROVIDER_LIMIT_MESSAGE') && srcChatJs.includes("response.error === 'rate_limit'")],
+    ['app não acessa Firestore diretamente', !/firestore|firebase-admin/i.test([srcAppJs, srcChatJs, srcAuthJs].join('\n'))],
   ];
   for (const [label, ok] of checks) {
     console.log(`  [${ok ? '✓' : '✗ FAIL'}] ${label}`);
