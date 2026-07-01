@@ -110,6 +110,12 @@ function parseSseText(text) {
   return events;
 }
 
+function createRequestId(now = Date.now(), random = Math.random) {
+  const first = random().toString(36).slice(2, 12);
+  const second = random().toString(36).slice(2, 12);
+  return `${now.toString(36)}-${first}-${second}`;
+}
+
 function buildChatHistory(messages) {
   return messages
     .filter(m => m.role !== 'errorCode' && m.text)
@@ -252,6 +258,7 @@ console.log('[Sync guard] Verificando sincronização com src/search.js e src/Ch
     ['searchErrorCode',      srcSearch],
     ['computeFoundInManual', srcSearch],
     ['parseSseText',         srcChatJs],
+    ['createRequestId',      srcChatJs],
     ['buildChatHistory',     srcChatJs],
     ['getMessageCopyText',   srcChatJs],
   ]) {
@@ -293,6 +300,9 @@ console.log('\n[Backend auth] token Firebase e 401 no ChatScreen');
 {
   const tokenReadAt = srcChatJs.indexOf('authToken = await getValidToken()');
   const requestAt = srcChatJs.indexOf('const xhr = new XMLHttpRequest()');
+  const requestIdAt = srcChatJs.indexOf('const requestId = createRequestId()');
+  const retryFunctionAt = srcChatJs.indexOf('function startRequest(attempt)');
+  const deterministicId = createRequestId(1234567890, () => 0.123456789);
   const checks = [
     ['ChatScreen importa getValidToken', srcChatJs.includes("import { getValidToken } from './auth'")],
     ['token e renovado antes de criar o XHR', tokenReadAt >= 0 && requestAt > tokenReadAt],
@@ -304,6 +314,9 @@ console.log('\n[Backend auth] token Firebase e 401 no ChatScreen');
     ['contador global sobrevive a troca de modelo', srcAppJs.includes('const [dailyUsage, setDailyUsage] = useState(null)') && srcAppJs.includes('usage={dailyUsage}')],
     ['limite pessoal e provider 429 têm mensagens distintas', srcChatJs.includes('DAILY_LIMIT_MESSAGE') && srcChatJs.includes('PROVIDER_LIMIT_MESSAGE') && srcChatJs.includes("response.error === 'rate_limit'")],
     ['app não acessa Firestore diretamente', !/firestore|firebase-admin/i.test([srcAppJs, srcChatJs, srcAuthJs].join('\n'))],
+    ['requestId tem formato aceito pelo backend', /^[A-Za-z0-9_-]{16,128}$/.test(deterministicId)],
+    ['requestId nasce antes do retry e entra no payload', requestIdAt >= 0 && requestIdAt < retryFunctionAt && srcChatJs.includes('requestId,')],
+    ['retry reutiliza o payload com o mesmo requestId', srcChatJs.includes('setTimeout(() => startRequest(attempt + 1)') && srcChatJs.includes('xhr.send(payload)')],
   ];
   for (const [label, ok] of checks) {
     console.log(`  [${ok ? '✓' : '✗ FAIL'}] ${label}`);

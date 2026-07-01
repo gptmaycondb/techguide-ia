@@ -47,6 +47,7 @@ function parseDailyLimit(value) {
 }
 
 const DAILY_LIMIT = parseDailyLimit(process.env.DAILY_LIMIT);
+const RESERVATION_TTL_MS = 5 * 60 * 1000;
 
 function createRequireAuth(firebaseAuth) {
   return async function requireAuth(req, res, next) {
@@ -81,16 +82,39 @@ function isMasterEmail(email, masterEmail) {
     && email.trim().toLowerCase() === masterEmail.trim().toLowerCase();
 }
 
+function isValidRequestId(requestId) {
+  return typeof requestId === 'string'
+    && /^[A-Za-z0-9_-]{16,128}$/.test(requestId);
+}
+
+function cleanExpiredReservations(requests, nowMs) {
+  const cleaned = {};
+  for (const [requestId, entry] of Object.entries(requests || {})) {
+    if (entry?.state === 'reserved' && Number(entry.expiresAtMs || 0) <= nowMs) continue;
+    cleaned[requestId] = entry;
+  }
+  return cleaned;
+}
+
 function createUsageLimit({
   firestore,
   fieldValue,
   masterEmail = process.env.MASTER_EMAIL,
   dailyLimit = DAILY_LIMIT,
   now = () => new Date(),
+  reservationTtlMs = RESERVATION_TTL_MS,
 }) {
   return async function requireUsage(req, res, next) {
+    const requestId = req.body?.requestId;
+    if (!isValidRequestId(requestId)) {
+      return res.status(400).json({
+        error: 'request_id_required',
+        message: 'Identificador da consulta ausente ou inválido.',
+      });
+    }
     if (isMasterEmail(req.email, masterEmail)) {
       req.usage = { unlimited: true };
+      req.quotaReservation = { unlimited: true };
       return next();
     }
     if (!firestore) {
@@ -100,23 +124,47 @@ function createUsageLimit({
       });
     }
 
-    const day = getSaoPauloDay(now());
+    const reservationTime = now();
+    const day = getSaoPauloDay(reservationTime);
     const ref = firestore.collection('usage').doc(`${req.uid}_${day}`);
-    let used = 0;
+    const nowMs = reservationTime.getTime();
+    let confirmed = 0;
     try {
       await firestore.runTransaction(async transaction => {
         const snapshot = await transaction.get(ref);
-        const current = snapshot.exists ? Number(snapshot.data()?.count || 0) : 0;
-        if (current >= dailyLimit) {
-          const error = new Error('daily_limit_reached');
-          error.code = 'daily_limit_reached';
-          throw error;
+        const data = snapshot.exists ? snapshot.data() : {};
+        confirmed = Number(data?.confirmed ?? data?.count ?? 0);
+        const requests = cleanExpiredReservations(data?.requests, nowMs);
+        const existing = requests[requestId];
+
+        if (existing?.state === 'confirmed') return;
+        if (existing?.state === 'reserved') {
+          requests[requestId] = {
+            ...existing,
+            attempts: Number(existing.attempts || 1) + 1,
+            expiresAtMs: nowMs + reservationTtlMs,
+          };
+        } else {
+          const activeReservations = Object.values(requests)
+            .filter(entry => entry?.state === 'reserved').length;
+          if (confirmed + activeReservations >= dailyLimit) {
+            const error = new Error('daily_limit_reached');
+            error.code = 'daily_limit_reached';
+            throw error;
+          }
+          requests[requestId] = {
+            state: 'reserved',
+            attempts: 1,
+            createdAtMs: nowMs,
+            expiresAtMs: nowMs + reservationTtlMs,
+          };
         }
-        used = current + 1;
+
         transaction.set(ref, {
           uid: req.uid,
           day,
-          count: fieldValue.increment(1),
+          confirmed,
+          requests,
           updatedAt: fieldValue.serverTimestamp(),
         }, { merge: true });
       });
@@ -125,20 +173,87 @@ function createUsageLimit({
         return res.status(429).json({
           error: 'rate_limit',
           message: 'Limite diário de consultas atingido. Libera à meia-noite.',
-          used: dailyLimit,
+          used: confirmed,
           limit: dailyLimit,
         });
       }
-      console.error(`Usage limit failed for uid=${req.uid}:`, error.message);
+      console.error(`Usage reservation failed for uid=${req.uid}:`, error.message);
       return res.status(503).json({
         error: 'usage_unavailable',
         message: 'Controle de consultas temporariamente indisponível. Tente novamente.',
       });
     }
 
-    req.usage = { used, limit: dailyLimit, remaining: dailyLimit - used };
+    req.usage = { used: confirmed, limit: dailyLimit, remaining: dailyLimit - confirmed };
+    req.quotaReservation = {
+      firestore,
+      fieldValue,
+      ref,
+      requestId,
+      dailyLimit,
+      now,
+    };
     return next();
   };
+}
+
+async function confirmUsage(reservation) {
+  if (reservation?.unlimited) return { unlimited: true };
+  const { firestore, fieldValue, ref, requestId, dailyLimit, now } = reservation;
+  let confirmed = 0;
+  await firestore.runTransaction(async transaction => {
+    const snapshot = await transaction.get(ref);
+    const data = snapshot.exists ? snapshot.data() : {};
+    confirmed = Number(data?.confirmed ?? data?.count ?? 0);
+    const requests = cleanExpiredReservations(data?.requests, now().getTime());
+    const existing = requests[requestId];
+    if (existing?.state === 'confirmed') return;
+    if (existing?.state !== 'reserved') {
+      const error = new Error('usage_reservation_expired');
+      error.code = 'usage_reservation_expired';
+      throw error;
+    }
+
+    confirmed += 1;
+    requests[requestId] = {
+      state: 'confirmed',
+      confirmedAtMs: now().getTime(),
+    };
+    transaction.set(ref, {
+      confirmed,
+      requests,
+      updatedAt: fieldValue.serverTimestamp(),
+    }, { merge: true });
+  });
+  return { used: confirmed, limit: dailyLimit, remaining: dailyLimit - confirmed };
+}
+
+async function releaseUsage(reservation) {
+  if (!reservation || reservation.unlimited) {
+    return reservation?.unlimited ? { unlimited: true } : null;
+  }
+  const { firestore, fieldValue, ref, requestId, dailyLimit, now } = reservation;
+  let confirmed = 0;
+  await firestore.runTransaction(async transaction => {
+    const snapshot = await transaction.get(ref);
+    const data = snapshot.exists ? snapshot.data() : {};
+    confirmed = Number(data?.confirmed ?? data?.count ?? 0);
+    const requests = cleanExpiredReservations(data?.requests, now().getTime());
+    const existing = requests[requestId];
+    if (existing?.state !== 'reserved') return;
+
+    const attempts = Number(existing.attempts || 1);
+    if (attempts > 1) {
+      requests[requestId] = { ...existing, attempts: attempts - 1 };
+    } else {
+      delete requests[requestId];
+    }
+    transaction.set(ref, {
+      requests,
+      updatedAt: fieldValue.serverTimestamp(),
+    }, { merge: true });
+  });
+  return { used: confirmed, limit: dailyLimit, remaining: dailyLimit - confirmed };
 }
 
 function isProviderRateLimit(error) {
@@ -196,7 +311,11 @@ console.log('[Sync guard] funções puras devem ser idênticas a backend/server.
     'createRequireAuth',
     'getSaoPauloDay',
     'isMasterEmail',
+    'isValidRequestId',
+    'cleanExpiredReservations',
     'createUsageLimit',
+    'confirmUsage',
+    'releaseUsage',
     'isProviderRateLimit',
   ]) {
     const srcNorm  = normalize(extractFn(srcServer, fnName));
@@ -384,32 +503,42 @@ console.log('\n[Auth] /chat exige Bearer válido e preserva o handler autenticad
     srcServer.includes("type: 'delta'") && srcServer.includes("type: 'done'"), true);
 }
 
-console.log('\n[Usage] limite diário transacional, mestre e fuso de Brasília');
+console.log('\n[Usage] reserva, confirmação, estorno, retry, concorrência e expiração');
 {
   const fieldValue = {
-    increment: value => ({ increment: value }),
     serverTimestamp: () => ({ serverTimestamp: true }),
   };
-  const makeFirestore = initialCount => {
-    const state = { count: initialCount, writes: 0 };
-    return {
+  const makeFirestore = (initialData = {}) => {
+    const state = {
+      data: {
+        ...initialData,
+        requests: { ...(initialData.requests || {}) },
+      },
+      writes: 0,
+    };
+    let queue = Promise.resolve();
+    const firestore = {
       state,
       collection: name => ({
         doc: id => ({ name, id }),
       }),
-      runTransaction: async callback => callback({
-        get: async () => ({
-          exists: state.count > 0,
-          data: () => ({ count: state.count }),
-        }),
-        set: (ref, data) => {
-          state.count += data.count.increment;
-          state.writes++;
-          state.ref = ref;
-          state.data = data;
-        },
-      }),
+      runTransaction(callback) {
+        const run = queue.then(() => callback({
+          get: async () => ({
+            exists: true,
+            data: () => state.data,
+          }),
+          set: (ref, data) => {
+            state.data = { ...state.data, ...data };
+            state.writes++;
+            state.ref = ref;
+          },
+        }));
+        queue = run.catch(() => {});
+        return run;
+      },
     };
+    return firestore;
   };
   const makeRes = () => ({
     statusCode: null,
@@ -417,67 +546,119 @@ console.log('\n[Usage] limite diário transacional, mestre e fuso de Brasília')
     status(code) { this.statusCode = code; return this; },
     json(body) { this.body = body; return this; },
   });
-
-  const firestore = makeFirestore(9);
-  const acceptedReq = { uid: 'uid-1', email: 'user@example.com' };
-  const acceptedRes = makeRes();
-  let acceptedNext = 0;
-  await createUsageLimit({
+  const reserve = async ({
     firestore,
-    fieldValue,
-    masterEmail: 'master@example.com',
-    now: () => new Date('2026-06-29T12:00:00Z'),
-  })(acceptedReq, acceptedRes, () => { acceptedNext++; });
-  check('consulta 10 é aceita', acceptedNext, 1);
-  check('consulta aceita incrementa exatamente uma vez', firestore.state.count, 10);
-  check('uso 10/10 é anexado à requisição', JSON.stringify(acceptedReq.usage),
-    JSON.stringify({ used: 10, limit: 10, remaining: 0 }));
-  check('documento usa UID + dia de São Paulo', firestore.state.ref.id, 'uid-1_2026-06-29');
+    requestId,
+    dailyLimit = 10,
+    now = () => new Date('2026-06-29T12:00:00Z'),
+    email = 'user@example.com',
+  }) => {
+    const req = { uid: 'uid-1', email, body: { requestId } };
+    const res = makeRes();
+    let next = 0;
+    await createUsageLimit({
+      firestore,
+      fieldValue,
+      masterEmail: 'master@example.com',
+      dailyLimit,
+      now,
+    })(req, res, () => { next++; });
+    return { req, res, next };
+  };
 
-  const blockedFirestore = makeFirestore(10);
-  const blockedRes = makeRes();
-  let blockedNext = 0;
-  await createUsageLimit({
-    firestore: blockedFirestore,
-    fieldValue,
-    masterEmail: 'master@example.com',
-  })(
-    { uid: 'uid-2', email: 'user@example.com' },
-    blockedRes,
-    () => { blockedNext++; }
-  );
-  check('11ª consulta retorna 429', blockedRes.statusCode, 429);
-  check('11ª consulta retorna rate_limit', blockedRes.body.error, 'rate_limit');
-  check('consulta bloqueada não chama provider/handler', blockedNext, 0);
-  check('consulta bloqueada não incrementa', blockedFirestore.state.writes, 0);
+  const firestore = makeFirestore();
+  const success = await reserve({ firestore, requestId: 'request-success-0001' });
+  check('reserva aceita sem subir used', success.req.usage.used, 0);
+  check('reserva fica ativa', firestore.state.data.requests['request-success-0001'].state, 'reserved');
+  const confirmedUsage = await confirmUsage(success.req.quotaReservation);
+  check('sucesso completo confirma e conta 1', confirmedUsage.used, 1);
+  check('request fica confirmado', firestore.state.data.requests['request-success-0001'].state, 'confirmed');
 
-  const configuredFirestore = makeFirestore(5);
-  const configuredRes = makeRes();
-  let configuredNext = 0;
-  await createUsageLimit({
+  const legacyFirestore = makeFirestore({ count: 3 });
+  const legacy = await reserve({ firestore: legacyFirestore, requestId: 'request-legacy-00001' });
+  check('contador legado count é preservado na migração', legacy.req.usage.used, 3);
+  await releaseUsage(legacy.req.quotaReservation);
+
+  const failed = await reserve({ firestore, requestId: 'request-failure-0001' });
+  const releasedUsage = await releaseUsage(failed.req.quotaReservation);
+  check('falha estorna sem subir used', releasedUsage.used, 1);
+  check('reserva da falha é removida',
+    Object.hasOwn(firestore.state.data.requests, 'request-failure-0001'), false);
+
+  for (const [failure, requestId] of [
+    ['provider error', 'request-provider-error'],
+    ['backend 500', 'request-backend-5000'],
+    ['stream cortado', 'request-stream-cut-01'],
+    ['timeout', 'request-timeout-0001'],
+  ]) {
+    const attempt = await reserve({ firestore, requestId });
+    const usageAfterFailure = await releaseUsage(attempt.req.quotaReservation);
+    check(`${failure} estorna e mantém used`, usageAfterFailure.used, 1);
+  }
+
+  const retryOne = await reserve({ firestore, requestId: 'request-retry-000001' });
+  const retryTwo = await reserve({ firestore, requestId: 'request-retry-000001' });
+  check('retry reutiliza uma reserva',
+    Object.keys(firestore.state.data.requests).filter(id => id === 'request-retry-000001').length, 1);
+  check('retry registra duas tentativas ativas',
+    firestore.state.data.requests['request-retry-000001'].attempts, 2);
+  await releaseUsage(retryOne.req.quotaReservation);
+  check('falha de uma tentativa preserva a outra',
+    firestore.state.data.requests['request-retry-000001'].attempts, 1);
+  const retryUsage = await confirmUsage(retryTwo.req.quotaReservation);
+  check('retry que completa conta só uma vez', retryUsage.used, 2);
+  const confirmedRetry = await reserve({ firestore, requestId: 'request-retry-000001' });
+  const confirmedRetryUsage = await confirmUsage(confirmedRetry.req.quotaReservation);
+  check('retry após confirmação continua idempotente', confirmedRetryUsage.used, 2);
+
+  const concurrentFirestore = makeFirestore();
+  const concurrent = await Promise.all([
+    reserve({ firestore: concurrentFirestore, requestId: 'request-concurrent-01', dailyLimit: 2 }),
+    reserve({ firestore: concurrentFirestore, requestId: 'request-concurrent-02', dailyLimit: 2 }),
+    reserve({ firestore: concurrentFirestore, requestId: 'request-concurrent-03', dailyLimit: 2 }),
+  ]);
+  check('concorrência aceita somente duas reservas',
+    concurrent.filter(result => result.next === 1).length, 2);
+  check('concorrência bloqueia excedente com 429',
+    concurrent.filter(result => result.res.statusCode === 429).length, 1);
+
+  const expiredFirestore = makeFirestore({
+    requests: {
+      'request-expired-0001': {
+        state: 'reserved',
+        attempts: 1,
+        expiresAtMs: 1000,
+      },
+    },
+  });
+  const afterExpiry = await reserve({
+    firestore: expiredFirestore,
+    requestId: 'request-after-expiry',
+    dailyLimit: 1,
+    now: () => new Date(2000),
+  });
+  check('reserva expirada libera vaga', afterExpiry.next, 1);
+  check('reserva expirada é limpa',
+    Object.hasOwn(expiredFirestore.state.data.requests, 'request-expired-0001'), false);
+
+  const configuredFirestore = makeFirestore({ confirmed: 5 });
+  const configured = await reserve({
     firestore: configuredFirestore,
-    fieldValue,
-    masterEmail: 'master@example.com',
+    requestId: 'request-limit-five',
     dailyLimit: parseDailyLimit('5'),
-  })(
-    { uid: 'uid-5', email: 'user@example.com' },
-    configuredRes,
-    () => { configuredNext++; }
-  );
-  check('DAILY_LIMIT=5 bloqueia após 5 consultas', configuredRes.statusCode, 429);
-  check('limite configurado não chama provider/handler', configuredNext, 0);
-  check('resposta informa limite configurado 5', configuredRes.body.limit, 5);
+  });
+  check('DAILY_LIMIT=5 bloqueia após 5 sucessos', configured.res.statusCode, 429);
 
-  const masterReq = { uid: 'uid-master', email: 'MASTER@example.com' };
-  const masterRes = makeRes();
-  let masterNext = 0;
-  await createUsageLimit({
+  const invalidRequest = await reserve({ firestore, requestId: 'short' });
+  check('requestId inválido é rejeitado', invalidRequest.res.statusCode, 400);
+
+  const master = await reserve({
     firestore: null,
-    fieldValue,
-    masterEmail: 'master@example.com',
-  })(masterReq, masterRes, () => { masterNext++; });
-  check('mestre ignora limite e Firestore', masterNext, 1);
-  check('mestre recebe unlimited', masterReq.usage.unlimited, true);
+    requestId: 'request-master-00001',
+    email: 'MASTER@example.com',
+  });
+  check('mestre ignora limite e Firestore', master.next, 1);
+  check('mestre recebe unlimited', master.req.usage.unlimited, true);
 
   check('23:59 em Brasília ainda é o dia anterior',
     getSaoPauloDay(new Date('2026-06-29T02:59:59Z')), '2026-06-28');
@@ -485,6 +666,12 @@ console.log('\n[Usage] limite diário transacional, mestre e fuso de Brasília')
     getSaoPauloDay(new Date('2026-06-29T03:00:00Z')), '2026-06-29');
   check('email mestre é case-insensitive',
     isMasterEmail('Maycon@Example.com', 'maycon@example.com'), true);
+  check('rota confirma no sucesso e estorna no catch',
+    srcServer.includes('await confirmUsage(req.quotaReservation)')
+      && srcServer.includes('await releaseUsage(req.quotaReservation)'), true);
+  check('desconexão antes de completar entra no estorno',
+    srcServer.includes('client_disconnected_before_completion')
+      && srcServer.includes("res.on('close'"), true);
 }
 
 console.log('\n[Provider 429] cota global não é mascarada como erro genérico');
