@@ -51,6 +51,12 @@ function parseSseText(text) {
   return events;
 }
 
+export function createRequestId(now = Date.now(), random = Math.random) {
+  const first = random().toString(36).slice(2, 12);
+  const second = random().toString(36).slice(2, 12);
+  return `${now.toString(36)}-${first}-${second}`;
+}
+
 export function buildChatHistory(messages) {
   return messages
     .filter(m => m.role !== 'errorCode' && m.text)
@@ -227,7 +233,9 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
     // Contrato legado: envia o systemPrompt já montado com os trechos corretos
     // (errorChunks de error_codes_index.json + manualChunks). O backend não refaz
     // a busca — evita alucinação em códigos de erro, que o backend não consegue resolver.
+    const requestId = createRequestId();
     const payload = JSON.stringify({
+      requestId,
       system: systemPrompt,
       messages: history,
       max_tokens: 4096,
