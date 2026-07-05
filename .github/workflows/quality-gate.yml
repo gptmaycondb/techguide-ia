@@ -41,6 +41,9 @@ jobs:
       - name: test_backend (buildGeminiMessages + sync guard + SDK)
         run: node scripts/test_backend.js
 
+      - name: test_biometrics (política local + flag por usuário)
+        run: node scripts/test_biometrics.js
+
       - name: Auditoria de qualidade + gate de cobertura
         run: python3 scripts/audit_index.py --fail-short --fail-missing
         # Falha se:

@@ -25,6 +25,15 @@ import SurfaceCard from './src/components/SurfaceCard';
 import StatusBadge from './src/components/StatusBadge';
 import IconButton from './src/components/IconButton';
 import { Ionicons } from '@expo/vector-icons';
+import BiometricGate from './src/BiometricGate';
+import {
+  authenticateBiometric,
+  getBiometricBootState,
+  getBiometricPreference,
+  isBiometricAvailable,
+  setBiometricPreference,
+  shouldOfferBiometric,
+} from './src/biometrics';
 
 const { width: SCREEN_W } = Dimensions.get('window');
 const DRAWER_W = Math.min(SCREEN_W * 0.82, 300);
@@ -85,6 +94,9 @@ export default function App() {
   const [allMessages, setAllMessages] = useState({});
   const [favorites, setFavorites] = useState([]);
   const [dailyUsage, setDailyUsage] = useState(null);
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricEnabled, setBiometricEnabled] = useState(false);
+  const [biometricGate, setBiometricGate] = useState('unlocked');
 
   // Manual selection
   const [selectedBrandId, setSelectedBrandId] = useState(BRANDS[0]?.id);
@@ -147,6 +159,47 @@ export default function App() {
     finally { setOnboardingReady(true); }
   }
 
+  async function loadBiometricState(email, lockOnEnabled) {
+    const available = await isBiometricAvailable();
+    const preference = await getBiometricPreference(email);
+    setBiometricAvailable(available);
+    setBiometricEnabled(preference === 'on' && available);
+    setBiometricGate(lockOnEnabled
+      ? getBiometricBootState(email, preference, available)
+      : 'unlocked');
+    return { available, preference };
+  }
+
+  async function offerBiometricAfterLogin(email, biometricState) {
+    if (!shouldOfferBiometric(email, biometricState.preference, biometricState.available)) return;
+    Alert.alert(
+      'Ativar desbloqueio por biometria?',
+      'Use a biometria ou a credencial do aparelho para desbloquear o TechGuide ao abrir.',
+      [
+        {
+          text: 'Agora não',
+          style: 'cancel',
+          onPress: async () => {
+            await setBiometricPreference(email, 'off');
+            setBiometricEnabled(false);
+          },
+        },
+        {
+          text: 'Ativar',
+          onPress: async () => {
+            const success = await authenticateBiometric();
+            if (success) {
+              await setBiometricPreference(email, 'on');
+              setBiometricEnabled(true);
+            } else {
+              Alert.alert('Biometria não ativada', 'Não foi possível confirmar sua identidade.');
+            }
+          },
+        },
+      ]
+    );
+  }
+
   useEffect(() => {
     async function init() {
       try {
@@ -171,10 +224,16 @@ export default function App() {
         }
         if (session) {
           setAuthEmail(session.email);
-          setAuthStatus('authed');
           setShowWelcome(true);
-          await initAuthedUser(session.email);
-        } else { setAuthStatus('guest'); }
+          await Promise.all([
+            initAuthedUser(session.email),
+            loadBiometricState(session.email, true),
+          ]);
+          setAuthStatus('authed');
+        } else {
+          setBiometricGate('unlocked');
+          setAuthStatus('guest');
+        }
       } catch { setAuthStatus('guest'); }
       finally { SplashScreen.hideAsync(); }
       wakeUpServer();
@@ -233,6 +292,25 @@ export default function App() {
     setActiveTab('chat');
     setShowAssistant(true);
     setShowWelcome(false);
+    setBiometricAvailable(false);
+    setBiometricEnabled(false);
+    setBiometricGate('unlocked');
+  }
+
+  async function handleToggleBiometric() {
+    if (!authEmail || !biometricAvailable) return;
+    if (biometricEnabled) {
+      await setBiometricPreference(authEmail, 'off');
+      setBiometricEnabled(false);
+      return;
+    }
+    const success = await authenticateBiometric();
+    if (success) {
+      await setBiometricPreference(authEmail, 'on');
+      setBiometricEnabled(true);
+    } else {
+      Alert.alert('Biometria não ativada', 'Não foi possível confirmar sua identidade.');
+    }
   }
 
   async function handleChangeProvider(id) {
@@ -375,12 +453,22 @@ export default function App() {
   if (authStatus === 'guest') return (
     <LoginScreen onLoginSuccess={async (email) => {
       setAuthEmail(email);
-      setAuthStatus('authed');
       setDailyUsage(null);
       setShowAssistant(true);
       setShowWelcome(true);
-      await initAuthedUser(email);
+      const [, biometricState] = await Promise.all([
+        initAuthedUser(email),
+        loadBiometricState(email, false),
+      ]);
+      setAuthStatus('authed');
+      await offerBiometricAfterLogin(email, biometricState);
     }} />
+  );
+  if (authStatus === 'authed' && biometricGate === 'locked') return (
+    <BiometricGate
+      onUnlock={() => setBiometricGate('unlocked')}
+      onPasswordLogin={handleLogout}
+    />
   );
   if (authStatus === 'authed' && showWelcome) return (
     <WelcomeScreen
@@ -613,6 +701,9 @@ export default function App() {
               provider={provider}
               visibleProviders={visibleProviders}
               onChangeProvider={handleChangeProvider}
+              biometricAvailable={biometricAvailable}
+              biometricEnabled={biometricEnabled}
+              onToggleBiometric={handleToggleBiometric}
             />
           </SafeAreaView>
         </Animated.View>
