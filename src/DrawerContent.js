@@ -4,7 +4,7 @@ import { colors as C, radius } from './theme';
 import Tag from './components/Tag';
 import ActionButton from './components/ActionButton';
 
-export default function DrawerContent({ manual, mode, onQuestion, onLogout, onClearAllConversations, showAssistant, onOpenAssistant, provider, visibleProviders = [], onChangeProvider }) {
+export default function DrawerContent({ manual, mode, onQuestion, onLogout, onClearAllConversations, showAssistant, onOpenAssistant, provider, visibleProviders = [], onChangeProvider, biometricAvailable = false, biometricEnabled = false, onToggleBiometric }) {
   const [providerModalOpen, setProviderModalOpen] = useState(false);
 
   if (!manual) return null;
@@ -80,6 +80,26 @@ export default function DrawerContent({ manual, mode, onQuestion, onLogout, onCl
               <Text style={styles.iaChevron}>▾</Text>
             </ActionButton>
           )
+        )}
+
+        {biometricAvailable && (
+          <ActionButton
+            variant="secondary"
+            style={styles.biometricBtn}
+            onPress={onToggleBiometric}
+            activeOpacity={0.75}
+          >
+            <Text style={styles.biometricIcon}>◉</Text>
+            <View style={{ flex: 1 }}>
+              <Text style={styles.biometricText}>Desbloqueio por biometria</Text>
+              <Text style={styles.biometricSub}>
+                {biometricEnabled ? 'Ativado' : 'Desativado'}
+              </Text>
+            </View>
+            <View style={[styles.toggle, biometricEnabled && styles.toggleActive]}>
+              <View style={[styles.toggleKnob, biometricEnabled && styles.toggleKnobActive]} />
+            </View>
+          </ActionButton>
         )}
 
         <ActionButton variant="danger" style={styles.clearBtn} onPress={confirmClearAll} activeOpacity={0.75}>
@@ -168,6 +188,15 @@ const styles = StyleSheet.create({
   iaOptionLabelActive: { color: C.accent },
   iaOptionSub: { color: C.muted, fontSize: 11, marginTop: 2 },
   iaCheck: { color: C.accent, fontSize: 16, fontWeight: '700' },
+
+  biometricBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, paddingHorizontal: 10 },
+  biometricIcon: { color: C.accent, fontSize: 18, fontWeight: '700' },
+  biometricText: { color: C.dim, fontSize: 13, fontWeight: '600' },
+  biometricSub: { color: C.muted, fontSize: 10, marginTop: 2 },
+  toggle: { width: 38, height: 22, borderRadius: 11, padding: 2, backgroundColor: C.border },
+  toggleActive: { backgroundColor: C.accent },
+  toggleKnob: { width: 18, height: 18, borderRadius: 9, backgroundColor: C.dim },
+  toggleKnobActive: { backgroundColor: C.white, transform: [{ translateX: 16 }] },
   clearBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, paddingHorizontal: 10, borderRadius: radius.md, borderWidth: 1, borderColor: C.dangerBorder, backgroundColor: C.dangerSurface },
   clearIcon: { color: C.danger, fontSize: 11, fontWeight: '700' },
   clearText: { color: C.danger, fontSize: 13, fontWeight: '600' },
