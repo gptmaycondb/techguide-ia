@@ -1,11 +1,27 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, ScrollView, Modal, StyleSheet, Alert } from 'react-native';
+import {
+  ActivityIndicator,
+  Alert,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  TouchableOpacity,
+  View,
+} from 'react-native';
 import { colors as C, radius } from './theme';
 import Tag from './components/Tag';
 import ActionButton from './components/ActionButton';
 
-export default function DrawerContent({ manual, mode, onQuestion, onLogout, onClearAllConversations, showAssistant, onOpenAssistant, provider, visibleProviders = [], onChangeProvider, biometricAvailable = false, biometricEnabled = false, onToggleBiometric }) {
+export default function DrawerContent({ manual, mode, onQuestion, onLogout, onClearAllConversations, showAssistant, onOpenAssistant, provider, visibleProviders = [], onChangeProvider, biometricAvailable = false, biometricEnabled = false, onEnableBiometric, onDisableBiometric }) {
   const [providerModalOpen, setProviderModalOpen] = useState(false);
+  const [biometricModalOpen, setBiometricModalOpen] = useState(false);
+  const [biometricPassword, setBiometricPassword] = useState('');
+  const [biometricError, setBiometricError] = useState('');
+  const [biometricLoading, setBiometricLoading] = useState(false);
 
   if (!manual) return null;
   const topics = manual.topics[mode] || manual.topics.user;
@@ -15,6 +31,24 @@ export default function DrawerContent({ manual, mode, onQuestion, onLogout, onCl
     'Todas as conversas e resultados de busca salvos neste dispositivo serão apagados. Esta ação não pode ser desfeita.',
     [{ text: 'Cancelar', style: 'cancel' }, { text: 'Limpar', style: 'destructive', onPress: onClearAllConversations }]
   );
+  const closeBiometricModal = () => {
+    if (biometricLoading) return;
+    setBiometricModalOpen(false);
+    setBiometricPassword('');
+    setBiometricError('');
+  };
+  const submitBiometricPassword = async () => {
+    if (!biometricPassword) {
+      setBiometricError('Digite sua senha.');
+      return;
+    }
+    setBiometricLoading(true);
+    setBiometricError('');
+    const result = await onEnableBiometric?.(biometricPassword);
+    setBiometricLoading(false);
+    if (result?.ok) closeBiometricModal();
+    else setBiometricError(result?.message || 'Não foi possível ativar.');
+  };
 
   return (
     <View style={styles.container}>
@@ -86,7 +120,9 @@ export default function DrawerContent({ manual, mode, onQuestion, onLogout, onCl
           <ActionButton
             variant="secondary"
             style={styles.biometricBtn}
-            onPress={onToggleBiometric}
+            onPress={biometricEnabled
+              ? onDisableBiometric
+              : () => setBiometricModalOpen(true)}
             activeOpacity={0.75}
           >
             <Text style={styles.biometricIcon}>◉</Text>
@@ -137,6 +173,48 @@ export default function DrawerContent({ manual, mode, onQuestion, onLogout, onCl
             </TouchableOpacity>
           ))}
         </View>
+      </Modal>
+
+      <Modal visible={biometricModalOpen} transparent animationType="fade" onRequestClose={closeBiometricModal}>
+        <KeyboardAvoidingView
+          style={styles.biometricOverlay}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        >
+          <TouchableOpacity style={styles.overlay} activeOpacity={1} onPress={closeBiometricModal} />
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Ativar login por biometria</Text>
+            <Text style={styles.biometricPromptText}>
+              Confirme sua senha para proteger o login no cofre do aparelho.
+            </Text>
+            <TextInput
+              style={styles.biometricPasswordInput}
+              value={biometricPassword}
+              onChangeText={setBiometricPassword}
+              secureTextEntry
+              autoCapitalize="none"
+              autoCorrect={false}
+              placeholder="Sua senha"
+              placeholderTextColor={C.muted}
+              editable={!biometricLoading}
+              onSubmitEditing={submitBiometricPassword}
+            />
+            {!!biometricError && <Text style={styles.biometricError}>{biometricError}</Text>}
+            <ActionButton
+              label={biometricLoading ? undefined : 'Confirmar e ativar'}
+              onPress={submitBiometricPassword}
+              disabled={biometricLoading}
+              style={styles.biometricConfirm}
+            >
+              {biometricLoading
+                ? <ActivityIndicator color={C.white} size="small" />
+                : <Text style={styles.biometricConfirmText}>Confirmar e ativar</Text>
+              }
+            </ActionButton>
+            <TouchableOpacity onPress={closeBiometricModal} disabled={biometricLoading}>
+              <Text style={styles.biometricCancel}>Cancelar</Text>
+            </TouchableOpacity>
+          </View>
+        </KeyboardAvoidingView>
       </Modal>
     </View>
   );
@@ -197,6 +275,16 @@ const styles = StyleSheet.create({
   toggleActive: { backgroundColor: C.accent },
   toggleKnob: { width: 18, height: 18, borderRadius: 9, backgroundColor: C.dim },
   toggleKnobActive: { backgroundColor: C.white, transform: [{ translateX: 16 }] },
+  biometricOverlay: { flex: 1, justifyContent: 'flex-end' },
+  biometricPromptText: { color: C.dim, fontSize: 12, lineHeight: 18, marginBottom: 8 },
+  biometricPasswordInput: {
+    color: C.text, backgroundColor: C.surface, borderWidth: 1, borderColor: C.border,
+    borderRadius: radius.md, paddingHorizontal: 14, paddingVertical: 12, fontSize: 14,
+  },
+  biometricError: { color: C.error, fontSize: 12, marginTop: 4 },
+  biometricConfirm: { minHeight: 46, marginTop: 8 },
+  biometricConfirmText: { color: C.white, fontSize: 13, fontWeight: '800' },
+  biometricCancel: { color: C.dim, fontSize: 13, textAlign: 'center', paddingVertical: 10 },
   clearBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 11, paddingHorizontal: 10, borderRadius: radius.md, borderWidth: 1, borderColor: C.dangerBorder, backgroundColor: C.dangerSurface },
   clearIcon: { color: C.danger, fontSize: 11, fontWeight: '700' },
   clearText: { color: C.danger, fontSize: 13, fontWeight: '600' },
