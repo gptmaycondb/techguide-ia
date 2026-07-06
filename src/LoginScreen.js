@@ -4,7 +4,19 @@ import {
   SafeAreaView, StatusBar, ActivityIndicator, Image,
   KeyboardAvoidingView, ScrollView, Platform,
 } from 'react-native';
-import { login, getRememberPreference, saveRecentEmail, getRecentEmails } from './auth';
+import {
+  login,
+  loginWithBiometricCredentials,
+  getRememberPreference,
+  saveRecentEmail,
+  getRecentEmails,
+} from './auth';
+import {
+  clearBiometricCredentials,
+  hasBiometricCredentials,
+  isStaleBiometricCredentialError,
+  readBiometricCredentials,
+} from './biometrics';
 import { colors as C, radius, spacing } from './theme';
 
 export default function LoginScreen({ onLoginSuccess }) {
@@ -17,18 +29,22 @@ export default function LoginScreen({ onLoginSuccess }) {
   const [rememberMe, setRememberMe] = useState(true);
   const [recentEmails, setRecentEmails] = useState([]);
   const [showDropdown, setShowDropdown] = useState(false);
+  const [biometricLoginAvailable, setBiometricLoginAvailable] = useState(false);
+  const [biometricLoading, setBiometricLoading] = useState(false);
 
   const passwordRef = useRef(null);
 
   useEffect(() => {
     async function init() {
-      const [pref, recents] = await Promise.all([
+      const [pref, recents, hasCredentials] = await Promise.all([
         getRememberPreference(),
         getRecentEmails(),
+        hasBiometricCredentials(),
       ]);
       if (pref.email) setEmail(pref.email);
       setRememberMe(pref.remember);
       setRecentEmails(recents);
+      setBiometricLoginAvailable(hasCredentials);
     }
     init();
   }, []);
@@ -54,11 +70,48 @@ export default function LoginScreen({ onLoginSuccess }) {
     try {
       const { email: confirmed } = await login(trimmed, password, rememberMe);
       await saveRecentEmail(confirmed);
-      onLoginSuccess(confirmed);
+      onLoginSuccess(confirmed, password, { method: 'password' });
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleBiometricLogin() {
+    setError('');
+    setBiometricLoading(true);
+    try {
+      const vault = await readBiometricCredentials();
+      if (vault.status === 'cancelled') return;
+      if (vault.status === 'empty') {
+        setBiometricLoginAvailable(false);
+        return;
+      }
+      if (vault.status === 'invalidated') {
+        setBiometricLoginAvailable(false);
+        setError('Biometria alterada no aparelho — entre com a senha e ative novamente.');
+        return;
+      }
+
+      try {
+        const { email: confirmed } = await loginWithBiometricCredentials(
+          vault.credentials.email,
+          vault.credentials.password
+        );
+        await saveRecentEmail(confirmed);
+        onLoginSuccess(confirmed, null, { method: 'biometric' });
+      } catch (loginError) {
+        if (isStaleBiometricCredentialError(loginError)) {
+          await clearBiometricCredentials();
+          setBiometricLoginAvailable(false);
+          setError('Senha alterada — entre com a nova senha.');
+        } else {
+          setError(loginError.message);
+        }
+      }
+    } finally {
+      setBiometricLoading(false);
     }
   }
 
@@ -159,7 +212,7 @@ export default function LoginScreen({ onLoginSuccess }) {
             <TouchableOpacity
               style={[styles.btn, loading && styles.btnDisabled]}
               onPress={handleLogin}
-              disabled={loading}
+              disabled={loading || biometricLoading}
               activeOpacity={0.85}
             >
               {loading
@@ -167,6 +220,20 @@ export default function LoginScreen({ onLoginSuccess }) {
                 : <Text style={styles.btnText}>Entrar →</Text>
               }
             </TouchableOpacity>
+
+            {biometricLoginAvailable && (
+              <TouchableOpacity
+                style={[styles.biometricBtn, biometricLoading && styles.btnDisabled]}
+                onPress={handleBiometricLogin}
+                disabled={loading || biometricLoading}
+                activeOpacity={0.85}
+              >
+                {biometricLoading
+                  ? <ActivityIndicator color={C.accent} size="small" />
+                  : <Text style={styles.biometricBtnText}>Entrar com biometria</Text>
+                }
+              </TouchableOpacity>
+            )}
           </View>
 
           <Text style={styles.footer}>
@@ -237,6 +304,12 @@ const styles = StyleSheet.create({
   },
   btnDisabled: { backgroundColor: C.surface2, shadowOpacity: 0 },
   btnText:     { color: C.white, fontSize: 16, fontWeight: '800', letterSpacing: 0.5 },
+  biometricBtn: {
+    marginTop: 10, backgroundColor: C.infoSurface, borderRadius: radius.card,
+    borderWidth: 1, borderColor: C.accent + '60',
+    paddingVertical: 15, alignItems: 'center', justifyContent: 'center',
+  },
+  biometricBtnText: { color: C.accent, fontSize: 14, fontWeight: '800' },
 
   footer: { color: C.muted, fontSize: 11, marginTop: 36, textAlign: 'center' },
 });

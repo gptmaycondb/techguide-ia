@@ -4,7 +4,7 @@ import {
   SafeAreaView, StatusBar, Animated, Dimensions, ScrollView, AppState, Alert,
 } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
-import { logout, restoreSession } from './src/auth';
+import { clearSavedPasswordFallback, logout, restoreSession, verifyPassword } from './src/auth';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import LoginScreen from './src/LoginScreen';
 import WelcomeScreen from './src/WelcomeScreen';
@@ -28,9 +28,11 @@ import { Ionicons } from '@expo/vector-icons';
 import BiometricGate from './src/BiometricGate';
 import {
   authenticateBiometric,
+  clearBiometricCredentials,
   getBiometricBootState,
   getBiometricPreference,
   isBiometricAvailable,
+  saveBiometricCredentials,
   setBiometricPreference,
   shouldOfferBiometric,
 } from './src/biometrics';
@@ -170,7 +172,7 @@ export default function App() {
     return { available, preference };
   }
 
-  async function offerBiometricAfterLogin(email, biometricState) {
+  async function offerBiometricAfterLogin(email, password, biometricState) {
     if (!shouldOfferBiometric(email, biometricState.preference, biometricState.available)) return;
     Alert.alert(
       'Ativar desbloqueio por biometria?',
@@ -191,6 +193,15 @@ export default function App() {
             if (success) {
               await setBiometricPreference(email, 'on');
               setBiometricEnabled(true);
+              const stored = await saveBiometricCredentials(email, password);
+              if (stored) {
+                await clearSavedPasswordFallback();
+              } else {
+                Alert.alert(
+                  'Login automático indisponível',
+                  'O cadeado foi ativado, mas este aparelho não permitiu proteger o login com biometria forte.'
+                );
+              }
             } else {
               Alert.alert('Biometria não ativada', 'Não foi possível confirmar sua identidade.');
             }
@@ -297,20 +308,40 @@ export default function App() {
     setBiometricGate('unlocked');
   }
 
-  async function handleToggleBiometric() {
-    if (!authEmail || !biometricAvailable) return;
-    if (biometricEnabled) {
-      await setBiometricPreference(authEmail, 'off');
-      setBiometricEnabled(false);
-      return;
+  async function handleEnableBiometric(password) {
+    if (!authEmail || !biometricAvailable) {
+      return { ok: false, message: 'Biometria indisponível neste aparelho.' };
+    }
+    try {
+      await verifyPassword(authEmail, password);
+    } catch (error) {
+      return { ok: false, message: error.message };
     }
     const success = await authenticateBiometric();
-    if (success) {
-      await setBiometricPreference(authEmail, 'on');
-      setBiometricEnabled(true);
-    } else {
-      Alert.alert('Biometria não ativada', 'Não foi possível confirmar sua identidade.');
+    if (!success) {
+      return { ok: false, message: 'Não foi possível confirmar sua identidade.' };
     }
+    await setBiometricPreference(authEmail, 'on');
+    setBiometricEnabled(true);
+    const stored = await saveBiometricCredentials(authEmail, password);
+    if (stored) {
+      await clearSavedPasswordFallback();
+    } else {
+      Alert.alert(
+        'Login automático indisponível',
+        'O cadeado foi ativado, mas este aparelho não permitiu proteger o login com biometria forte.'
+      );
+    }
+    return { ok: true };
+  }
+
+  async function handleDisableBiometric() {
+    if (!authEmail) return;
+    await Promise.all([
+      setBiometricPreference(authEmail, 'off'),
+      clearBiometricCredentials(),
+    ]);
+    setBiometricEnabled(false);
   }
 
   async function handleChangeProvider(id) {
@@ -451,17 +482,33 @@ export default function App() {
 
   if (authStatus === 'loading') return null;
   if (authStatus === 'guest') return (
-    <LoginScreen onLoginSuccess={async (email) => {
+    <LoginScreen onLoginSuccess={async (email, password, loginMeta = {}) => {
       setAuthEmail(email);
       setDailyUsage(null);
       setShowAssistant(true);
       setShowWelcome(true);
+      if (loginMeta.method === 'password') {
+        await clearBiometricCredentials();
+      }
       const [, biometricState] = await Promise.all([
         initAuthedUser(email),
         loadBiometricState(email, false),
       ]);
+      if (loginMeta.method === 'password' && biometricState.preference === 'on') {
+        const stored = await saveBiometricCredentials(email, password);
+        if (stored) {
+          await clearSavedPasswordFallback();
+        } else {
+          Alert.alert(
+            'Login automático indisponível',
+            'O cadeado continua ativo, mas não foi possível atualizar o cofre biométrico.'
+          );
+        }
+      }
       setAuthStatus('authed');
-      await offerBiometricAfterLogin(email, biometricState);
+      if (loginMeta.method === 'password') {
+        await offerBiometricAfterLogin(email, password, biometricState);
+      }
     }} />
   );
   if (authStatus === 'authed' && biometricGate === 'locked') return (
@@ -563,6 +610,7 @@ export default function App() {
             onDeleteMessage={handleDeleteConversationMessage}
             usage={dailyUsage}
             onUsage={setDailyUsage}
+            onAuthRequired={handleLogout}
             tourTarget={getOnboardingStep(tourStage)?.target}
             onTourTargetLayout={handleTourTargetLayout}
           />
@@ -703,7 +751,8 @@ export default function App() {
               onChangeProvider={handleChangeProvider}
               biometricAvailable={biometricAvailable}
               biometricEnabled={biometricEnabled}
-              onToggleBiometric={handleToggleBiometric}
+              onEnableBiometric={handleEnableBiometric}
+              onDisableBiometric={handleDisableBiometric}
             />
           </SafeAreaView>
         </Animated.View>

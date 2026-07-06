@@ -73,7 +73,7 @@ export function getMessageCopyText(message) {
   return message.text || '';
 }
 
-export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, onQuestionSent, messages, setMessages, provider = DEFAULT_PROVIDER, favorites = [], onToggleFavorite = () => {}, onDeleteMessage = () => {}, usage = null, onUsage = () => {}, tourTarget, onTourTargetLayout }) {
+export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, onQuestionSent, messages, setMessages, provider = DEFAULT_PROVIDER, favorites = [], onToggleFavorite = () => {}, onDeleteMessage = () => {}, usage = null, onUsage = () => {}, onAuthRequired = () => {}, tourTarget, onTourTargetLayout }) {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [copiedMessageId, setCopiedMessageId] = useState(null);
@@ -325,6 +325,7 @@ export default function ChatScreen({ manual, mode, isOnline, pendingQuestion, on
           ));
           setLoading(false);
           scrollToBottom();
+          onAuthRequired();
           return;
         }
         if (xhr.status === 429) {

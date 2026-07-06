@@ -32,6 +32,36 @@ function mapFirebaseError(code) {
   return map[code] || 'Erro de autenticação. Tente novamente.';
 }
 
+async function requestSignIn(email, password) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15000);
+  let res;
+  try {
+    res = await fetch(SIGN_IN_URL, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password, returnSecureToken: true }),
+      signal: controller.signal,
+    });
+  } catch {
+    clearTimeout(timer);
+    const error = new Error('Sem conexão. Verifique sua internet e tente novamente.');
+    error.code = 'network_error';
+    throw error;
+  }
+  clearTimeout(timer);
+  const data = await res.json();
+  if (!res.ok) {
+    const firebaseCode = data?.error?.message || 'LOGIN_FAILED';
+    const error = new Error(mapFirebaseError(firebaseCode));
+    error.code = /INVALID_PASSWORD|INVALID_LOGIN_CREDENTIALS|EMAIL_NOT_FOUND|INVALID_EMAIL/.test(firebaseCode)
+      ? 'invalid_credentials'
+      : 'authentication_error';
+    throw error;
+  }
+  return data;
+}
+
 async function _refreshToken(refreshToken, email) {
   try {
     const controller = new AbortController();
@@ -57,26 +87,8 @@ async function _refreshToken(refreshToken, email) {
   }
 }
 
-export async function login(email, password, rememberPassword = false) {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), 15000);
-  let res;
-  try {
-    res = await fetch(SIGN_IN_URL, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password, returnSecureToken: true }),
-      signal: controller.signal,
-    });
-  } catch {
-    clearTimeout(timer);
-    throw new Error('Sem conexão. Verifique sua internet e tente novamente.');
-  }
-  clearTimeout(timer);
-  const data = await res.json();
-  if (!res.ok) {
-    throw new Error(mapFirebaseError(data?.error?.message || 'LOGIN_FAILED'));
-  }
+export async function login(email, password, rememberPassword = false, savePassword = rememberPassword) {
+  const data = await requestSignIn(email, password);
   const expiry = String(Date.now() + Number(data.expiresIn) * 1000);
   await SecureStore.setItemAsync(KEYS.idToken,      data.idToken);
   await SecureStore.setItemAsync(KEYS.refreshToken, data.refreshToken);
@@ -84,7 +96,8 @@ export async function login(email, password, rememberPassword = false) {
   await SecureStore.setItemAsync(KEYS.expiry,       expiry);
 
   if (rememberPassword) {
-    await SecureStore.setItemAsync(KEYS.savedPassword, password);
+    if (savePassword) await SecureStore.setItemAsync(KEYS.savedPassword, password);
+    else await SecureStore.deleteItemAsync(KEYS.savedPassword);
     await SecureStore.setItemAsync(KEYS.remember,      'true');
   } else {
     await SecureStore.deleteItemAsync(KEYS.savedPassword);
@@ -92,6 +105,19 @@ export async function login(email, password, rememberPassword = false) {
   }
 
   return { email: data.email };
+}
+
+export async function verifyPassword(email, password) {
+  const data = await requestSignIn(email, password);
+  return { email: data.email };
+}
+
+export async function loginWithBiometricCredentials(email, password) {
+  return login(email, password, true, false);
+}
+
+export async function clearSavedPasswordFallback() {
+  await SecureStore.deleteItemAsync(KEYS.savedPassword);
 }
 
 export async function logout() {
